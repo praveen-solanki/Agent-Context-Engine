@@ -9,6 +9,7 @@ from __future__ import annotations
 from collections.abc import AsyncIterator
 
 import pytest
+from neo4j import AsyncGraphDatabase
 
 from context_graph.config import get_settings
 from context_graph.domain.context import (
@@ -35,6 +36,23 @@ from tests.factories import make_message, single_span_episodes
 pytestmark = pytest.mark.integration
 
 DIMENSION = 8
+
+
+async def concept_count() -> int:
+    """Include tied candidates in assertions; fixtures may leave equal vectors.
+
+    Exact identity of the first result is undefined when similarities tie.
+    These integration databases are explicitly disposable and small.
+    """
+    settings = get_settings().neo4j
+    async with AsyncGraphDatabase.driver(
+        settings.uri, auth=(settings.user, settings.password.get_secret_value())
+    ) as driver:
+        records, _, _ = await driver.execute_query(
+            "MATCH (c:MemoryConcept) RETURN count(c) AS count",
+            database_=settings.database,
+        )
+        return int(records[0]["count"])
 
 
 def lineage(run_id: str) -> Lineage:
@@ -76,7 +94,9 @@ def session(session_id: str) -> SessionInput:
     )
 
 
-async def test_episodes_are_idempotent_and_readable_by_sequence(store: Neo4jGraphStore) -> None:
+async def test_episodes_are_idempotent_and_readable_by_sequence(
+    store: Neo4jGraphStore,
+) -> None:
     conversation = session(new_id("S"))
     await store.persist_session(conversation)
     await store.persist_episodes(single_span_episodes(conversation))
@@ -99,7 +119,9 @@ async def test_context_write_is_idempotent_and_supersedes_the_previous_value(
         MemoryConcept(
             concept_id=new_id("concept"),
             concept="response_detail",
-            concept_key=MemoryConcept.key_for(f"response_detail_{conversation.session_id}"),
+            concept_key=MemoryConcept.key_for(
+                f"response_detail_{conversation.session_id}"
+            ),
             cardinality=Cardinality.SINGLE,
         ),
         [0.1] * DIMENSION,
@@ -149,7 +171,9 @@ async def test_context_write_is_idempotent_and_supersedes_the_previous_value(
 
     concise = instance("concise")
     first = await store.write_context(
-        context=concise, embedding=[0.1] * DIMENSION, evidence=evidence(concise.context_id)
+        context=concise,
+        embedding=[0.1] * DIMENSION,
+        evidence=evidence(concise.context_id),
     )
     repeat = await store.write_context(
         context=instance("concise"),
@@ -159,7 +183,9 @@ async def test_context_write_is_idempotent_and_supersedes_the_previous_value(
     assert repeat.context_id == first.context_id
 
     support = await store.support_for([first.context_id])
-    assert support[first.context_id].evidence_count == 1  # retries never inflate support
+    assert (
+        support[first.context_id].evidence_count == 1
+    )  # retries never inflate support
 
     detailed = instance("detailed")
     second = await store.write_context(
@@ -185,7 +211,9 @@ async def test_context_write_is_idempotent_and_supersedes_the_previous_value(
     assert revoked is not None and revoked.status is ContextStatus.REVOKED
 
 
-async def test_concept_vector_search_returns_the_nearest_concept(store: Neo4jGraphStore) -> None:
+async def test_concept_vector_search_returns_the_nearest_concept(
+    store: Neo4jGraphStore,
+) -> None:
     marker = new_id("c")
     target = await store.merge_concept(
         MemoryConcept(
@@ -196,13 +224,20 @@ async def test_concept_vector_search_returns_the_nearest_concept(store: Neo4jGra
         [1.0] + [0.0] * (DIMENSION - 1),
     )
 
-    matches = await store.search_concepts([1.0] + [0.0] * (DIMENSION - 1), top_k=1)
+    matches = await store.search_concepts(
+        [1.0] + [0.0] * (DIMENSION - 1), top_k=await concept_count()
+    )
 
-    assert matches and matches[0][0].concept_id == target.concept_id
-    assert matches[0][1] > 0.99
+    target_score = next(
+        score for concept, score in matches if concept.concept_id == target.concept_id
+    )
+    assert target_score > 0.99
+    assert all(score <= target_score + 1e-6 for _, score in matches)
 
 
-async def test_concept_vector_search_scores_are_raw_cosine(store: Neo4jGraphStore) -> None:
+async def test_concept_vector_search_scores_are_raw_cosine(
+    store: Neo4jGraphStore,
+) -> None:
     marker = new_id("c")
     stored = [0.0] * DIMENSION
     stored[-1] = 1.0
@@ -217,14 +252,18 @@ async def test_concept_vector_search_scores_are_raw_cosine(store: Neo4jGraphStor
         stored,
     )
 
-    matches = await store.search_concepts(query, top_k=1)
+    matches = await store.search_concepts(query, top_k=await concept_count())
 
-    assert matches and matches[0][0].concept_id == target.concept_id
+    target_score = next(
+        score for concept, score in matches if concept.concept_id == target.concept_id
+    )
     # cos 45 degrees; the index's own (1 + cos) / 2 would be 0.854.
-    assert abs(matches[0][1] - 0.7071) < 0.01
+    assert abs(target_score - 0.7071) < 0.01
 
 
-async def test_ledger_round_trip_persists_checkpoints_and_results(ledger: MongoLedger) -> None:
+async def test_ledger_round_trip_persists_checkpoints_and_results(
+    ledger: MongoLedger,
+) -> None:
     run_id = new_id("run")
     await ledger.upsert_run(
         RunRecord(run_id=run_id, graph_database="neo4j", lineage=lineage(run_id))

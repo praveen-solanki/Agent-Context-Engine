@@ -57,6 +57,10 @@ class FakeLLMProvider:
         self._chars_per_token = chars_per_token
         self.calls: list[tuple[str, str]] = []
 
+    def enqueue(self, response: BaseModel) -> None:
+        """Add a scripted response for a later asynchronous event."""
+        self._responses.append(response)
+
     @property
     def model(self) -> str:
         return "fake-llm"

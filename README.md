@@ -1,4 +1,16 @@
-# Context Graph — Ingestion & Personalization Layer (POC)
+# Agent Context Engine
+
+Persistent Context Management and Runtime Context Engineering for AI Agents.
+
+This private continuation preserves the Context Graph ingestion foundation and
+adds authenticated event contracts, a Mongo outbox/worker, guarded private-context
+retrieval, deterministic token-budgeted context assembly, durable versioned
+handoffs, a FastAPI service and a Python client. Implementation of the master
+blueprint is **in progress**; this is not a production-readiness claim.
+
+See [service setup and validation](docs/ace/development.md) and
+[architecture and remaining gates](docs/ace/architecture.md). The original
+ingestion and demo documentation follows.
 
 > **Planned next-generation product:** [Agent Context Engine — Master Implementation Blueprint](CONTEXT_ENGINE_MASTER_BLUEPRINT.md) documents how to evolve this POC into a production-oriented, end-to-end context engineering system for AI agents. The blueprint distinguishes existing code from proposed features; it does **not** mean those features are implemented yet.
 

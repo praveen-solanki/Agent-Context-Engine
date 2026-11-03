@@ -9,6 +9,8 @@ persistence is never blocked by extraction or maintenance.
 from __future__ import annotations
 
 import asyncio
+import hashlib
+import json
 from collections.abc import Iterable, Sequence
 from typing import Protocol, runtime_checkable
 
@@ -113,7 +115,9 @@ class IngestionPipeline:
         self._embeddings = embeddings
         self._run_id = run_id
 
-        self._episodes = self._build_segmenter(llm=llm, embeddings=embeddings, settings=settings)
+        self._episodes = self._build_segmenter(
+            llm=llm, embeddings=embeddings, settings=settings
+        )
         self._gate = RelevanceGate(settings.gate)
         self._batcher = TokenBatcher(llm, settings.llm, settings.batching)
         self._extractor = ExtractionService(
@@ -131,7 +135,9 @@ class IngestionPipeline:
         )
         self._writer = ContextWriter(store)
         self._promotion = PromotionService(
-            store=store, policy=self._policy, batch_size=settings.maintenance.candidate_batch_size
+            store=store,
+            policy=self._policy,
+            batch_size=settings.maintenance.candidate_batch_size,
         )
         self._lineage = Lineage(
             run_id=run_id,
@@ -177,8 +183,8 @@ class IngestionPipeline:
     async def ingest(self, session: SessionInput) -> IngestionReport:
         """Ingest a session: persist evidence first, then derive context."""
         progress = _SessionProgress()
-        await self._store.persist_session(session)
         episodes = await self._segment(session)
+        await self._store.persist_session(session)
         progress.episodes_persisted = await self._store.persist_episodes(episodes)
 
         state = RollingSessionState(
@@ -240,28 +246,105 @@ class IngestionPipeline:
         Grouping is model-assisted, so a resumed run must not regroup: the
         stored result keeps episode identities stable and prevents duplicates.
         """
+        messages = session.ordered_messages()
+        fingerprints = [
+            hashlib.sha256(
+                json.dumps(
+                    [session.user_id, message.model_dump(mode="json")],
+                    sort_keys=True,
+                    separators=(",", ":"),
+                ).encode()
+            ).hexdigest()
+            for message in messages
+        ]
         stored = await self._ledger.segmentation(self._run_id, session.session_id)
-        if stored is not None and stored.message_count == len(session.messages):
+        previous: list[Episode] = []
+        offset = 0
+        if stored is not None:
+            previous = [Episode.model_validate(episode) for episode in stored.episodes]
+            offset = stored.message_count
+            if len(messages) < offset:
+                raise ValueError(
+                    "incremental session cannot remove previously recorded messages"
+                )
+            if stored.message_fingerprints:
+                if fingerprints[:offset] != stored.message_fingerprints:
+                    raise ValueError(
+                        "incremental session cannot modify recorded messages or identity"
+                    )
+            else:
+                # Legacy records predate fingerprints: verify exact source spans
+                # before upgrading rather than trusting a matching message count.
+                by_id = {message.message_id: message for message in messages[:offset]}
+                spans = [span for episode in previous for span in episode.spans]
+                for message in messages[:offset]:
+                    parts = sorted(
+                        (s for s in spans if s.message_id == message.message_id),
+                        key=lambda s: s.char_start,
+                    )
+                    if (
+                        not parts
+                        or "".join(s.text for s in parts) != message.text
+                        or parts[0].char_start != 0
+                        or parts[-1].char_end != len(message.text)
+                        or any(
+                            left.char_end != right.char_start
+                            for left, right in zip(parts, parts[1:])
+                        )
+                    ):
+                        raise ValueError(
+                            "legacy segmentation does not match supplied messages"
+                        )
+                if any(
+                    s.message_id not in by_id
+                    or s.role != by_id[s.message_id].role
+                    or s.sequence != by_id[s.message_id].sequence
+                    or s.metadata != by_id[s.message_id].metadata
+                    or s.timestamp != by_id[s.message_id].timestamp
+                    or s.sender_id != session.speaker_of(by_id[s.message_id])
+                    for s in spans
+                ):
+                    raise ValueError("legacy segmentation identity mismatch")
+            if (
+                len(messages) > offset
+                and offset
+                and messages[offset].sequence <= messages[offset - 1].sequence
+            ):
+                raise ValueError("new messages must follow recorded sequence")
+        if (
+            stored is not None
+            and offset == len(messages)
+            and stored.message_fingerprints
+        ):
             log_event(
                 _logger,
                 "segmentation.reused",
                 session_id=session.session_id,
                 episodes=len(stored.episodes),
             )
-            return [Episode.model_validate(episode) for episode in stored.episodes]
+            return previous
 
-        episodes = await self._episodes.build(session)
+        tail = session.model_copy(update={"messages": tuple(messages[offset:])})
+        additions = await self._episodes.build(tail) if tail.messages else []
+        ordinal = max((episode.sequence for episode in previous), default=-1)
+        episodes = previous + [
+            episode.model_copy(update={"sequence": ordinal + index})
+            for index, episode in enumerate(additions, start=1)
+        ]
         await self._ledger.save_segmentation(
             SegmentationRecord(
                 run_id=self._run_id,
                 session_id=session.session_id,
                 message_count=len(session.messages),
+                message_fingerprints=fingerprints,
                 episodes=[episode.model_dump(mode="json") for episode in episodes],
             )
         )
         return episodes
 
-    async def ingest_many(self, sessions: Sequence[SessionInput]) -> list[IngestionReport]:
+    async def ingest_many(
+        self, sessions: Sequence[SessionInput]
+    ) -> list[IngestionReport]:
         """Ingest independent sessions concurrently, bounded by configuration.
 
         Sessions are independent; windows inside one session are not, and stay
@@ -284,7 +367,9 @@ class IngestionPipeline:
     ) -> None:
         """Gate a page of Episodes and extract context from what remains."""
         extractable = await self._gate_page(episodes, session.session_id, progress)
-        for batch in self._batcher.batches(self._run_id, session.session_id, extractable):
+        for batch in self._batcher.batches(
+            self._run_id, session.session_id, extractable
+        ):
             await self._process_batch(session, batch, state, progress)
 
     async def _gate_page(
@@ -328,12 +413,18 @@ class IngestionPipeline:
             progress.signals_extracted += len(envelope.signals)
             embeddings = await self._embed(envelope.signals)
             for signal in envelope.signals:
-                await self._apply_signal(session, signal, episodes, embeddings, progress)
-            await self._recall_references(session, envelope.unresolved_references, state)
+                await self._apply_signal(
+                    session, signal, episodes, embeddings, progress
+                )
+            await self._recall_references(
+                session, envelope.unresolved_references, state
+            )
         except ContextGraphError as error:
             progress.batches_failed += 1
             progress.errors.append(f"{batch.batch_key}: {error}")
-            await self._ledger.record_failed(self._run_id, session.session_id, batch.sequences)
+            await self._ledger.record_failed(
+                self._run_id, session.session_id, batch.sequences
+            )
             await self._ledger.mark_failed(self._run_id, batch.batch_key, str(error))
             log_event(
                 _logger,
@@ -346,7 +437,9 @@ class IngestionPipeline:
 
         state.update(envelope.signals)
         progress.batches_processed += 1
-        await self._ledger.record_completed(self._run_id, session.session_id, batch.sequences)
+        await self._ledger.record_completed(
+            self._run_id, session.session_id, batch.sequences
+        )
         await self._ledger.mark_committed(self._run_id, batch.batch_key)
         log_event(
             _logger,
@@ -366,7 +459,11 @@ class IngestionPipeline:
     ) -> None:
         """Resolve and write a single signal."""
         primary = min(
-            (episodes[episode_id] for episode_id in signal.source_episode_ids if episode_id in episodes),
+            (
+                episodes[episode_id]
+                for episode_id in signal.source_episode_ids
+                if episode_id in episodes
+            ),
             key=lambda episode: episode.sequence,
             default=None,
         )
@@ -403,7 +500,10 @@ class IngestionPipeline:
         progress.contexts_revoked += len(result.revoked_context_ids)
 
     async def _recall_references(
-        self, session: SessionInput, references: Sequence[str], state: RollingSessionState
+        self,
+        session: SessionInput,
+        references: Sequence[str],
+        state: RollingSessionState,
     ) -> None:
         """Look up stale references instead of replaying the whole session (A.6)."""
         if not references:
@@ -421,7 +521,10 @@ class IngestionPipeline:
             context, score = matches[0]
             if score < self._settings.resolution.ambiguous_similarity:
                 log_event(
-                    _logger, "reference.unresolved", reference=reference, best_score=round(score, 4)
+                    _logger,
+                    "reference.unresolved",
+                    reference=reference,
+                    best_score=round(score, 4),
                 )
                 continue
             state.recall(reference, f"{context.concept_key}={context.value}")
@@ -433,7 +536,9 @@ class IngestionPipeline:
                 score=round(score, 4),
             )
 
-    async def _embed(self, signals: Sequence[ExtractedSignal]) -> dict[str, list[float]]:
+    async def _embed(
+        self, signals: Sequence[ExtractedSignal]
+    ) -> dict[str, list[float]]:
         """Embed the batch with one provider call; one vector serves each signal."""
         texts = list(dict.fromkeys(embedding_text(signal) for signal in signals))
         if not texts:

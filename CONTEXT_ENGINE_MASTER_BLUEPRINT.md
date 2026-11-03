@@ -672,12 +672,12 @@ Do not claim measured token reduction, task-success gain, p95 latency, multi-ten
 
 | Phase | Current known status as of blueprint | PR/commit, tests, evidence |
 |---|---|---|
-| 0 — baseline audit / ADRs | Not performed for target product; prior code inspection completed | To record |
-| 1 — authenticated event intake + feedback | Not implemented as product feature | To record |
-| 2 — retrieval adapter/guardrails | Existing retrieval prototype; target API not implemented | To record |
-| 3 — context assembler | Not implemented | To record |
-| 4 — handoff/task state | Not implemented | To record |
-| 5 — SDK/API/live demo | Current demo only; new integration not implemented | To record |
+| 0 — baseline audit / ADRs | Baseline preserved at `3e2454e09deb12aa68c90e76a4948c221d7974b2`; ADRs recorded; comparative model metrics still pending | `docs/ace/architecture.md`; original 292 offline tests and Pyright passed |
+| 1 — authenticated event intake + feedback | Event contracts, atomic Mongo outbox, worker, leases, replay and incremental evidence preservation implemented; live model/demo gate pending | `agent_context/contracts.py`, `events.py`, `event_store.py`, `bridge.py`; 6 live Mongo tests |
+| 2 — retrieval adapter/guardrails | Private scoped Neo4j source implemented; physical trust-partition isolation required; semantic/hybrid, shared/task and historical parity pending | `agent_context/retrieval.py`; real Cypher negative authorization/lifecycle test |
+| 3 — context assembler | Deterministic scoring, dedup/conflict checks, atomic packing, reserves, JSON rendering and explainable exclusions implemented; comparative agent evaluation pending | `agent_context/assembly.py`; 19 focused tests; HTTP/SDK integration tests |
+| 4 — handoff/task state | Versioned handoff, optimistic concurrency, tool-result evidence and stale resume implemented; external artifact verification and full live demo pending | `agent_context/handoff.py`, `outcomes.py`; 5 real Mongo tests |
+| 5 — SDK/API/live demo | Authenticated API, Python client and deployable API/worker commands implemented; full research-agent feedback demo/UI/Compose pending | `agent_context/api.py`, `client.py`, `runtime.py`; API and runtime integration tests; `docs/ace/development.md` |
 | 6 — reproducible comparative evaluations | Dataset/harness components exist; target evaluations not implemented | To record |
 | 7 — production hardening/governance | Not validated/completed | To record |
 | 8 — optional adapters/research | Not started | To record |

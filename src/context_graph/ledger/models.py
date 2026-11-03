@@ -82,6 +82,7 @@ class SegmentationRecord(BaseModel):
     run_id: str
     session_id: str
     message_count: int
+    message_fingerprints: list[str] = Field(default_factory=list)
     episodes: list[dict[str, Any]] = Field(default_factory=list)
     updated_at: AwareDatetime = Field(default_factory=utcnow)
 

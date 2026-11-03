@@ -1,4 +1,11 @@
-# Context Graph POC - Repository Instructions
+# Agent Context Engine - Repository Instructions
+
+This repository is a private continuation of Context Graph. The requested product
+direction is defined in `CONTEXT_ENGINE_MASTER_BLUEPRINT.md`; preserve the existing
+ingestion, exact evidence, lifecycle and governance invariants while implementing
+it incrementally. Maintain the blueprint's progress ledger and do not equate a
+tested component with completion of the whole product. The original Context-Graph
+repository is not a development target and must remain unchanged.
 
 ## Purpose
 
