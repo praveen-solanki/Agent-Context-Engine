@@ -40,6 +40,37 @@ evidence, exclusion reasons, verified tool work and handoff revisions. The origi
 `ui/streamlit_app.py` remains a local legacy diagnostic view. Do not expose its raw
 user-selection/graph-planning interface as a multi-tenant authenticated product.
 
+## Optional web search
+
+Set `BRAVE_SEARCH_API_KEY` in the console process's secure environment or ignored
+`.env`. It is optional; API/worker startup and the bundled sample-document demo
+continue to work without it. Restart the console after changing its environment.
+After pulling this change, rebuild/restart the API and worker with
+`docker compose up --build -d` so their additive event schema accepts stored
+answer citations. Existing events remain readable.
+
+In the console, expand **Web search (optional)**, enter a **Web search query** and
+click **Search web**. Enable **Use these web results for the next answer**, then
+ask your question in **Message**. The research host must read at least one selected
+source before answering. **Cited web source** buttons open only the validated URLs
+corresponding to the sources actually cited by that answer.
+
+Only the explicit search query is sent to Brave; the app does not automatically
+forward stored personal context, chat history, NVIDIA credentials or handoffs to
+the search service. Search snippets are bounded untrusted evidence, not full web
+page reads. Redirects are not followed and arbitrary result URLs are never fetched
+by the server. Private/local/credential-bearing URLs are excluded. Source
+snapshots, citations and authenticated read outcomes are preserved through the
+same event path as sample documents; changed sources cannot silently reuse a
+cached answer.
+
+`ACE_SEARCH_RESULT_COUNT` (1–5) and `ACE_SEARCH_TIMEOUT_SECONDS` configure the
+optional adapter. Provider authentication/rate-limit failures and empty results
+are shown explicitly. Without a key, the search button is disabled with setup
+guidance. The implementation was tested with mocked Brave responses and real
+local event-store integration; live Brave validation is deferred until a key is
+configured.
+
 ## Revocation, export and erasure
 
 Authenticated API controls include owned session inspection, scoped evidence,

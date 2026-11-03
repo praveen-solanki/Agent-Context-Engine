@@ -5,7 +5,10 @@ private Agent-Context-Engine copy. Baseline: `3e2454e09deb12aa68c90e76a4948c221d
 
 ## Current validation
 
-- **375 tests passed, no skips or deselections**, including the live NVIDIA-backed
+- Optional web-search revision: **404 tests passed, one live-model UI test
+  deselected** for this credential-free run; Pyright clean. Search requests were
+  mocked as requested. No live Brave credential or response is claimed.
+- Previous full live-provider validation: **375 tests passed, no skips or deselections**, including the live NVIDIA-backed
   legacy Streamlit test with entirely fictional person/team fixtures.
 - Strict Pyright: **zero errors and warnings**.
 - Real NVIDIA structured-chat and 2048-dimensional embedding probes passed.
@@ -16,6 +19,14 @@ private Agent-Context-Engine copy. Baseline: `3e2454e09deb12aa68c90e76a4948c221d
 - Credential-value scan of tracked and pending source files passed. The supplied
   key was moved from the tracked example to ignored runtime configuration. Its
   earlier Git history remains; rotation is required to invalidate that copy.
+
+Optional-search checks cover the fixed HTTPS provider endpoint, query-only
+requests, missing credentials, authentication/rate-limit/timeout errors, rejected
+redirects, bounded response bodies, malformed/empty responses, unsafe URLs,
+deduplication, actual search-button rendering, source snapshots, durable answer
+citations and recovery without repeating reads. Search-required turns cannot
+answer before reading a selected source. Changing an already cited source cannot
+silently return the old cached answer.
 
 Reproduce the full suite with disposable integration databases and configured
 model credentials:

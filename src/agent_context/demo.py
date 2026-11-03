@@ -59,6 +59,10 @@ class ResearchAnswer(BaseModel):
     )
 
 
+class ResearchRead(BaseModel):
+    read_document_id: str = Field(min_length=1, max_length=128)
+
+
 class DemoSettings(Contract):
     agent_id: Identifier = "research-agent"
     project_id: Identifier = "research-project"
@@ -68,6 +72,7 @@ class DemoSettings(Contract):
     max_document_bytes: int = Field(default=8000, ge=1, le=32000)
     event_timeout_seconds: float = Field(default=180, gt=0, le=600)
     answer_repair_attempts: int = Field(default=2, ge=0, le=3)
+    require_sources: bool = False
     language_context_keys: tuple[str, ...] = (
         "personalization:report_language",
         "personalization:report_summary_language",
@@ -81,6 +86,7 @@ class ResearchTurn(Contract):
     next_sequence: int
     cached: bool = False
     model_calls: int = 0
+    citations: tuple[str, ...] = ()
 
 
 class ResearchAssistant:
@@ -101,6 +107,12 @@ class ResearchAssistant:
         ):
             raise ValueError("document registry exceeds configured bounds")
         self.documents = dict(documents)
+        if self.settings.require_sources and (
+            not self.documents or self.settings.max_tool_reads == 0
+        ):
+            raise ValueError(
+                "source-based research requires a nonempty registry and a positive read budget"
+            )
 
     async def turn(
         self,
@@ -183,11 +195,27 @@ class ResearchAssistant:
                 (e for e in existing.events if e.event.event_id == answer_id), None
             )
             if answer:
+                for record in existing.events:
+                    old = record.event
+                    if (
+                        old.kind == EventKind.TOOL_RESULT
+                        and old.causation_id == event_id
+                    ):
+                        document_id = old.correlation_id
+                        if (
+                            document_id is None
+                            or document_id not in self.documents
+                            or self.documents[document_id] != old.text
+                        ):
+                            raise ValueError(
+                                "source snapshot changed; start a new turn before reusing the answer"
+                            )
                 return ResearchTurn(
                     answer=answer.event.text,
                     bundle=bundle,
                     next_sequence=len(existing.events) + 1,
                     cached=True,
+                    citations=answer.event.citations,
                 )
         current = await self.user.session(session_id)
         next_sequence = len(current.events) + 1
@@ -254,7 +282,15 @@ class ResearchAssistant:
                 > self.settings.model_context_tokens
             ):
                 raise ValueError("complete agent request exceeds its context budget")
-            if not available or len(completed) >= self.settings.max_tool_reads:
+            if self.settings.require_sources and not evidence and available:
+                first = await self.llm.structured(
+                    system=system,
+                    user=payload,
+                    schema=ResearchRead,
+                    max_output_tokens=self.settings.response_tokens,
+                )
+                result = ResearchDecision(read_document_id=first.read_document_id)
+            elif not available or len(completed) >= self.settings.max_tool_reads:
                 final = await self.llm.structured(
                     system=system,
                     user=payload,
@@ -326,6 +362,7 @@ class ResearchAssistant:
                         event_time=utcnow(),
                         kind=EventKind.ASSISTANT_MESSAGE,
                         text=answer_text,
+                        citations=result.citations,
                         project_id=self.settings.project_id,
                     )
                 )
@@ -338,6 +375,7 @@ class ResearchAssistant:
                     completed=tuple(completed),
                     next_sequence=next_sequence + 1,
                     model_calls=call_index + 1 + repair_calls,
+                    citations=result.citations,
                 )
             if call_index == self.settings.max_tool_reads:
                 raise ValueError("agent exceeded its read-tool budget")

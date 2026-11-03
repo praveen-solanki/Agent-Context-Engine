@@ -8,6 +8,11 @@ retrieval, deterministic token-budgeted context assembly, durable versioned
 handoffs, a FastAPI service and a Python client. Implementation of the master
 blueprint is **in progress**; this is not a production-readiness claim.
 
+The research console also supports **optional Brave web search**, with validated
+source links, bounded search snippets and recorded citations. Set
+`BRAVE_SEARCH_API_KEY` securely to enable it; the sample demo works without a key.
+See [web-search setup](docs/ace/operations.md#optional-web-search).
+
 See [one-command development setup and recovery](docs/ace/operations.md),
 [current validation evidence](docs/ace/validation.md), and
 [service configuration](docs/ace/development.md) and

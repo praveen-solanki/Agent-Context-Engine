@@ -682,6 +682,13 @@ Do not claim measured token reduction, task-success gain, p95 latency, multi-ten
 | 7 — production hardening/governance | Revocation replay fences, derivation consent, export, lease-aware scoped primary erasure, safe logs and auth-source isolation implemented/tested; distributed guarantees, backup retention, TLS deployment and load/chaos gates remain pending | `privacy.py`, `governance.py`; `docs/ace/operations.md` and validation evidence |
 | 8 — optional adapters/research | Not started | To record |
 
+Optional web search is now wired into the research console through a bounded
+Brave Search adapter. It is disabled with clear setup guidance when no key is
+configured, and leaves the sample-document workflow available. Search snippets,
+public source links and citations use the existing authenticated event/read
+pipeline. Provider/UI/replay behavior is tested with mocked search responses;
+live Brave validation is explicitly deferred until `BRAVE_SEARCH_API_KEY` is set.
+
 **Maintenance rule:** When a phase is finished, link the code diff/PR, tests executed, benchmark artifact, migration notes and remaining caveats. Correct "verified existing" facts if the repository changes. Update this document alongside code rather than keeping implementation history exclusively in chat memory.
 
 ---

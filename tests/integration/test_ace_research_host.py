@@ -7,7 +7,7 @@ from hashlib import sha256
 
 import httpx
 import pytest
-from pydantic import BaseModel
+from pydantic import BaseModel, SecretStr
 
 from agent_context.api import create_app
 from agent_context.assembly import ContextAssembler
@@ -18,9 +18,11 @@ from agent_context.demo import (
     ResearchAnswer,
     ResearchAssistant,
     ResearchDecision,
+    ResearchRead,
 )
 from agent_context.event_store import MongoEventStore
 from agent_context.handoff import ArtifactRef, CompletedAction, HandoffService
+from agent_context.search import BraveSearch, SearchSettings
 from tests.fakes import FakeLLMProvider
 from tests.integration.test_ace_events import event_store as event_store
 from tests.unit.test_assembly import Source, item
@@ -43,8 +45,12 @@ class InterruptedProvider(FakeLLMProvider):
 
 @pytest.mark.parametrize("interrupt", [False, True])
 @pytest.mark.parametrize("repair_citations", [False, True])
+@pytest.mark.parametrize("web_source", [False, True])
 async def test_host_read_recovery_citations_and_cached_replay(
-    event_store: MongoEventStore, interrupt: bool, repair_citations: bool
+    event_store: MongoEventStore,
+    interrupt: bool,
+    repair_citations: bool,
+    web_source: bool,
 ) -> None:
     async def deny_action(_: Principal, __: CompletedAction) -> bool:
         return False
@@ -85,7 +91,40 @@ async def test_host_read_recovery_citations_and_cached_replay(
     host = AgentContextClient(
         base_url="http://test", bearer_token=host_token, transport=transport
     )
-    replies: list[BaseModel] = [ResearchDecision(read_document_id="doc")]
+    documents = {"doc": "Option A works offline."}
+    document_id = "doc"
+    if web_source:
+        provider_settings = SearchSettings.model_validate(
+            {"api_key": SecretStr("unit-search-key"), "_env_file": None}
+        )
+        response_data = {
+            "web": {
+                "results": [
+                    {
+                        "title": "Public research evidence",
+                        "url": "https://example.org/research",
+                        "description": "Option A works offline.",
+                    }
+                ]
+            }
+        }
+        async with BraveSearch(
+            provider_settings,
+            client=httpx.AsyncClient(
+                transport=httpx.MockTransport(
+                    lambda _: httpx.Response(200, json=response_data)
+                )
+            ),
+        ) as provider:
+            result = await provider.search("offline research options")
+        source = result.results[0]
+        document_id = source.document_id
+        documents = {document_id: source.as_document()}
+    replies: list[BaseModel] = [
+        ResearchRead(read_document_id=document_id)
+        if web_source
+        else ResearchDecision(read_document_id=document_id)
+    ]
     if repair_citations:
         replies.append(
             ResearchAnswer(
@@ -93,15 +132,20 @@ async def test_host_read_recovery_citations_and_cached_replay(
             )
         )
     replies.append(
-        ResearchAnswer(answer="La opción A es adecuada.", citations=("doc",))
+        ResearchAnswer(answer="La opción A es adecuada.", citations=(document_id,))
     )
     llm = InterruptedProvider(replies) if interrupt else FakeLLMProvider(replies)
     assistant = ResearchAssistant(
         user_client=user,
         host_client=host,
         llm=llm,
-        documents={"doc": "Option A works offline."},
-        settings=DemoSettings(agent_id="a1", project_id="p1", event_timeout_seconds=5),
+        documents=documents,
+        settings=DemoSettings(
+            agent_id="a1",
+            project_id="p1",
+            event_timeout_seconds=5,
+            require_sources=web_source,
+        ),
     )
 
     async def process() -> None:
@@ -123,16 +167,37 @@ async def test_host_read_recovery_citations_and_cached_replay(
         result = await assistant.turn(
             session_id="s1", turn_id="t1", message="Compare the provided options."
         )
-        assert "[doc]" in result.answer and len(result.completed) == 1
+        assert f"[{document_id}]" in result.answer and len(result.completed) == 1
+        assert result.citations == (document_id,)
         assert "Write the final answer in Spanish" in llm.calls[-1][0]
         before = await user.session("s1")
         replay = await assistant.turn(
             session_id="s1", turn_id="t1", message="Compare the provided options."
         )
         assert replay.cached and replay.model_calls == 0
+        assert replay.citations == result.citations
         assert (await user.session("s1")).events == before.events
+        if web_source:
+            tool = next(
+                record
+                for record in before.events
+                if record.event.kind.value == "tool_result"
+            )
+            assert "https://example.org/research" in tool.event.text
+            assert tool.event.correlation_id == document_id
         with pytest.raises(ValueError, match="different input"):
             await assistant.turn(session_id="s1", turn_id="t1", message="Changed input")
+        changed = ResearchAssistant(
+            user_client=user,
+            host_client=host,
+            llm=llm,
+            documents={document_id: "changed source"},
+            settings=assistant.settings,
+        )
+        with pytest.raises(ValueError, match="source snapshot changed"):
+            await changed.turn(
+                session_id="s1", turn_id="t1", message="Compare the provided options."
+            )
     finally:
         task.cancel()
         try:

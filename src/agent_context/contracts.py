@@ -79,6 +79,7 @@ class EventInput(Contract):
     tool_call_id: Identifier | None = None
     tool_succeeded: StrictBool | None = None
     derive_context: StrictBool | None = None
+    citations: tuple[Identifier, ...] = Field(default=(), max_length=64)
 
     @model_validator(mode="after")
     def bounded_payload(self) -> Self:
@@ -92,6 +93,8 @@ class EventInput(Contract):
             self.tool_call_id is not None or self.tool_succeeded is not None
         ):
             raise ValueError("only tool results carry tool outcome fields")
+        if self.citations and self.kind != EventKind.ASSISTANT_MESSAGE:
+            raise ValueError("only assistant messages carry answer citations")
         if (self.tool_call_id is None) != (self.tool_succeeded is None):
             raise ValueError("tool call ID and success must be supplied together")
         return self

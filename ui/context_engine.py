@@ -10,8 +10,15 @@ import streamlit as st
 from dotenv import load_dotenv
 
 from agent_context.client import AgentContextClient
-from agent_context.demo import ResearchAssistant, ResearchTurn
+from agent_context.demo import ResearchAssistant, ResearchTurn, DemoSettings
 from agent_context.handoff import HandoffInput
+from agent_context.search import (
+    BraveSearch,
+    SearchSettings,
+    SearchResult,
+    SearchResponse,
+    SearchError,
+)
 from context_graph.config import Settings
 from context_graph.providers.chat_backend import ChatLLMProvider
 
@@ -40,7 +47,9 @@ def client(variable: str) -> AgentContextClient:
     )
 
 
-async def send(message: str) -> ResearchTurn:
+async def send(
+    message: str, documents: dict[str, str], require_sources: bool = False
+) -> ResearchTurn:
     settings = Settings()
     user, host = client("ACE_DEMO_USER_TOKEN"), client("ACE_DEMO_AGENT_TOKEN")
     llm = ChatLLMProvider(backend=settings.chat, llm=settings.llm, retry=settings.retry)
@@ -49,9 +58,8 @@ async def send(message: str) -> ResearchTurn:
             user_client=user,
             host_client=host,
             llm=llm,
-            documents={
-                "research-brief": "Option A costs 10 units and works offline. Option B costs 20 units and requires a network."
-            },
+            documents=documents,
+            settings=DemoSettings(require_sources=require_sources),
         )
         return await assistant.turn(
             session_id=st.session_state.ace_session,
@@ -65,6 +73,11 @@ async def send(message: str) -> ResearchTurn:
         await user.aclose()
         await host.aclose()
         await llm.aclose()
+
+
+async def search_web(query: str, settings: SearchSettings) -> SearchResponse:
+    async with BraveSearch(settings) as provider:
+        return await provider.search(query)
 
 
 async def handoff(goal: str, pending: tuple[str, ...]) -> None:
@@ -114,17 +127,75 @@ with st.sidebar:
     if st.session_state.ace_handoff:
         st.caption(f"Handoff revision {st.session_state.ace_handoff_version}")
 
+search_settings = SearchSettings()
+with st.expander("Web search (optional)", expanded=search_settings.configured):
+    st.caption(
+        "Only the search query below is sent to Brave Search. Personal memory and chat history are not sent as search queries."
+    )
+    if not search_settings.configured:
+        st.info(
+            "Web search is not configured. Add BRAVE_SEARCH_API_KEY to the server environment or ignored .env file to enable it. The sample-document demo remains available."
+        )
+    search_query = st.text_input(
+        "Web search query",
+        placeholder="What would you like to research?",
+        key="ace_search_query",
+    )
+    if st.button(
+        "Search web",
+        disabled=not search_settings.configured or not search_query.strip(),
+    ):
+        st.session_state.ace_web_results = ()
+        st.session_state.ace_use_web = False
+        try:
+            with st.spinner("Searching the web…"):
+                response = asyncio.run(search_web(search_query, search_settings))
+            st.session_state.ace_web_results = response.results
+            st.session_state.ace_use_web = bool(response.results)
+            if not response.results:
+                st.info("No usable web results were returned. Try another query.")
+            if response.discarded_results:
+                st.caption(
+                    "Some results were excluded because they could not be safely validated."
+                )
+        except SearchError as error:
+            st.error(str(error))
+        except ValueError:
+            st.error("Use a search query of at most 1000 bytes.")
+    web_results: tuple[SearchResult, ...] = st.session_state.get("ace_web_results", ())
+    for index, source in enumerate(web_results, 1):
+        st.text(source.title)
+        st.text(source.snippet)
+        st.link_button(f"Open search result {index}", str(source.url))
+    use_web = st.checkbox(
+        "Use these web results for the next answer",
+        disabled=not web_results,
+        key="ace_use_web",
+    )
+    if web_results:
+        st.caption(
+            "These are search-result snippets. The app does not fetch full web pages."
+        )
+
 message = st.text_area(
     "Message",
     placeholder="Ask for a cited comparison, or change a preference and continue in a new session.",
 )
 if st.button("Send", type="primary", disabled=not message.strip()):
     try:
+        documents = (
+            {source.document_id: source.as_document() for source in web_results}
+            if use_web and web_results
+            else {
+                "research-brief": "Option A costs 10 units and works offline. Option B costs 20 units and requires a network."
+            }
+        )
         with st.spinner(
             "Recording the turn, gathering current context and researching…"
         ):
-            result = asyncio.run(send(message))
+            result = asyncio.run(send(message, documents, require_sources=use_web))
         st.session_state.ace_result = result
+        st.session_state.ace_result_web_sources = web_results if use_web else ()
         st.session_state.ace_sequence = result.next_sequence
         st.session_state.ace_turn += 1
     except Exception:
@@ -134,7 +205,18 @@ if st.button("Send", type="primary", disabled=not message.strip()):
 
 if "ace_result" in st.session_state:
     result: ResearchTurn = st.session_state.ace_result
-    st.markdown(result.answer)
+    # Plain text prevents untrusted snippets/model output from embedding remote
+    # images or executable HTML. Citation links come only from validated sources.
+    st.text(result.answer)
+    cited_sources: tuple[SearchResult, ...] = st.session_state.get(
+        "ace_result_web_sources", ()
+    )
+    for index, source in enumerate(
+        (source for source in cited_sources if source.document_id in result.citations),
+        1,
+    ):
+        st.text(source.title)
+        st.link_button(f"Cited web source {index}", str(source.url))
     context, trace, work = st.tabs(
         ["Current context", "Selection trace", "Verified work"]
     )
