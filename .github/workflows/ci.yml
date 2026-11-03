@@ -1,0 +1,44 @@
+name: Tests and types
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    services:
+      neo4j:
+        image: neo4j:5.26-community
+        env:
+          NEO4J_AUTH: none
+          NEO4J_server_memory_heap_initial__size: 256m
+          NEO4J_server_memory_heap_max__size: 512m
+          NEO4J_server_memory_pagecache_size: 256m
+        ports: [7690:7687]
+        options: >-
+          --health-cmd "wget -qO- http://localhost:7474/ || exit 1"
+          --health-interval 5s --health-timeout 3s --health-retries 24
+      mongo:
+        image: mongo:7.0
+        ports: [27017:27017]
+        options: >-
+          --health-cmd "mongosh --quiet --eval 'quit(db.adminCommand({ping:1}).ok ? 0 : 1)'"
+          --health-interval 5s --health-timeout 5s --health-retries 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install uv==0.13.4
+      - run: uv sync --frozen
+      - run: uv run --frozen pyright
+      - name: Unit, end-to-end, UI and database integration
+        env:
+          CG_INTEGRATION: '1'
+          CG_NEO4J__URI: bolt://127.0.0.1:7690
+          CG_MONGO__DATABASE: ace_ci
+        run: uv run --frozen pytest -k 'not test_the_ui_runs_the_tool_and_shows_the_result'
