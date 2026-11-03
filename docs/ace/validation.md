@@ -1,50 +1,83 @@
 # Validation evidence — 2026-11-03
 
-Copied baseline: `3e2454e09deb12aa68c90e76a4948c221d7974b2`.
-Python 3.12.14; dependencies resolved in `uv.lock`; MongoDB 7.0 and Neo4j 5.26.
+The original Context-Graph checkout remains unchanged. Work continues only in the
+private Agent-Context-Engine copy. Baseline: `3e2454e09deb12aa68c90e76a4948c221d7974b2`.
 
-The original Context-Graph checkout remains clean. The new GitHub repository was
-confirmed private through GitHub's API. Code and history were copied without
-rewriting the source repository or history.
+## Current validation
 
-## Executed checks
+- **375 tests passed, no skips or deselections**, including the live NVIDIA-backed
+  legacy Streamlit test with entirely fictional person/team fixtures.
+- Strict Pyright: **zero errors and warnings**.
+- Real NVIDIA structured-chat and 2048-dimensional embedding probes passed.
+- Live three-session research/correction/handoff/replay demo passed all six
+  explicit outcome checks. See [the captured report](results/live-demo.json).
+- Container image build, database readiness and authenticated API readiness
+  passed. API/worker run as a non-root user; runtime logs use a writable path.
+- Credential-value scan of tracked and pending source files passed. The supplied
+  key was moved from the tracked example to ignored runtime configuration. Its
+  earlier Git history remains; rotation is required to invalidate that copy.
 
-- Baseline: 292 offline tests passed; 7 live-service tests skipped; Pyright clean.
-- Final combined suite: 355 passed, 1 deselected. Command:
+Reproduce the full suite with disposable integration databases and configured
+model credentials:
 
-  ```sh
-  CG_INTEGRATION=1 CG_NEO4J__URI=bolt://127.0.0.1:7690 \
-    CG_MONGO__DATABASE=ace_baseline_test .venv/bin/pytest \
-    -k 'not test_the_ui_runs_the_tool_and_shows_the_result'
-  ```
+```sh
+CG_INTEGRATION=1 CG_NEO4J__URI=bolt://127.0.0.1:7690 \
+  CG_MONGO__DATABASE=ace_baseline_test uv run --frozen pytest
+uv run --frozen pyright
+```
 
-- Strict Pyright: zero errors/warnings.
-- Ruff formatting applied to the new modules and touched Python files.
-- Git whitespace check clean.
-- 22 database/API integration tests passed: real Mongo concurrency, event
-  idempotency, identity/scope rejection, lease recovery/fencing, append during
-  processing, dead-letter replay, automatic correction feedback, real Neo4j
-  lifecycle/scope query restrictions, handoff concurrency/evidence/stale resume,
-  authenticated HTTP+SDK requests, readiness and application lifespan.
-- 19 focused assembler tests cover budget accounting after rendering, atomic
-  packing, required-policy failures, active-state conflicts, expired/revoked
-  facts, source failures, reproducibility and defensive isolation.
-- Incremental ingestion tests verify immutable prior episode identity,
-  supersession, retry idempotency, rejected source edits and canonical JSON
-  metadata fingerprints.
+The store tests use eight-dimensional vectors. Use a separate graph from the
+2048-dimensional live ingestion/demo. Live UI fixtures clean up only their tagged
+synthetic nodes. Mock provider tests explicitly isolate batch settings from local
+NIM configuration.
 
-## Explicit limitations
+## Measured comparison
 
-The deselected original UI integration test requires live model credentials and
-specific seeded user/team data. Neither is available. No live-model extraction,
-answer quality, model-switch demo, cost/latency benchmark or comparative task
-success claim is made. The in-memory pipeline feedback tests use scripted
-providers and are identified as such.
+[Six-baseline probe](results/baseline-probe.json): full history, last three
+records, running summary, vector top three, the original retriever and ACE.
+All received the same model, query, document, schema and context budget. All six
+selected the correct current language and next action in this one scenario.
+ACE also emitted an episode reference outside the probe's strict document-only
+citation rubric; that first-pass citation failure is preserved in the report.
+The research host now rejects/repairs unsupported citations with a bounded budget,
+covered by real-event-store tests including interruption after a successful read.
 
-The complete blueprint is not finished. Remaining required work includes the
-credentialed research-agent feedback demo and original UI adaptation, complete
-shared/task/historical retrieval parity, authoritative external artifact
-verification, governance/erasure/retention controls, distributed write fencing and
-quotas, comparative evaluations, containerized deployment/CI and production
-recovery/load/chaos gates. See the maintained blueprint ledger. Physical database
-isolation per tenant/user trust partition remains mandatory.
+This is **one synthetic scenario and one trial**, not evidence of universal task
+success, statistical superiority or production latency. Running-summary and
+embedding preparation are recorded separately. Ingestion billing, failed-request
+billing and provider price tables are not combined into a dollar-per-task claim.
+No prices, confidence intervals or public dataset results have been invented.
+
+## Defects found and corrected
+
+- Mixed user/tool episodes could launder tool text through a first-speaker trust
+  label. ACE now enforces exact-span trust boundaries and keeps untrusted tool/
+  agent events as evidence without treating them as durable user instructions.
+- Unresolved values such as “current” could become canonical language preferences.
+  The ACE bridge now deterministically rejects these unsupported values.
+- A model could reread a document or invent a citation. The host limits available
+  documents, records authenticated outcomes, recovers partial reads, validates
+  citations, and returns cached answers without repeating actions.
+- Settings-source deep merging could retain lower-priority authentication bindings.
+  The highest-priority registry now replaces the lower-priority registry as a whole.
+- Root validation errors and diagnostic fields could echo sensitive content.
+  Runtime settings hide inputs; general pipeline logs redact private fields.
+- NIM returned HTTP 500 for mixed-input embedding batches. Every single-input
+  request succeeded; the development/evaluation configuration uses batch size one.
+- The container worker initially could not write its log directory. Logs now use
+  a writable temporary directory without granting the process root privileges.
+
+## Remaining whole-product gates
+
+The blueprint is still an incremental product roadmap, not a completed production
+certification. Required remaining gates include shared/task/historical retrieval
+parity, wider multi-session/public-dataset evaluation and ablations, a genuine
+cross-provider run, production distributed fencing/quotas, TLS/identity deployment,
+external backup erasure/retention and disaster-recovery/load/chaos validation.
+Single tenant/user physical trust partition isolation remains mandatory.
+
+Primary-data erasure is implemented and tested, including lease barriers,
+revocation replay protection and preservation of foreign records. Minimal privacy
+fences/job metadata remain. External backups and already downloaded exports are
+explicit operator responsibilities; the service reports `primary_purged`, not a
+claim that every external copy has been erased.

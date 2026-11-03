@@ -4,23 +4,27 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import json
+from typing import Annotated
 from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
 
 import uvicorn
 from fastapi import FastAPI
 from neo4j import AsyncGraphDatabase
-from pydantic import Field, model_validator
-from pydantic_settings import BaseSettings, SettingsConfigDict
+from pydantic import Field, model_validator, field_validator
+from pydantic_settings import BaseSettings, SettingsConfigDict, NoDecode
 from pymongo import AsyncMongoClient
 from typing_extensions import Self
 
 from agent_context.api import create_app
+from agent_context.artifacts import ArtifactStore
 from agent_context.assembly import ContextAssembler
 from agent_context.bridge import EventWorker, scoped_id
-from agent_context.contracts import Identifier, Principal
+from agent_context.contracts import Identifier, Principal, Permission
 from agent_context.event_store import MongoEventStore
-from agent_context.handoff import ArtifactRef, HandoffService
+from agent_context.handoff import HandoffService
+from agent_context.governance import GovernanceService
 from agent_context.outcomes import EventOutcomeVerifier
 from agent_context.retrieval import Neo4jCandidateSource
 from context_graph.config import Settings
@@ -29,16 +33,25 @@ from context_graph.tool import ContextGraphIngestion
 
 class RuntimeSettings(BaseSettings):
     model_config = SettingsConfigDict(
-        env_prefix="ACE_", env_file=".env", extra="ignore"
+        env_prefix="ACE_", env_file=".env", extra="ignore", hide_input_in_errors=True
     )
 
     tenant_id: Identifier = ""
     user_id: Identifier = ""
-    auth_bindings: dict[str, Principal] = Field(default_factory=dict)
+    auth_bindings: Annotated[dict[str, Principal], NoDecode] = Field(
+        default_factory=dict
+    )
     host: str = "127.0.0.1"
     port: int = Field(default=8000, ge=1, le=65535)
     run_version: str = "v1"
     poll_seconds: float = Field(default=0.5, gt=0, le=30)
+
+    @field_validator("auth_bindings", mode="before")
+    @classmethod
+    def parse_bindings(cls, value: object) -> object:
+        # Select one complete highest-priority registry. Deep merging .env and
+        # process JSON can retain obsolete identities from another partition.
+        return json.loads(value) if isinstance(value, str) else value
 
     @model_validator(mode="after")
     def validate_partition(self) -> Self:
@@ -68,19 +81,22 @@ def application() -> FastAPI:
     )
     events = MongoEventStore(mongo, settings.mongo.database)
 
-    async def unsupported_artifact(_: Principal, __: ArtifactRef) -> bool:
-        # Hosts can inject an artifact version verifier through create_app.
-        # The generic service cannot verify arbitrary external artifact URIs.
-        return False
+    artifacts = ArtifactStore(mongo, settings.mongo.database)
+    governance = GovernanceService(
+        mongo, settings.mongo.database, driver, graph_database=settings.neo4j.database
+    )
 
     handoffs = HandoffService(
         mongo,
         settings.mongo.database,
         verify_action=EventOutcomeVerifier(events),
-        verify_artifact=unsupported_artifact,
+        verify_artifact=artifacts.verify,
     )
     source = Neo4jCandidateSource(
-        driver, database=settings.neo4j.database, tenant_id=runtime.tenant_id
+        driver,
+        database=settings.neo4j.database,
+        tenant_id=runtime.tenant_id,
+        privacy=events.privacy,
     )
 
     async def ready() -> bool:
@@ -96,15 +112,48 @@ def application() -> FastAPI:
         handoffs=handoffs,
         auth_bindings=runtime.auth_bindings,
         ready=ready,
+        artifacts=artifacts,
+        governance=governance,
     )
 
     @asynccontextmanager
     async def lifespan(_: FastAPI) -> AsyncGenerator[None, None]:
+        async def maintenance() -> None:
+            actor = Principal(
+                tenant_id=runtime.tenant_id,
+                user_id=runtime.user_id,
+                actor_id="ace-maintenance",
+                permissions=frozenset({Permission.DELETE}),
+            )
+            while True:
+                try:
+                    status = await governance.erasure_status(actor)
+                    if status["state"] == "quarantined":
+                        await governance.purge(actor)
+                except LookupError:
+                    pass
+                except Exception as error:
+                    logging.getLogger(__name__).error(
+                        "erasure_maintenance_failed",
+                        extra={"error_type": type(error).__name__},
+                    )
+                await asyncio.sleep(runtime.poll_seconds)
+
+        task: asyncio.Task[None] | None = None
         try:
             await events.ensure_indexes()
             await handoffs.ensure_indexes()
+            await artifacts.ensure_indexes()
+            await governance.ensure_indexes()
+            task = asyncio.create_task(maintenance())
             yield
         finally:
+            if task:
+                task.cancel()
+                try:
+                    await task
+                except asyncio.CancelledError:
+                    pass
             await driver.close()
             await mongo.close()
 

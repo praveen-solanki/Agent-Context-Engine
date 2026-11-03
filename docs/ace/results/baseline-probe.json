@@ -1,0 +1,142 @@
+{
+  "scenario": "three-session changed-report-language",
+  "source_demo": "data/ace_demo/32bcd68eb5c3.json",
+  "source_sha256": "ce30f34251fb2def32b630e49d28ca2308384112b7b7b43d4c787e74545df89f",
+  "model": "nvidia/nemotron-3.5-bolt-e4b",
+  "temperature": 0.0,
+  "budget": 4000,
+  "results": [
+    {
+      "method": "full_history",
+      "decision": {
+        "report_language": "Spanish",
+        "recommended_option": "A",
+        "evidence": [
+          "research-brief"
+        ]
+      },
+      "correct_current_language": true,
+      "correct_next_action": true,
+      "valid_evidence": true,
+      "context_bytes_upper_bound": 1679,
+      "budget_violation": false,
+      "seconds": 2.0088,
+      "chat_calls": 1,
+      "prompt_tokens": 954,
+      "completion_tokens": 26
+    },
+    {
+      "method": "last_3_records",
+      "decision": {
+        "report_language": "Spanish",
+        "recommended_option": "A",
+        "evidence": [
+          "research-brief"
+        ]
+      },
+      "correct_current_language": true,
+      "correct_next_action": true,
+      "valid_evidence": true,
+      "context_bytes_upper_bound": 850,
+      "budget_violation": false,
+      "seconds": 1.6555,
+      "chat_calls": 1,
+      "prompt_tokens": 614,
+      "completion_tokens": 26
+    },
+    {
+      "method": "rolling_summary",
+      "decision": {
+        "report_language": "Spanish",
+        "recommended_option": "A",
+        "evidence": [
+          "research-brief"
+        ]
+      },
+      "correct_current_language": true,
+      "correct_next_action": true,
+      "valid_evidence": true,
+      "context_bytes_upper_bound": 408,
+      "budget_violation": false,
+      "seconds": 1.862,
+      "chat_calls": 1,
+      "prompt_tokens": 328,
+      "completion_tokens": 26
+    },
+    {
+      "method": "vector_top_3",
+      "decision": {
+        "report_language": "Spanish",
+        "recommended_option": "A",
+        "evidence": [
+          "research-brief"
+        ]
+      },
+      "correct_current_language": true,
+      "correct_next_action": true,
+      "valid_evidence": true,
+      "context_bytes_upper_bound": 929,
+      "budget_violation": false,
+      "seconds": 1.4803,
+      "chat_calls": 1,
+      "prompt_tokens": 596,
+      "completion_tokens": 26
+    },
+    {
+      "method": "existing_retriever",
+      "decision": {
+        "report_language": "Spanish",
+        "recommended_option": "A",
+        "evidence": [
+          "research-brief"
+        ]
+      },
+      "correct_current_language": true,
+      "correct_next_action": true,
+      "valid_evidence": true,
+      "context_bytes_upper_bound": 1029,
+      "budget_violation": false,
+      "seconds": 1.382,
+      "chat_calls": 1,
+      "prompt_tokens": 529,
+      "completion_tokens": 26
+    },
+    {
+      "method": "ace",
+      "decision": {
+        "report_language": "Spanish",
+        "recommended_option": "A",
+        "evidence": [
+          "ep_203176ff2ac6c4d0b43dd298",
+          "research-brief"
+        ]
+      },
+      "correct_current_language": true,
+      "correct_next_action": true,
+      "valid_evidence": false,
+      "context_bytes_upper_bound": 164,
+      "budget_violation": false,
+      "seconds": 2.3594,
+      "chat_calls": 1,
+      "prompt_tokens": 331,
+      "completion_tokens": 51
+    }
+  ],
+  "preparation": {
+    "seconds": 6.221171383999717,
+    "summary_chat": {
+      "calls": 1,
+      "prompt_tokens": 807,
+      "completion_tokens": 81
+    },
+    "embedding_batch_size": 1,
+    "embedding_calls": 7
+  },
+  "limitations": [
+    "One synthetic scenario, one trial per baseline; no confidence intervals or superiority claim",
+    "Ingestion costs are separate and must be included from the demo run's provider usage logs before reporting dollars per task",
+    "Provider rates were not supplied; no dollar costs invented",
+    "No public dataset/license or multi-provider result claimed"
+  ],
+  "dataset_classification": "Entirely synthetic task-authored fixture; no real organization records"
+}

@@ -74,6 +74,8 @@ class ContextItem(Contract):
     scope_id: str
     canonical_key: str
     text: str = Field(max_length=64000)
+    value: str | float | bool | None = None
+    fingerprint: str | None = None
     evidence_ids: tuple[str, ...] = ()
     status: ContextStatus = ContextStatus.ACTIVE
     valid_from: AwareDatetime | None = None

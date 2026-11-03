@@ -8,7 +8,7 @@ import httpx
 from pydantic import BaseModel
 
 from agent_context.assembly import AssembleRequest, ContextBundle
-from agent_context.contracts import EventInput, EventStatus
+from agent_context.contracts import EventInput, EventStatus, ProcessingState, Stream
 from agent_context.handoff import HandoffArtifact, HandoffInput, ResumeResult
 
 
@@ -57,6 +57,25 @@ class AgentContextClient:
 
     async def record_events(self, event: EventInput) -> EventStatus:
         return await self._post("/v1/events", event, EventStatus)
+
+    async def session(self, identifier: str) -> Stream:
+        response = await self.http.get(f"/v1/sessions/{identifier}")
+        response.raise_for_status()
+        return Stream.model_validate(response.json())
+
+    async def wait_available(
+        self, event_id: str, *, timeout_seconds: float = 180
+    ) -> EventStatus:
+        async with asyncio.timeout(timeout_seconds):
+            while True:
+                response = await self.http.get(f"/v1/events/{event_id}/status")
+                response.raise_for_status()
+                status = EventStatus.model_validate(response.json())
+                if status.state == ProcessingState.AVAILABLE:
+                    return status
+                if status.state == ProcessingState.DEAD:
+                    raise RuntimeError("event requires dead-letter review/replay")
+                await asyncio.sleep(0.25)
 
     async def assemble_context(self, request: AssembleRequest) -> ContextBundle:
         return await self._post("/v1/context/assemble", request, ContextBundle)

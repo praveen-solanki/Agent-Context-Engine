@@ -1,0 +1,83 @@
+name: agent-context-engine
+
+x-runtime-environment: &runtime-environment
+  CG_NEO4J__URI: bolt://neo4j:7687
+  CG_NEO4J__USER: neo4j
+  CG_NEO4J__PASSWORD: ${CG_NEO4J__PASSWORD:?Set a development database password in .env}
+  CG_MONGO__URI: mongodb://mongo:27017
+  CG_MONGO__DATABASE: agent_context
+  CG_LOG_FILE: /tmp/ace/context_graph.log
+  ACE_TENANT_ID: ${ACE_TENANT_ID:?Set a tenant identity}
+  ACE_USER_ID: ${ACE_USER_ID:?Set a user identity}
+  ACE_AUTH_BINDINGS: ${ACE_AUTH_BINDINGS:?Configure trusted authentication bindings}
+  ACE_HOST: 0.0.0.0
+  SSL_CERT_FILE: /run/ace-ca.pem
+
+x-application: &application
+  image: agent-context-engine:local
+  build:
+    context: .
+    secrets:
+      - proxy_ca
+  environment: *runtime-environment
+  volumes:
+    - ${ACE_CA_BUNDLE:-/etc/ssl/certs/ca-certificates.crt}:/run/ace-ca.pem:ro
+  depends_on:
+    neo4j:
+      condition: service_healthy
+    mongo:
+      condition: service_healthy
+  restart: unless-stopped
+
+services:
+  neo4j:
+    image: neo4j:5.26-community
+    environment:
+      NEO4J_AUTH: neo4j/${CG_NEO4J__PASSWORD:?Set a development database password in .env}
+      NEO4J_server_memory_heap_initial__size: 256m
+      NEO4J_server_memory_heap_max__size: 512m
+      NEO4J_server_memory_pagecache_size: 256m
+    volumes:
+      - neo4j_data:/data
+    healthcheck:
+      test: [CMD-SHELL, "wget -qO- http://localhost:7474/ >/dev/null || exit 1"]
+      interval: 5s
+      timeout: 3s
+      retries: 24
+  mongo:
+    image: mongo:7.0
+    volumes:
+      - mongo_data:/data/db
+    healthcheck:
+      test: [CMD, mongosh, --quiet, --eval, "quit(db.adminCommand('ping').ok ? 0 : 1)"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+  api:
+    <<: *application
+    ports:
+      - 127.0.0.1:${ACE_EXTERNAL_PORT:-18000}:8000
+    healthcheck:
+      test: [CMD, python, -c, "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health/ready', timeout=3)"]
+      interval: 5s
+      timeout: 4s
+      retries: 12
+  worker:
+    <<: *application
+    command: [agent-context-worker]
+    environment:
+      <<: *runtime-environment
+      NVIDIA_API_KEY: ${NVIDIA_API_KEY:?Configure the model key securely}
+      LLM_BASE_URL: ${LLM_BASE_URL:-https://integrate.api.nvidia.com/v1}
+      LLM_MODEL: ${LLM_MODEL:-nvidia/nemotron-3.5-bolt-e4b}
+      EMBEDDING_BASE_URL: ${EMBEDDING_BASE_URL:-https://integrate.api.nvidia.com/v1}
+      EMBEDDING_MODEL: ${EMBEDDING_MODEL:-nvidia/nemotron-3.5-embed-1b}
+      EMBEDDING_BATCH_SIZE: ${EMBEDDING_BATCH_SIZE:-1}
+
+volumes:
+  neo4j_data:
+  mongo_data:
+
+secrets:
+  proxy_ca:
+    file: ${ACE_CA_BUNDLE:-/etc/ssl/certs/ca-certificates.crt}

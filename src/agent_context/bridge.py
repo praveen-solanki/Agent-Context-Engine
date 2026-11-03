@@ -68,6 +68,8 @@ def to_session(stream: Stream) -> SessionInput:
         metadata={
             "tenant_id": stream.tenant_id,
             "external_session_id": stream.session_id,
+            "ace_event_bridge": True,
+            "ace_derive_context": stream.derive_context,
         },
     )
 
@@ -106,6 +108,11 @@ class EventWorker:
         if claim is None:
             return False
         stream, token = claim
+        try:
+            await self.store.privacy.require_active(stream.tenant_id, stream.user_id)
+        except PermissionError:
+            await self.store.finish(stream, token, success=False, max_attempts=1)
+            return True
         success = False
         try:
             async with asyncio.timeout(self.timeout_seconds):

@@ -61,8 +61,8 @@ tool; no existing membership assertions are promoted into new permissions.
 - The original combined vector integration suite had an equal-score fixture
   collision. The copied tests now include tied candidates and verify the target
   score and maximum score rather than relying on undefined ordering of ties.
-- Missing live model credentials block live extraction/demo evaluation. No
-  production readiness, measured model quality or complete blueprint claim.
+- Live NVIDIA extraction, embedding, UI and three-session demo validation now pass.
+  No production-readiness or complete-blueprint claim is made. See validation.md.
 - The additive API uses SHA-256 bearer-token bindings to server-owned principals,
   bounded request bodies, request IDs and sanitized errors. The deployable runtime
   enforces one tenant/user trust partition per database deployment. Scoped private
@@ -72,3 +72,5 @@ tool; no existing membership assertions are promoted into new permissions.
   distributed fencing/quotas, full deployment/recovery and fair comparative
   benchmarks remain required gates. No data deletion SLA is claimed. External
   artifact references fail closed without an authoritative host verifier.
+
+The later implementation adds trusted artifact versions, immediate revocation fences, derivation opt-out, streaming export and lease-aware primary erasure. Privacy controls quarantine subjects before deletion, retain minimal tombstones, and report external backup responsibilities explicitly. See operations.md for the supported lifecycle and remaining gates.

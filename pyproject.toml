@@ -17,6 +17,9 @@ dependencies = [
 context-graph = "context_graph.cli:main"
 agent-context-api = "agent_context.runtime:api_main"
 agent-context-worker = "agent_context.runtime:worker_main"
+agent-context-demo = "agent_context.demo_cli:main"
+agent-context-evaluate = "agent_context.evaluation:main"
+agent-context-init = "agent_context.init_dev:main"
 
 [dependency-groups]
 dev = [
@@ -31,7 +34,7 @@ requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [tool.hatch.build.targets.wheel]
-packages = ["src/context_graph", "src/agent_context"]
+packages = ["src/context_graph", "src/agent_context", "retrieval_tester"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

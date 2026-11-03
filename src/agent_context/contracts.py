@@ -78,6 +78,7 @@ class EventInput(Contract):
     causation_id: Identifier | None = None
     tool_call_id: Identifier | None = None
     tool_succeeded: StrictBool | None = None
+    derive_context: StrictBool | None = None
 
     @model_validator(mode="after")
     def bounded_payload(self) -> Self:
@@ -124,6 +125,7 @@ class Stream(Contract):
     user_id: Identifier
     session_id: Identifier
     project_id: Identifier | None = None
+    derive_context: bool = True
     events: tuple[RecordedEvent, ...] = ()
     available_sequence: int = 0
     state: ProcessingState = ProcessingState.RECORDED

@@ -22,7 +22,12 @@ import re
 from collections.abc import Iterable, Sequence
 
 from context_graph.config import LLMSettings, RetrySettings, SegmentationSettings
-from context_graph.domain.conversation import Episode, MessageInput, SessionInput, SourceSpan
+from context_graph.domain.conversation import (
+    Episode,
+    MessageInput,
+    SessionInput,
+    SourceSpan,
+)
 from context_graph.domain.extraction import SegmentationProposal
 from context_graph.errors import ContextGraphError, ExtractionValidationError
 from context_graph.observability import get_logger, log_event
@@ -93,6 +98,11 @@ class EpisodeBuilder:
 
     # ------------------------------------------------------------------ spans
 
+    def build_deterministic(self, session: SessionInput) -> list[Episode]:
+        """Preserve bounded exact evidence without any provider call."""
+        spans = self.spans_for(session)
+        return self._finalize(session, spans, 0, []) if spans else []
+
     def spans_for(self, session: SessionInput) -> list[SourceSpan]:
         """Every message as one span, splitting any message that is too large."""
         spans: list[SourceSpan] = []
@@ -104,7 +114,9 @@ class EpisodeBuilder:
             spans.extend(self._split_message(whole, message))
         return spans
 
-    def _split_message(self, whole: SourceSpan, message: MessageInput) -> list[SourceSpan]:
+    def _split_message(
+        self, whole: SourceSpan, message: MessageInput
+    ) -> list[SourceSpan]:
         """Split one oversized message into bounded spans with exact offsets."""
         bounds = self._split_points(message.text)
         parts = [
@@ -133,7 +145,9 @@ class EpisodeBuilder:
                 bounds.append((start, len(text)))
                 break
             # The furthest natural break that still fits, else an exact cut.
-            end = max((cut for cut in cuts if start < cut <= hard_end), default=hard_end)
+            end = max(
+                (cut for cut in cuts if start < cut <= hard_end), default=hard_end
+            )
             bounds.append((start, end))
             start = end
         return bounds or [(0, len(text))]
@@ -221,7 +235,9 @@ class EpisodeBuilder:
             )
             return [list(group) for group in self._size_groups(window)], []
 
-        groups = [[by_ref[ref] for ref in episode.span_refs] for episode in proposal.episodes]
+        groups = [
+            [by_ref[ref] for ref in episode.span_refs] for episode in proposal.episodes
+        ]
         if must_finalize or not proposal.episodes[-1].open_ended or len(groups) == 1:
             return groups, []
         log_event(
@@ -256,7 +272,9 @@ class EpisodeBuilder:
         )
 
     @staticmethod
-    def _validate(proposal: SegmentationProposal, by_ref: dict[str, SourceSpan]) -> None:
+    def _validate(
+        proposal: SegmentationProposal, by_ref: dict[str, SourceSpan]
+    ) -> None:
         """Every reference used exactly once, in order, and nothing invented."""
         assigned = [ref for episode in proposal.episodes for ref in episode.span_refs]
         unknown = [ref for ref in assigned if ref not in by_ref]

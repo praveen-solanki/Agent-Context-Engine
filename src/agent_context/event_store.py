@@ -18,6 +18,7 @@ from agent_context.contracts import (
     utcnow,
 )
 from agent_context.events import EventConflict, append_event
+from agent_context.privacy import PrivacyControls
 
 
 class MongoEventStore:
@@ -35,8 +36,10 @@ class MongoEventStore:
             raise ValueError("max_events must be between 1 and 256")
         self.collection = client[database]["ace_event_streams_v1"]
         self.max_events = max_events
+        self.privacy = PrivacyControls(client, database)
 
     async def ensure_indexes(self) -> None:
+        await self.privacy.ensure_indexes()
         await self.collection.create_index(
             [("tenant_id", 1), ("session_id", 1)], unique=True
         )
@@ -46,6 +49,7 @@ class MongoEventStore:
         await self.collection.create_index([("tenant_id", 1), ("lease_until", 1)])
 
     async def record(self, principal: Principal, event: EventInput) -> Stream:
+        await self.privacy.require_active(principal.tenant_id, principal.user_id)
         # First check policy even for new sessions. Never let forbidden input
         # allocate a durable session or reserve another principal's identifier.
         empty = Stream(
@@ -96,6 +100,7 @@ class MongoEventStore:
         raise EventConflict("concurrent writes; retry with the same event ID")
 
     async def get(self, principal: Principal, session_id: str) -> Stream:
+        await self.privacy.require_active(principal.tenant_id, principal.user_id)
         principal.require(Permission.VIEW)
         document = await self.collection.find_one(
             {

@@ -148,3 +148,14 @@ def test_bridge_keeps_exact_text_and_user_provenance_with_collision_safe_ids() -
     assert session.messages[0].metadata["event_id"] == "e1"
     assert scoped_id("a", "bc") != scoped_id("ab", "c")
     assert scoped_id("t1", "u1") != scoped_id("t2", "u1")
+
+
+def test_derivation_opt_out_is_inherited_and_cannot_be_silently_changed() -> None:
+    stream = append_event(
+        empty(), principal(), event(derive_context=False), max_events=8
+    )
+    assert not stream.derive_context
+    next_stream = append_event(stream, principal(), event(2), max_events=8)
+    assert not next_stream.derive_context
+    with pytest.raises(EventConflict, match="consent"):
+        append_event(stream, principal(), event(2, derive_context=True), max_events=8)

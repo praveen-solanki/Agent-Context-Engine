@@ -9,6 +9,7 @@ from uuid import uuid4
 
 from fastapi import Depends, FastAPI, HTTPException, Request
 from fastapi.responses import JSONResponse
+from fastapi.responses import StreamingResponse
 from fastapi.exceptions import RequestValidationError
 from pydantic import BaseModel, ConfigDict, Field
 from starlette.types import ASGIApp, Message, Receive, Scope, Send
@@ -25,8 +26,11 @@ from agent_context.contracts import (
     Permission,
     Principal,
     ProcessingState,
+    Stream,
 )
 from agent_context.event_store import MongoEventStore
+from agent_context.artifacts import ArtifactInput, ArtifactDocument, ArtifactStore
+from agent_context.governance import GovernanceService, RevocationInput
 from agent_context.events import CapacityExceeded, EventConflict
 from agent_context.handoff import (
     HandoffArtifact,
@@ -95,6 +99,8 @@ def create_app(
     auth_bindings: dict[str, Principal],
     ready: Callable[[], Awaitable[bool]],
     watermark_timeout_seconds: float = 5,
+    artifacts: ArtifactStore | None = None,
+    governance: GovernanceService | None = None,
 ) -> FastAPI:
     """Bindings map SHA256(high-entropy bearer token) to server-owned identities."""
     if not auth_bindings or any(len(key) != 64 for key in auth_bindings):
@@ -114,6 +120,8 @@ def create_app(
             raise HTTPException(
                 401, "invalid authentication", headers={"WWW-Authenticate": "Bearer"}
             )
+        if request.url.path not in ("/v1/users/me/erasure", "/v1/users/me/context"):
+            await events.privacy.require_active(principal.tenant_id, principal.user_id)
         return principal
 
     @app.exception_handler(PermissionError)
@@ -209,7 +217,81 @@ def create_app(
                     await events.get(actor, body.session_id)
                 ).available_sequence < body.minimum_sequence:
                     await asyncio.sleep(0.05)
-        return await assembler.assemble(actor, body)
+        bundle = await assembler.assemble(actor, body)
+        state = await events.privacy.require_active(actor.tenant_id, actor.user_id)
+        if any(item.item_id in state.blocked_item_ids for item in bundle.items):
+            bundle = await assembler.assemble(actor, body)
+            state = await events.privacy.require_active(actor.tenant_id, actor.user_id)
+            if any(item.item_id in state.blocked_item_ids for item in bundle.items):
+                raise RuntimeError("context changed during assembly")
+        return bundle
+
+    @app.post("/v1/context/search")
+    async def search(
+        body: AssembleRequest, actor: Principal = Depends(authenticate)
+    ) -> ContextBundle:
+        return await assemble(body, actor)
+
+    @app.get("/v1/context/items/{item_id}/evidence")
+    async def evidence(
+        item_id: str, actor: Principal = Depends(authenticate)
+    ) -> list[dict[str, object]]:
+        if governance is None:
+            raise RuntimeError("governance adapter unavailable")
+        return await governance.evidence(actor, item_id)
+
+    @app.post("/v1/context/revocations")
+    async def revoke(
+        body: RevocationInput, actor: Principal = Depends(authenticate)
+    ) -> dict[str, object]:
+        if governance is None:
+            raise RuntimeError("governance adapter unavailable")
+        return await governance.revoke(actor, body)
+
+    @app.get("/v1/users/me/export")
+    async def export(actor: Principal = Depends(authenticate)) -> StreamingResponse:
+        if governance is None:
+            raise RuntimeError("governance adapter unavailable")
+        actor.require(Permission.VIEW)
+        return StreamingResponse(
+            governance.export(actor), media_type="application/x-ndjson"
+        )
+
+    @app.delete("/v1/users/me/context", status_code=202)
+    async def erase(actor: Principal = Depends(authenticate)) -> dict[str, object]:
+        if governance is None:
+            raise RuntimeError("governance adapter unavailable")
+        return await governance.request_erasure(actor)
+
+    @app.get("/v1/users/me/erasure")
+    async def erasure_status(
+        actor: Principal = Depends(authenticate),
+    ) -> dict[str, object]:
+        if governance is None:
+            raise RuntimeError("governance adapter unavailable")
+        return await governance.erasure_status(actor)
+
+    @app.get("/v1/sessions/{session_id}")
+    async def inspect_session(
+        session_id: str, actor: Principal = Depends(authenticate)
+    ) -> Stream:
+        return await events.get(actor, session_id)
+
+    @app.post("/v1/artifacts")
+    async def publish_artifact(
+        body: ArtifactInput, actor: Principal = Depends(authenticate)
+    ) -> ArtifactDocument:
+        if artifacts is None:
+            raise RuntimeError("artifact registry unavailable")
+        return await artifacts.publish(actor, body)
+
+    @app.get("/v1/artifacts/{artifact_id}")
+    async def get_artifact(
+        artifact_id: str, project_id: str, actor: Principal = Depends(authenticate)
+    ) -> ArtifactDocument:
+        if artifacts is None:
+            raise RuntimeError("artifact registry unavailable")
+        return await artifacts.get(actor, project_id, artifact_id)
 
     @app.post("/v1/handoffs")
     async def prepare(

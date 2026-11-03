@@ -8,7 +8,9 @@ retrieval, deterministic token-budgeted context assembly, durable versioned
 handoffs, a FastAPI service and a Python client. Implementation of the master
 blueprint is **in progress**; this is not a production-readiness claim.
 
-See [service setup and validation](docs/ace/development.md) and
+See [one-command development setup and recovery](docs/ace/operations.md),
+[current validation evidence](docs/ace/validation.md), and
+[service configuration](docs/ace/development.md) and
 [architecture and remaining gates](docs/ace/architecture.md). The original
 ingestion and demo documentation follows.
 

@@ -37,6 +37,12 @@ def append_event(
         raise PermissionError("session is not accessible")
     if (stream.session_id, stream.project_id) != (event.session_id, event.project_id):
         raise EventConflict("session identity cannot change")
+    if (
+        stream.events
+        and event.derive_context is not None
+        and event.derive_context != stream.derive_context
+    ):
+        raise EventConflict("derivation consent is immutable within a session")
     if principal.actor_kind == "agent" and event.kind in (
         EventKind.USER_MESSAGE,
         EventKind.CORRECTION,
@@ -86,5 +92,8 @@ def append_event(
                 ),
             ),
             "state": state,
+            "derive_context": stream.derive_context
+            if stream.events
+            else (event.derive_context if event.derive_context is not None else True),
         }
     )

@@ -19,7 +19,11 @@ from context_graph.config import (
     RetrySettings,
     StructuredOutputMode,
 )
-from context_graph.errors import ExtractionValidationError, ProviderError, TransientError
+from context_graph.errors import (
+    ExtractionValidationError,
+    ProviderError,
+    TransientError,
+)
 from context_graph.providers.chat_backend import (
     EmbeddingProviderImpl,
     ChatLLMProvider,
@@ -27,6 +31,12 @@ from context_graph.providers.chat_backend import (
     strict_schema,
 )
 from context_graph.retry import retry_async
+
+
+@pytest.fixture(autouse=True)
+def isolated_embedding_batch_size(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Mock protocol tests must not inherit a developer's live NIM tuning."""
+    monkeypatch.setenv("EMBEDDING_BATCH_SIZE", "64")
 
 
 class Reply(BaseModel):
@@ -61,7 +71,9 @@ def transport_for(
 
 def llm_for(handler: Handler, retry: RetrySettings | None = None) -> ChatLLMProvider:
     return ChatLLMProvider(
-        backend=backend_settings(), llm=LLMSettings(), transport=transport_for(handler, retry)
+        backend=backend_settings(),
+        llm=LLMSettings(),
+        transport=transport_for(handler, retry),
     )
 
 
@@ -70,7 +82,10 @@ def chat_response(content: str, finish_reason: str = "stop") -> httpx.Response:
         200,
         json={
             "choices": [
-                {"finish_reason": finish_reason, "message": {"content": content, "role": "assistant"}}
+                {
+                    "finish_reason": finish_reason,
+                    "message": {"content": content, "role": "assistant"},
+                }
             ],
             "usage": {"prompt_tokens": 10, "completion_tokens": 5},
         },
@@ -98,7 +113,9 @@ async def test_json_schema_backend_constrains_the_request() -> None:
         llm=LLMSettings(),
         transport=transport_for(handler, settings=settings),
     )
-    result = await provider.structured(system="s", user="u", schema=Reply, max_output_tokens=100)
+    result = await provider.structured(
+        system="s", user="u", schema=Reply, max_output_tokens=100
+    )
 
     assert result == Reply(text="ok")
     assert captured["url"].endswith("/v1/chat/completions")
@@ -123,9 +140,13 @@ async def test_json_object_backend_puts_the_schema_in_the_prompt() -> None:
 
     settings = backend_settings(service_code="graph")
     provider = ChatLLMProvider(
-        backend=settings, llm=LLMSettings(), transport=transport_for(handler, settings=settings)
+        backend=settings,
+        llm=LLMSettings(),
+        transport=transport_for(handler, settings=settings),
     )
-    result = await provider.structured(system="s", user="u", schema=Reply, max_output_tokens=100)
+    result = await provider.structured(
+        system="s", user="u", schema=Reply, max_output_tokens=100
+    )
 
     # A fenced reply still parses, and the schema was given in the system prompt.
     assert result == Reply(text="ok")
@@ -158,9 +179,9 @@ async def test_output_that_never_validates_is_a_failure() -> None:
 
 async def test_truncated_output_is_never_treated_as_success() -> None:
     with pytest.raises(ExtractionValidationError):
-        await llm_for(lambda _: chat_response('{"text": "partial', "length")).structured(
-            system="s", user="u", schema=Reply, max_output_tokens=100
-        )
+        await llm_for(
+            lambda _: chat_response('{"text": "partial', "length")
+        ).structured(system="s", user="u", schema=Reply, max_output_tokens=100)
 
 
 async def test_rate_limits_are_retried_and_then_succeed() -> None:
@@ -190,11 +211,15 @@ async def test_bad_requests_are_not_retried() -> None:
         return httpx.Response(400, json={"error": "bad model"})
 
     with pytest.raises(ProviderError):
-        await llm_for(handler).structured(system="s", user="u", schema=Reply, max_output_tokens=100)
+        await llm_for(handler).structured(
+            system="s", user="u", schema=Reply, max_output_tokens=100
+        )
     assert attempts == 1
 
 
-async def test_embeddings_preserve_input_order_and_request_the_configured_dimension() -> None:
+async def test_embeddings_preserve_input_order_and_request_the_configured_dimension() -> (
+    None
+):
     captured: dict[str, Any] = {}
 
     def handler(request: httpx.Request) -> httpx.Response:
@@ -214,7 +239,9 @@ async def test_embeddings_preserve_input_order_and_request_the_configured_dimens
 
     provider = EmbeddingProviderImpl(
         embedding=EmbeddingSettings(
-            backend=EmbeddingBackend.OPENAI, dimension=2, base_url="https://example.test/v1"
+            backend=EmbeddingBackend.OPENAI,
+            dimension=2,
+            base_url="https://example.test/v1",
         ),
         retry=RetrySettings(max_attempts=1, base_backoff_seconds=0.0),
         client=httpx.AsyncClient(transport=httpx.MockTransport(handler)),
@@ -230,12 +257,16 @@ async def test_embeddings_preserve_input_order_and_request_the_configured_dimens
 async def test_embedding_response_of_the_wrong_size_is_an_error() -> None:
     provider = EmbeddingProviderImpl(
         embedding=EmbeddingSettings(
-            backend=EmbeddingBackend.OPENAI, dimension=2, base_url="https://example.test/v1"
+            backend=EmbeddingBackend.OPENAI,
+            dimension=2,
+            base_url="https://example.test/v1",
         ),
         retry=RetrySettings(max_attempts=1, base_backoff_seconds=0.0),
         client=httpx.AsyncClient(
             transport=httpx.MockTransport(
-                lambda _: httpx.Response(200, json={"data": [{"index": 0, "embedding": [0.1]}]})
+                lambda _: httpx.Response(
+                    200, json={"data": [{"index": 0, "embedding": [0.1]}]}
+                )
             )
         ),
     )
@@ -327,7 +358,10 @@ async def test_in_house_embedding_payload_and_ordering() -> None:
     vectors = await provider.embed(["first", "second"])
 
     assert vectors == [[0.1, 0.1], [0.2, 0.2]]
-    assert captured["inputs"] == [{"id": "0", "text": "first"}, {"id": "1", "text": "second"}]
+    assert captured["inputs"] == [
+        {"id": "0", "text": "first"},
+        {"id": "1", "text": "second"},
+    ]
     assert captured["dim"] == 2
     assert captured["service_code"] == "graph"
     assert captured["tenant"] == "tenant-1"
@@ -346,7 +380,12 @@ async def test_in_house_embedding_response_missing_an_input_is_an_error() -> Non
             transport=httpx.MockTransport(
                 lambda _: httpx.Response(
                     200,
-                    json={"results": [{"id": "0", "embedding": [0.1]}, {"id": "9", "embedding": [0.2]}]},
+                    json={
+                        "results": [
+                            {"id": "0", "embedding": [0.1]},
+                            {"id": "9", "embedding": [0.2]},
+                        ]
+                    },
                 )
             )
         ),
@@ -361,21 +400,39 @@ def test_backend_headers_follow_the_configured_scheme() -> None:
     # The orchestrator's gateway header travels with the credential.
     assert bearer["ai-model-service-code"] == "recognition"
 
-    api_key = backend_settings(auth_scheme=AuthScheme.API_KEY, service_code=None).headers()
+    api_key = backend_settings(
+        auth_scheme=AuthScheme.API_KEY, service_code=None
+    ).headers()
     assert api_key == {"api-key": "test-key"}
 
 
-def test_defaults_target_nvidia(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_defaults_target_nvidia(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     """Chat and embeddings default to NVIDIA NIM. Another OpenAI-compatible host is config."""
     from context_graph.config import LLMSettings, Settings
 
     # No .env and no overriding variables: these are the code defaults.
     monkeypatch.chdir(tmp_path)
     for name in (
-        "LLM_BASE_URL", "OPENAI_BASE_URL", "LLM_MODEL", "MODEL_NAME", "LLM_TOKEN_PARAMETER",
-        "LLM_STRUCTURED_OUTPUT", "LLM_SERVICE_CODE", "EMBEDDING_BACKEND", "EMBEDDING_MODEL",
-        "EMBEDDING_MODEL_NAME", "EMBEDDING_DIMENSION", "EMBEDDING_BASE_URL", "IN_HOUSE_EMBEDDINGS_URL",
-        "EMBEDDING_AUTH_SCHEME", "EMBEDDING_API_KEY", "NVIDIA_API_KEY", "LLM_API_KEY", "OPENAI_API_KEY",
+        "LLM_BASE_URL",
+        "OPENAI_BASE_URL",
+        "LLM_MODEL",
+        "MODEL_NAME",
+        "LLM_TOKEN_PARAMETER",
+        "LLM_STRUCTURED_OUTPUT",
+        "LLM_SERVICE_CODE",
+        "EMBEDDING_BACKEND",
+        "EMBEDDING_MODEL",
+        "EMBEDDING_MODEL_NAME",
+        "EMBEDDING_DIMENSION",
+        "EMBEDDING_BASE_URL",
+        "IN_HOUSE_EMBEDDINGS_URL",
+        "EMBEDDING_AUTH_SCHEME",
+        "EMBEDDING_API_KEY",
+        "NVIDIA_API_KEY",
+        "LLM_API_KEY",
+        "OPENAI_API_KEY",
     ):
         monkeypatch.delenv(name, raising=False)
     monkeypatch.setenv("NVIDIA_API_KEY", "nvapi-test")
@@ -390,7 +447,10 @@ def test_defaults_target_nvidia(tmp_path: Path, monkeypatch: pytest.MonkeyPatch)
     assert settings.embedding.backend is EmbeddingBackend.OPENAI
     assert settings.embedding.model == "nvidia/nemotron-3.5-embed-1b"
     assert settings.embedding.dimension == 2048
-    assert settings.embedding.embeddings_url == "https://integrate.api.nvidia.com/v1/embeddings"
+    assert (
+        settings.embedding.embeddings_url
+        == "https://integrate.api.nvidia.com/v1/embeddings"
+    )
     assert settings.chat.headers()["Authorization"] == "Bearer nvapi-test"
     assert settings.embedding.headers()["Authorization"] == "Bearer nvapi-test"
     llm = LLMSettings()

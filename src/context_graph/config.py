@@ -72,7 +72,9 @@ class ChatBackendSettings(BaseSettings):
     swapping backends never means changing provider code.
     """
 
-    model_config = SettingsConfigDict(env_file=".env", extra="ignore", populate_by_name=True)
+    model_config = SettingsConfigDict(
+        env_file=".env", extra="ignore", populate_by_name=True
+    )
 
     base_url: str = Field(
         default="https://integrate.api.nvidia.com/v1",
@@ -80,27 +82,37 @@ class ChatBackendSettings(BaseSettings):
     )
     api_key: SecretStr = Field(
         default=SecretStr("local-dev"),
-        validation_alias=AliasChoices("LLM_API_KEY", "OPENAI_API_KEY", "NVIDIA_API_KEY"),
+        validation_alias=AliasChoices(
+            "LLM_API_KEY", "OPENAI_API_KEY", "NVIDIA_API_KEY"
+        ),
     )
     chat_model: str = Field(
         default="nvidia/nemotron-3.5-bolt-e4b",
         validation_alias=AliasChoices("LLM_MODEL", "MODEL_NAME"),
     )
-    auth_scheme: AuthScheme = Field(default=AuthScheme.BEARER, validation_alias=AliasChoices("LLM_AUTH_SCHEME"))
+    auth_scheme: AuthScheme = Field(
+        default=AuthScheme.BEARER, validation_alias=AliasChoices("LLM_AUTH_SCHEME")
+    )
     #: gpt-5.x rejects ``max_tokens``; the orchestrator rejects the other name.
-    token_parameter: str = Field(default="max_tokens", validation_alias=AliasChoices("LLM_TOKEN_PARAMETER"))
+    token_parameter: str = Field(
+        default="max_tokens", validation_alias=AliasChoices("LLM_TOKEN_PARAMETER")
+    )
     structured_output: StructuredOutputMode = Field(
-        default=StructuredOutputMode.JSON_OBJECT, validation_alias=AliasChoices("LLM_STRUCTURED_OUTPUT")
+        default=StructuredOutputMode.JSON_OBJECT,
+        validation_alias=AliasChoices("LLM_STRUCTURED_OUTPUT"),
     )
     #: Gateway header the orchestrator requires, e.g. ``ai-model-service-code``.
     service_code_header: str = Field(
-        default="ai-model-service-code", validation_alias=AliasChoices("LLM_SERVICE_CODE_HEADER")
+        default="ai-model-service-code",
+        validation_alias=AliasChoices("LLM_SERVICE_CODE_HEADER"),
     )
     service_code: str | None = Field(
         default=None, validation_alias=AliasChoices("LLM_SERVICE_CODE")
     )
     #: Attempts to repair invalid JSON before the call is treated as failed.
-    repair_attempts: int = Field(default=2, ge=0, validation_alias=AliasChoices("LLM_REPAIR_ATTEMPTS"))
+    repair_attempts: int = Field(
+        default=2, ge=0, validation_alias=AliasChoices("LLM_REPAIR_ATTEMPTS")
+    )
     #: Long extractions need room; short calls answer in about a second.
     request_timeout_seconds: float = Field(
         default=360.0, validation_alias=AliasChoices("LLM_REQUEST_TIMEOUT_SECONDS")
@@ -109,7 +121,9 @@ class ChatBackendSettings(BaseSettings):
     max_concurrent_requests: int = Field(
         default=8, gt=0, validation_alias=AliasChoices("LLM_MAX_CONCURRENCY")
     )
-    temperature: float = Field(default=0.0, ge=0.0, le=2.0, validation_alias=AliasChoices("LLM_TEMPERATURE"))
+    temperature: float = Field(
+        default=0.0, ge=0.0, le=2.0, validation_alias=AliasChoices("LLM_TEMPERATURE")
+    )
 
     @property
     def chat_completions_url(self) -> str:
@@ -131,6 +145,10 @@ class ChatBackendSettings(BaseSettings):
 
 class LLMSettings(BaseModel):
     """Extraction budgets and limits; the backend lives in :class:`ChatBackendSettings`."""
+
+    unresolved_reference_values: frozenset[str] = frozenset(
+        {"current", "updated", "same as before", "as before"}
+    )
 
     #: Deliberately below the default model's window: it bounds batch size, and
     #: so extraction quality, not just what the model accepts.
@@ -178,10 +196,13 @@ class EmbeddingBackend(StrEnum):
 class EmbeddingSettings(BaseSettings):
     """Embedding service and the vector shape it must produce."""
 
-    model_config = SettingsConfigDict(env_file=".env", extra="ignore", populate_by_name=True)
+    model_config = SettingsConfigDict(
+        env_file=".env", extra="ignore", populate_by_name=True
+    )
 
     backend: EmbeddingBackend = Field(
-        default=EmbeddingBackend.OPENAI, validation_alias=AliasChoices("EMBEDDING_BACKEND")
+        default=EmbeddingBackend.OPENAI,
+        validation_alias=AliasChoices("EMBEDDING_BACKEND"),
     )
     model: str = Field(
         default="nvidia/nemotron-3.5-embed-1b",
@@ -192,7 +213,9 @@ class EmbeddingSettings(BaseSettings):
     dimension: int = Field(
         default=2048, gt=0, validation_alias=AliasChoices("EMBEDDING_DIMENSION")
     )
-    batch_size: int = Field(default=64, gt=0, validation_alias=AliasChoices("EMBEDDING_BATCH_SIZE"))
+    batch_size: int = Field(
+        default=64, gt=0, validation_alias=AliasChoices("EMBEDDING_BATCH_SIZE")
+    )
     base_url: str = Field(
         default="https://integrate.api.nvidia.com/v1",
         validation_alias=AliasChoices("EMBEDDING_BASE_URL", "IN_HOUSE_EMBEDDINGS_URL"),
@@ -203,15 +226,25 @@ class EmbeddingSettings(BaseSettings):
             "EMBEDDING_API_KEY", "NVIDIA_API_KEY", "LLM_API_KEY", "OPENAI_API_KEY"
         ),
     )
-    auth_scheme: AuthScheme = Field(default=AuthScheme.BEARER, validation_alias=AliasChoices("EMBEDDING_AUTH_SCHEME"))
+    auth_scheme: AuthScheme = Field(
+        default=AuthScheme.BEARER,
+        validation_alias=AliasChoices("EMBEDDING_AUTH_SCHEME"),
+    )
     #: Only used by the in-house gateway.
-    service_code: str | None = Field(default="graph", validation_alias=AliasChoices("EMBEDDING_SERVICE_CODE"))
+    service_code: str | None = Field(
+        default="graph", validation_alias=AliasChoices("EMBEDDING_SERVICE_CODE")
+    )
     #: Required by the in-house gateway (``x-smtip-tid``); no default.
     tenant_id: str | None = Field(
-        default=None, validation_alias=AliasChoices("EMBEDDING_TENANT_ID", "IN_HOUSE_EMBEDDINGS_TID")
+        default=None,
+        validation_alias=AliasChoices("EMBEDDING_TENANT_ID", "IN_HOUSE_EMBEDDINGS_TID"),
     )
-    priority: str = Field(default="async", validation_alias=AliasChoices("EMBEDDING_PRIORITY"))
-    quantize: bool = Field(default=False, validation_alias=AliasChoices("EMBEDDING_QUANTIZE"))
+    priority: str = Field(
+        default="async", validation_alias=AliasChoices("EMBEDDING_PRIORITY")
+    )
+    quantize: bool = Field(
+        default=False, validation_alias=AliasChoices("EMBEDDING_QUANTIZE")
+    )
 
     @property
     def embeddings_url(self) -> str:
@@ -309,7 +342,9 @@ class SegmentationSettings(BaseModel):
 
     def window_budget(self, model_input_budget: int) -> int:
         """Tokens available for source content in one grouping request."""
-        available = model_input_budget - self.prompt_overhead_tokens - self.max_output_tokens
+        available = (
+            model_input_budget - self.prompt_overhead_tokens - self.max_output_tokens
+        )
         return max(self.max_span_tokens, min(self.max_window_tokens, available))
 
 
@@ -362,7 +397,9 @@ class PromotionSettings(BaseModel):
             ScopeType.PROJECT: PromotionRule(min_evidence=2, min_sessions=2),
             ScopeType.USER: PromotionRule(min_evidence=2, min_sessions=2),
             ScopeType.TEAM: PromotionRule(min_evidence=3, min_sessions=3, min_users=3),
-            ScopeType.DEPARTMENT: PromotionRule(min_evidence=5, min_sessions=5, min_users=4),
+            ScopeType.DEPARTMENT: PromotionRule(
+                min_evidence=5, min_sessions=5, min_users=4
+            ),
             ScopeType.ORGANIZATION: PromotionRule(
                 min_evidence=5,
                 min_sessions=5,

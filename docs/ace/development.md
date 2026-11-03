@@ -104,9 +104,9 @@ or mandatory-budget failures fail closed.
 Handoff completion requires an authenticated successful tool result with matching
 call/event/project/session references; a model saying “done” is insufficient.
 Resume checks permissions, expected revision, expiration, outstanding operations
-and evidence again. It never executes tools. Generic startup rejects artifact
-references because arbitrary remote artifact versions cannot be verified safely;
-hosts must inject an authoritative verifier through `create_app` for that feature.
+and evidence again. It never executes tools. The private artifact registry computes hashes from uploaded content and verifies
+current versions for handoff resume. Arbitrary external URLs are never fetched;
+remote repositories require a separately configured authoritative verifier.
 
 ## Validation
 
@@ -126,3 +126,5 @@ tied candidates instead of assuming a unique nearest neighbor.
 Live-model Streamlit integration additionally needs a seeded user/team graph and
 provider credentials. It is not validated by database-only tests or mocked
 providers. No full model-quality, latency/cost or benchmark result is claimed.
+
+Current live validation and remaining production gates are recorded in [validation.md](validation.md). For initialization, Compose, privacy controls and recovery, follow [operations.md](operations.md).

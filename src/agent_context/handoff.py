@@ -14,6 +14,7 @@ from pymongo.errors import DuplicateKeyError
 from agent_context.assembly import AssembleRequest, ContextAssembler, ContextBundle
 from agent_context.contracts import Contract, Identifier, Permission, Principal, utcnow
 from agent_context.events import CapacityExceeded, EventConflict
+from agent_context.privacy import PrivacyControls
 
 
 class ArtifactRef(Contract):
@@ -80,6 +81,7 @@ class HandoffService:
         if not 1 <= max_versions <= 64:
             raise ValueError("max_versions must be between 1 and 64")
         self.collection = client[database]["ace_handoffs_v1"]
+        self.privacy = PrivacyControls(client, database)
         self.verify_action, self.verify_artifact = verify_action, verify_artifact
         self.max_versions = max_versions
 
@@ -107,6 +109,7 @@ class HandoffService:
     async def prepare(
         self, principal: Principal, request: HandoffInput
     ) -> HandoffArtifact:
+        await self.privacy.require_active(principal.tenant_id, principal.user_id)
         principal.require(Permission.ASSERT, request.project_id)
         if len(request.model_dump_json().encode()) > 64000:
             raise CapacityExceeded("handoff exceeds 64KB bound")
@@ -185,6 +188,7 @@ class HandoffService:
         return artifact
 
     async def latest(self, principal: Principal, identifier: str) -> HandoffArtifact:
+        await self.privacy.require_active(principal.tenant_id, principal.user_id)
         principal.require(Permission.VIEW)
         # Do not project private state before checking the current project grant.
         metadata = await self.collection.find_one(

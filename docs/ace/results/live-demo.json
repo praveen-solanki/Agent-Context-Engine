@@ -1,0 +1,52 @@
+{
+  "run_id": "32bcd68eb5c3",
+  "model": "nvidia/nemotron-3.5-bolt-e4b",
+  "sessions": [
+    {
+      "session": "A",
+      "answer": "The cheapest option that works offline is Option A, which costs 10 units. This is based on the information in research-brief.\n\nSources: [research-brief]",
+      "context": [
+        "personalization:report_language: English"
+      ],
+      "context_tokens_upper_bound": 164,
+      "model_calls": 2,
+      "verified_reads": 1
+    },
+    {
+      "session": "B",
+      "answer": "La opción más barata que funciona sin conexión es la Opción A, con un costo de 10 unidades.\n\nSources: [research-brief]",
+      "context": [
+        "personalization:report_language: Spanish"
+      ],
+      "context_tokens_upper_bound": 164,
+      "model_calls": 2,
+      "verified_reads": 1
+    },
+    {
+      "session": "C",
+      "answer": "La recomendación final no puede ser entregada porque, aunque se ha leído 'research-brief', no hay información adicional en el contexto ni en los documentos leídos que permita tomar una decisión final o emitir una recomendación específica (por ejemplo, criterios de costo/funcionalidad a priorizar). Se requiere más contexto para continuar con la recomendación en español.\n\nSources: [research-brief]",
+      "context": [
+        "personalization:report_language: Spanish"
+      ],
+      "context_tokens_upper_bound": 164,
+      "model_calls": 2,
+      "verified_reads": 1
+    }
+  ],
+  "replay_cached": true,
+  "checks": {
+    "read_each_session": true,
+    "citations_each_session": true,
+    "current_language_in_C": true,
+    "no_superseded_english_in_C": true,
+    "spanish_answer_in_C": true,
+    "replay_cached": true
+  },
+  "elapsed_seconds": 61.055,
+  "limitations": [
+    "Synthetic bounded document scenario",
+    "No cross-provider switch in this run",
+    "End-to-end timing includes live ingestion and provider calls; no per-token price estimate"
+  ],
+  "dataset_classification": "Entirely synthetic task-authored fixture; no real organization records"
+}

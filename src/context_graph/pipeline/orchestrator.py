@@ -11,6 +11,7 @@ from __future__ import annotations
 import asyncio
 import hashlib
 import json
+from itertools import groupby
 from collections.abc import Iterable, Sequence
 from typing import Protocol, runtime_checkable
 
@@ -19,7 +20,12 @@ from pydantic import BaseModel, ConfigDict, Field
 from context_graph.config import Settings
 from context_graph.domain.context import Lineage
 from context_graph.domain.conversation import Episode, SessionInput
-from context_graph.domain.enums import EpisodeState, GateDecision, SegmentationStrategy
+from context_graph.domain.enums import (
+    EpisodeState,
+    GateDecision,
+    SegmentationStrategy,
+    SourceTrust,
+)
 from context_graph.domain.extraction import ExtractedSignal, ExtractionBatch
 from context_graph.errors import ContextGraphError
 from context_graph.graph.neo4j_store import Neo4jGraphStore
@@ -325,7 +331,33 @@ class IngestionPipeline:
             return previous
 
         tail = session.model_copy(update={"messages": tuple(messages[offset:])})
-        additions = await self._episodes.build(tail) if tail.messages else []
+        if session.metadata.get("ace_derive_context") is False:
+            deterministic = EpisodeBuilder(
+                llm=self._llm,
+                llm_settings=self._settings.llm,
+                settings=self._settings.segmentation,
+                retry_settings=self._settings.retry,
+            )
+            additions = deterministic.build_deterministic(tail)
+        else:
+            additions = await self._episodes.build(tail) if tail.messages else []
+        if session.metadata.get("ace_event_bridge") is True:
+            # A model may group a user instruction with hostile tool text.
+            # Enforce trust boundaries from exact spans after segmentation so
+            # an episode's first speaker cannot launder the other speaker.
+            separated: list[Episode] = []
+            for episode in additions:
+                for _, group in groupby(
+                    episode.spans, key=lambda span: span.source_type.trust
+                ):
+                    separated.append(
+                        Episode.from_spans(
+                            session_id=session.session_id,
+                            sequence=0,
+                            spans=tuple(group),
+                        )
+                    )
+            additions = separated
         ordinal = max((episode.sequence for episode in previous), default=-1)
         episodes = previous + [
             episode.model_copy(update={"sequence": ordinal + index})
@@ -366,14 +398,26 @@ class IngestionPipeline:
         progress: _SessionProgress,
     ) -> None:
         """Gate a page of Episodes and extract context from what remains."""
-        extractable = await self._gate_page(episodes, session.session_id, progress)
+        extractable = await self._gate_page(
+            episodes,
+            session.session_id,
+            progress,
+            trusted_only=session.metadata.get("ace_event_bridge") is True,
+            derive_context=session.metadata.get("ace_derive_context") is not False,
+        )
         for batch in self._batcher.batches(
             self._run_id, session.session_id, extractable
         ):
             await self._process_batch(session, batch, state, progress)
 
     async def _gate_page(
-        self, episodes: Sequence[Episode], session_id: str, progress: _SessionProgress
+        self,
+        episodes: Sequence[Episode],
+        session_id: str,
+        progress: _SessionProgress,
+        *,
+        trusted_only: bool = False,
+        derive_context: bool = True,
     ) -> list[Episode]:
         """Apply the cheap relevance gate.
 
@@ -383,6 +427,16 @@ class IngestionPipeline:
         extractable: list[Episode] = []
         skipped: list[int] = []
         for episode in episodes:
+            if not derive_context or (
+                trusted_only
+                and any(
+                    span.source_type.trust is not SourceTrust.FIRST_PARTY
+                    for span in episode.spans
+                )
+            ):
+                skipped.append(episode.sequence)
+                progress.episodes_considered += 1
+                continue
             progress.episodes_considered += 1
             if self._gate.decide(episode) is GateDecision.SKIP:
                 skipped.append(episode.sequence)
@@ -458,6 +512,14 @@ class IngestionPipeline:
         progress: _SessionProgress,
     ) -> None:
         """Resolve and write a single signal."""
+        if (
+            session.metadata.get("ace_event_bridge") is True
+            and isinstance(signal.value, str)
+            and signal.value.casefold().strip()
+            in self._settings.llm.unresolved_reference_values
+        ):
+            progress.signals_unresolved += 1
+            return
         primary = min(
             (
                 episodes[episode_id]

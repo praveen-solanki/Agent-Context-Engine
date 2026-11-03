@@ -12,7 +12,7 @@ from context_graph.domain.enums import ContextType, ScopeType, SignalOperation
 from context_graph.domain.extraction import EpisodeChunk
 
 #: Bump when the prompt text changes; stored in every Context's lineage.
-PROMPT_VERSION = "extraction-v1"
+PROMPT_VERSION = "extraction-v2"
 ADJUDICATION_PROMPT_VERSION = "adjudication-v1"
 
 
@@ -36,6 +36,9 @@ Rules:
   over inventing a synonym, and keep it coarse: 'response_detail', never
   'response_style_always_from_now_on_language'.
 - value is the concrete state for that concept (for example: concise, weekly).
+- Do not store "current", "updated", "same as before" or another unresolved
+  reference as a new canonical preference value. Resolve it from cited evidence
+  or list it in unresolved_references without emitting an unsupported signal.
 - subject says WHO the context is about, not what it is about. It is "user" for
   anything the speaker says about themselves or reports about their own team;
   use a person's name only when the context belongs to someone else. A user
@@ -141,7 +144,9 @@ def render_batch(
     """Render the user message for one extraction call."""
     sections: list[str] = []
     if rolling_state:
-        sections.append(f"SESSION STATE (continuity only, do not cite):\n{rolling_state}")
+        sections.append(
+            f"SESSION STATE (continuity only, do not cite):\n{rolling_state}"
+        )
     context_only = [_render_chunk(chunk, context_only=True) for chunk in overlap]
     if context_only:
         sections.append("CONTEXT-ONLY EPISODES:\n" + "\n".join(context_only))
@@ -155,7 +160,9 @@ def render_batch(
 def _render_chunk(chunk: EpisodeChunk, *, context_only: bool) -> str:
     episode = chunk.episode
     marker = "CONTEXT-ONLY " if context_only else ""
-    part = f" part {chunk.chunk_index + 1}/{chunk.chunk_count}" if chunk.is_partial else ""
+    part = (
+        f" part {chunk.chunk_index + 1}/{chunk.chunk_count}" if chunk.is_partial else ""
+    )
     return (
         f"[{marker}episode_id={episode.episode_id} role={episode.role.value} "
         f"sender={episode.sender_id} seq={episode.sequence} "

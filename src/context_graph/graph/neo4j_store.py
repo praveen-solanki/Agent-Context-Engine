@@ -118,7 +118,7 @@ ON MATCH SET c.last_seen_at = datetime(),
              c.observed_at = CASE WHEN $props.observed_at > c.observed_at
                                   THEN $props.observed_at ELSE c.observed_at END,
              c.valid_until = coalesce($props.valid_until, c.valid_until),
-             c.status = $props.status,
+             c.status = CASE WHEN coalesce(c.user_revoked,false) THEN 'revoked' ELSE $props.status END,
              c.superseded_at = null
 WITH c
 MATCH (concept:MemoryConcept {concept_id: $props.concept_id})
@@ -254,7 +254,9 @@ _RESOLVABLE_STATUSES = [ContextStatus.ACTIVE.value, ContextStatus.CANDIDATE.valu
 class Neo4jGraphStore:
     """Durable graph store for Episodes and derived Context."""
 
-    def __init__(self, settings: Neo4jSettings, driver: AsyncDriver | None = None) -> None:
+    def __init__(
+        self, settings: Neo4jSettings, driver: AsyncDriver | None = None
+    ) -> None:
         self._settings = settings
         self._driver = driver or AsyncGraphDatabase.driver(
             settings.uri, auth=(settings.user, settings.password.get_secret_value())
@@ -278,7 +280,11 @@ class Neo4jGraphStore:
     async def ensure_schema(self, embedding_dimension: int) -> None:
         """Create constraints and indexes; safe to run on every startup."""
         await self._check_vector_dimensions(embedding_dimension)
-        for statement in (*CONSTRAINTS, *INDEXES, *vector_index_statements(embedding_dimension)):
+        for statement in (
+            *CONSTRAINTS,
+            *INDEXES,
+            *vector_index_statements(embedding_dimension),
+        ):
             await self._run(statement, {})
         log_event(_logger, "graph.schema_ready", dimension=embedding_dimension)
 
@@ -301,7 +307,9 @@ class Neo4jGraphStore:
             and int(record["dimensions"]) != embedding_dimension
         }
         if mismatched:
-            details = ", ".join(f"{name} is {dims}" for name, dims in mismatched.items())
+            details = ", ".join(
+                f"{name} is {dims}" for name, dims in mismatched.items()
+            )
             raise ConfigurationError(
                 f"vector indexes were built for a different embedding size "
                 f"({details}) but the configured dimension is {embedding_dimension}. "
@@ -352,11 +360,17 @@ class Neo4jGraphStore:
         records = await self._run(_COUNT_EPISODES, {"session_id": session_id})
         return int(records[0]["episodes"]) if records else 0
 
-    async def episodes_after(self, session_id: str, after_sequence: int, limit: int) -> list[Episode]:
+    async def episodes_after(
+        self, session_id: str, after_sequence: int, limit: int
+    ) -> list[Episode]:
         """Episodes with a sequence greater than the checkpoint, in order."""
         records = await self._run(
             _EPISODES_AFTER,
-            {"session_id": session_id, "after_sequence": after_sequence, "limit": limit},
+            {
+                "session_id": session_id,
+                "after_sequence": after_sequence,
+                "limit": limit,
+            },
         )
         return [mapping.episode_from_node(dict(record["e"])) for record in records]
 
@@ -380,7 +394,11 @@ class Neo4jGraphStore:
         """Semantic concept candidates ordered by cosine similarity."""
         records = await self._run(
             _SEARCH_CONCEPTS,
-            {"index": CONCEPT_VECTOR_INDEX, "top_k": top_k, "embedding": list(embedding)},
+            {
+                "index": CONCEPT_VECTOR_INDEX,
+                "top_k": top_k,
+                "embedding": list(embedding),
+            },
         )
         return [
             (mapping.concept_from_node(dict(record["node"])), float(record["score"]))
@@ -411,7 +429,12 @@ class Neo4jGraphStore:
         ]
 
     async def active_contexts(
-        self, *, subject_user_id: str, scope_type: ScopeType, scope_id: str, concept_id: str
+        self,
+        *,
+        subject_user_id: str,
+        scope_type: ScopeType,
+        scope_id: str,
+        concept_id: str,
     ) -> list[ContextInstance]:
         """Live instances of one concept in one scope, newest first."""
         records = await self._run(
@@ -443,7 +466,9 @@ class Neo4jGraphStore:
             result = await tx.run(_MERGE_CONTEXT, props=props)
             record = await result.single()
             if record is None:
-                raise GraphWriteError(f"context merge returned no node: {context.fingerprint}")
+                raise GraphWriteError(
+                    f"context merge returned no node: {context.fingerprint}"
+                )
             stored = dict(record["c"])
             context_id = str(stored["context_id"])
 
@@ -508,10 +533,17 @@ class Neo4jGraphStore:
         )
         if not records:
             return None
-        log_event(_logger, "graph.context_revoked", context_id=context_id, episode_id=episode_id)
+        log_event(
+            _logger,
+            "graph.context_revoked",
+            context_id=context_id,
+            episode_id=episode_id,
+        )
         return mapping.context_from_node(dict(records[0]["c"]))
 
-    async def support_for(self, context_ids: Sequence[str]) -> dict[str, ContextSupport]:
+    async def support_for(
+        self, context_ids: Sequence[str]
+    ) -> dict[str, ContextSupport]:
         """De-duplicated evidence aggregates used by the promotion policy."""
         if not context_ids:
             return {}
@@ -522,7 +554,8 @@ class Neo4jGraphStore:
     async def candidates(self, limit: int) -> list[ContextInstance]:
         """Shared-scope candidates awaiting a governed promotion decision."""
         records = await self._run(
-            _CANDIDATES, {"candidate_status": ContextStatus.CANDIDATE.value, "limit": limit}
+            _CANDIDATES,
+            {"candidate_status": ContextStatus.CANDIDATE.value, "limit": limit},
         )
         return [mapping.context_from_node(dict(record["c"])) for record in records]
 
@@ -537,8 +570,12 @@ class Neo4jGraphStore:
 
     async def vector_basis(self) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
         """Rows describing what every Context and MemoryConcept should embed."""
-        contexts = [dict(record) for record in await self._run(_CONTEXT_VECTOR_BASIS, {})]
-        concepts = [dict(record) for record in await self._run(_CONCEPT_VECTOR_BASIS, {})]
+        contexts = [
+            dict(record) for record in await self._run(_CONTEXT_VECTOR_BASIS, {})
+        ]
+        concepts = [
+            dict(record) for record in await self._run(_CONCEPT_VECTOR_BASIS, {})
+        ]
         return contexts, concepts
 
     async def set_embeddings(
@@ -560,7 +597,9 @@ class Neo4jGraphStore:
             await self._run(f"DROP INDEX {name} IF EXISTS", {})
         log_event(_logger, "graph.vector_indexes_dropped")
 
-    async def _run(self, query: LiteralString, parameters: dict[str, Any]) -> list[Record]:
+    async def _run(
+        self, query: LiteralString, parameters: dict[str, Any]
+    ) -> list[Record]:
         """Execute one query, translating driver failures into pipeline errors."""
         try:
             result = await self._driver.execute_query(
@@ -581,11 +620,17 @@ class Neo4jGraphStore:
     ) -> T:
         """Run a multi-statement write in a single transaction."""
         try:
-            async with self._driver.session(database=self._settings.database) as session:
+            async with self._driver.session(
+                database=self._settings.database
+            ) as session:
                 return await session.execute_write(unit_of_work)
         except neo4j_exceptions.TransientError as error:
-            raise TransientError(f"{description} failed transiently: {error}") from error
+            raise TransientError(
+                f"{description} failed transiently: {error}"
+            ) from error
         except neo4j_exceptions.ServiceUnavailable as error:
-            raise TransientError(f"neo4j unavailable during {description}: {error}") from error
+            raise TransientError(
+                f"neo4j unavailable during {description}: {error}"
+            ) from error
         except neo4j_exceptions.Neo4jError as error:
             raise GraphWriteError(f"{description} failed: {error}") from error
