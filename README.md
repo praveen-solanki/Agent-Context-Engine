@@ -1,5 +1,7 @@
 # Context Graph — Ingestion & Personalization Layer (POC)
 
+> **Planned next-generation product:** [Agent Context Engine — Master Implementation Blueprint](CONTEXT_ENGINE_MASTER_BLUEPRINT.md) documents how to evolve this POC into a production-oriented, end-to-end context engineering system for AI agents. The blueprint distinguishes existing code from proposed features; it does **not** mean those features are implemented yet.
+
 Implements the Context Graph ingestion specification: conversations become
 immutable Episodes in Neo4j, and durable personalization Context is derived from
 them with explicit provenance, scope and write-time governance. Request-time
