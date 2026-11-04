@@ -161,8 +161,24 @@ No prices, confidence intervals or public dataset results have been invented.
 
 ## Remaining whole-product gates
 
+2026-11-05 retrieval increment: the full suite with disposable real Mongo/Neo4j
+passed **474 tests, one legacy credentialed UI case deselected, in 16.59s**;
+Pyright reported zero errors/warnings. Search's missing contract and evidence's
+missing exact spans were reproduced before changing them. Focused real-store
+tests cover private lexical/semantic recall under 220 irrelevant candidates,
+current versus explicit historical values, cap-hidden conflicts, bounded
+speaker/trust-preserving evidence, and SDK/HTTP compatibility. Unit tests cover
+pagination, changed/invalid cursors, conflicts and historical separation.
+The final evidence privacy-recheck tests passed separately (four real-store
+cases). `results/retrieval-live-20261105.json` records a real isolated
+API/worker/NVIDIA event → available → new-session semantic search → evidence →
+bundle check. It reports one synthetic run and source hashes, not benchmark
+quality, cost savings or production latency. Semantic/history/search behavior
+is now implemented for the private deployment; current task state and shared
+scope/load/production gates remain outstanding.
+
 The blueprint is still an incremental product roadmap, not a completed production
-certification. Required remaining gates include shared/task/historical retrieval
+certification. Required remaining gates include shared/task retrieval
 parity, wider multi-session/public-dataset evaluation and ablations, a genuine
 cross-provider run, production distributed fencing/quotas, TLS/identity deployment,
 external backup erasure/retention and disaster-recovery/load/chaos validation.

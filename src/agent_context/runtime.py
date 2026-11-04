@@ -19,7 +19,7 @@ from typing_extensions import Self
 
 from agent_context.api import create_app
 from agent_context.artifacts import ArtifactStore
-from agent_context.assembly import ContextAssembler
+from agent_context.assembly import AssemblySettings, ContextAssembler
 from agent_context.bridge import EventWorker, scoped_id
 from agent_context.contracts import Identifier, Principal, Permission
 from agent_context.event_store import MongoEventStore
@@ -29,6 +29,7 @@ from agent_context.outcomes import EventOutcomeVerifier
 from agent_context.retrieval import Neo4jCandidateSource
 from context_graph.config import Settings
 from context_graph.tool import ContextGraphIngestion
+from context_graph.providers.chat_backend import EmbeddingProviderImpl
 
 
 class RuntimeSettings(BaseSettings):
@@ -45,6 +46,8 @@ class RuntimeSettings(BaseSettings):
     port: int = Field(default=8000, ge=1, le=65535)
     run_version: str = "v1"
     poll_seconds: float = Field(default=0.5, gt=0, le=30)
+    semantic_retrieval: bool = True
+    source_timeout_seconds: float = Field(default=30, gt=0, le=60)
 
     @field_validator("auth_bindings", mode="before")
     @classmethod
@@ -92,11 +95,19 @@ def application() -> FastAPI:
         verify_action=EventOutcomeVerifier(events),
         verify_artifact=artifacts.verify,
     )
+    embeddings = (
+        EmbeddingProviderImpl(
+            embedding=settings.embedding, retry=settings.retry, for_query=True
+        )
+        if runtime.semantic_retrieval
+        else None
+    )
     source = Neo4jCandidateSource(
         driver,
         database=settings.neo4j.database,
         tenant_id=runtime.tenant_id,
         privacy=events.privacy,
+        embeddings=embeddings,
     )
 
     async def ready() -> bool:
@@ -108,7 +119,12 @@ def application() -> FastAPI:
 
     app = create_app(
         events=events,
-        assembler=ContextAssembler(source),
+        assembler=ContextAssembler(
+            source,
+            settings=AssemblySettings(
+                source_timeout_seconds=runtime.source_timeout_seconds,
+            ),
+        ),
         handoffs=handoffs,
         auth_bindings=runtime.auth_bindings,
         ready=ready,
@@ -156,6 +172,8 @@ def application() -> FastAPI:
                     pass
             await driver.close()
             await mongo.close()
+            if embeddings:
+                await embeddings.aclose()
 
     app.router.lifespan_context = lifespan
     return app

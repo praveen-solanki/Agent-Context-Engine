@@ -282,10 +282,12 @@ class EmbeddingProviderImpl:
         embedding: EmbeddingSettings,
         retry: RetrySettings | None = None,
         client: httpx.AsyncClient | None = None,
+        for_query: bool = False,
     ) -> None:
         self._embedding = embedding
         self._retry = retry or RetrySettings()
         self._client = client or httpx.AsyncClient(timeout=180.0)
+        self._for_query = for_query
 
     @property
     def model(self) -> str:
@@ -323,7 +325,7 @@ class EmbeddingProviderImpl:
                 "model": self._embedding.model,
                 "input": list(texts),
                 **(
-                    {"input_type": "passage", "encoding_format": "float", "truncate": "END"}
+                    {"input_type": "query" if self._for_query else "passage", "encoding_format": "float", "truncate": "END"}
                     if nvidia
                     else {"dimensions": self._embedding.dimension}
                 ),

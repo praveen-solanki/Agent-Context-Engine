@@ -254,6 +254,27 @@ async def test_embeddings_preserve_input_order_and_request_the_configured_dimens
     assert provider.dimension == 2
 
 
+@pytest.mark.parametrize("for_query, expected", [(False, "passage"), (True, "query")])
+async def test_nim_embedding_uses_the_correct_retrieval_input_type(
+    for_query: bool, expected: str,
+) -> None:
+    import json
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        assert json.loads(request.content)["input_type"] == expected
+        return httpx.Response(200, json={"data": [{"index": 0, "embedding": [1.0, 0.0]}]})
+
+    provider = EmbeddingProviderImpl(
+        embedding=EmbeddingSettings(base_url="https://integrate.api.nvidia.com/v1", dimension=2),
+        client=httpx.AsyncClient(transport=httpx.MockTransport(handler)),
+        for_query=for_query,
+    )
+    try:
+        assert await provider.embed(["test"]) == [[1.0, 0.0]]
+    finally:
+        await provider.aclose()
+
+
 async def test_embedding_response_of_the_wrong_size_is_an_error() -> None:
     provider = EmbeddingProviderImpl(
         embedding=EmbeddingSettings(

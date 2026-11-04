@@ -55,6 +55,11 @@ async def test_api_sdk_identity_and_durable_lifecycle(
         assert (await client.record_events(event())).recorded_sequence == 1
         bundle = await client.assemble_context(request())
         assert len(bundle.items) == 1
+        search = request().model_dump(mode="json", exclude={"budget"})
+        response = await client.http.post("/v1/context/search", json={**search, "limit": 1})
+        assert response.status_code == 200
+        assert len(response.json()["items"]) == 1
+        assert "rendered" not in response.json()
         response = await client.http.get("/v1/events/e1/status")
         assert response.status_code == 200 and response.json()["state"] == "recorded"
         assert response.headers.get("x-request-id")

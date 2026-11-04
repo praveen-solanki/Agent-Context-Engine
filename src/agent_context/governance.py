@@ -14,6 +14,7 @@ from agent_context.bridge import scoped_id
 from agent_context.contracts import Contract, Permission, Principal, utcnow
 from agent_context.events import EventConflict
 from agent_context.privacy import PrivacyControls
+from context_graph.domain.conversation import SourceSpan
 
 _OWNED: LiteralString = """
 c.subject_user_id = $user_id AND (
@@ -33,8 +34,18 @@ _EVIDENCE: LiteralString = (
     + _OWNED
     + """
 MATCH (c)-[:SUPPORTED_BY]->(e:Episode)
+WHERE EXISTS {
+ MATCH (:User {user_id:$user_id})-[:PARTICIPATED_IN]->(:Session)-[:CONTAINS]->(e)
+}
 RETURN e.episode_id AS episode_id,left(e.text,4000) AS text,
- e.session_id AS session_id,e.timestamp AS observed_at ORDER BY e.sequence LIMIT 8
+ e.session_id AS session_id,e.timestamp AS observed_at,
+ e.spans AS source_spans,e.role AS role,e.sender_id AS sender_id,
+ e.source_type AS source_type,c.status AS context_status,
+ size(e.text)>4000 AS truncated,
+ (c.status='active' AND coalesce(c.user_revoked,false)=false
+  AND (c.valid_from IS NULL OR c.valid_from<=$now)
+  AND (c.valid_until IS NULL OR c.valid_until>$now)) AS usable_as_current_context
+ ORDER BY e.sequence,e.episode_id LIMIT 8
 """
 )
 _EXPORT: LiteralString = (
@@ -88,25 +99,60 @@ class GovernanceService:
         self, principal: Principal, item_id: str
     ) -> list[dict[str, Any]]:
         principal.require(Permission.VIEW)
-        await self.privacy.require_active(principal.tenant_id, principal.user_id)
+        state = await self.privacy.require_active(principal.tenant_id, principal.user_id)
         records, _, _ = await self.driver.execute_query(
             _EVIDENCE,
             **self._parameters(principal),
             item_id=item_id,
+            now=utcnow(),
             database_=self.graph_database,
             routing_=RoutingControl.READ,
         )
         if not records:
             raise LookupError("owned evidence not found")
-        return [
-            {
-                **dict(record),
-                "observed_at": str(record["observed_at"])
+        excerpts: list[dict[str, Any]] = []
+        for record in records:
+            excerpt = dict(record)
+            stored = excerpt.pop("source_spans")
+            spans: list[dict[str, Any]] = []
+            remaining = 4000
+            for raw in json.loads(stored) if stored else []:
+                if remaining <= 0 or len(spans) == 32:
+                    excerpt["truncated"] = True
+                    break
+                span = SourceSpan.model_validate(raw)
+                text = span.text[:remaining]
+                spans.append(
+                    {
+                        "message_id": span.message_id,
+                        "sequence": span.sequence,
+                        "role": span.role.value,
+                        "sender_id": span.sender_id,
+                        "source_type": span.source_type.value,
+                        "source_trust": span.source_type.trust.value,
+                        "char_start": span.char_start,
+                        "char_end": span.char_start + len(text),
+                        "text": text,
+                    }
+                )
+                remaining -= len(text)
+            excerpt["spans"] = spans
+            excerpt["observed_at"] = (
+                str(record["observed_at"])
                 if record["observed_at"] is not None
-                else None,
-            }
-            for record in records
-        ]
+                else None
+            )
+            excerpt["usable_as_current_context"] = bool(
+                excerpt["usable_as_current_context"] and item_id not in state.blocked_item_ids
+            )
+            # Inspection of one's revoked source is intentional, but it must
+            # never look like an active instruction or bypass current search.
+            excerpts.append(excerpt)
+        current = await self.privacy.require_active(principal.tenant_id, principal.user_id)
+        if item_id in current.blocked_item_ids:
+            for excerpt in excerpts:
+                excerpt["usable_as_current_context"] = False
+        return excerpts
 
     async def revoke(
         self, principal: Principal, request: RevocationInput

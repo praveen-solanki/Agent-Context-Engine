@@ -1,0 +1,92 @@
+{
+  "timestamp": "2026-11-04T23:44:09.273714+00:00",
+  "run_id": "retrieval-0ac0f8e16a12",
+  "input": "For this project, our deployment requirement is that all servers remain inside our company building. Public cloud hosting is prohibited. Please retain this requirement for later sessions.",
+  "query": "Where should the computing infrastructure reside?",
+  "event_status": {
+    "session_id": "retrieval-0ac0f8e16a12-A",
+    "recorded_sequence": 1,
+    "available_sequence": 1,
+    "state": "available",
+    "attempts": 0
+  },
+  "supported_hits": [
+    {
+      "item": {
+        "item_id": "ctx_47f68275626049198a86bbbd3b9f4967",
+        "tenant_id": "ace-live",
+        "user_id": "research-user",
+        "scope_type": "PROJECT",
+        "scope_id": "research-project",
+        "canonical_key": "personalization:deployment_location",
+        "text": "personalization:deployment_location: inside company building",
+        "value": "inside company building",
+        "fingerprint": "fp_9ad60c46062440acc187afb0",
+        "evidence_ids": [
+          "ep_695a4677e63f451b99d1dae1"
+        ],
+        "status": "active",
+        "valid_from": "2026-11-04T23:43:58.828681Z",
+        "valid_until": null,
+        "observed_at": "2026-11-04T23:43:58.828681Z",
+        "single_valued": true,
+        "required": false,
+        "trusted_policy": false,
+        "priority": 1.0,
+        "semantic_score": 0.20563817024230957,
+        "superseded_at": null
+      },
+      "evidence": [
+        {
+          "episode_id": "ep_695a4677e63f451b99d1dae1",
+          "text": "user: For this project, our deployment requirement is that all servers remain inside our company building. Public cloud hosting is prohibited. Please retain this requirement for later sessions.",
+          "session_id": "ace_54ed5929ed067ed0eb1ef37525a1adea6eb43199624d15f9f69aee3e0b612089",
+          "observed_at": "2026-11-04T23:43:58.828681000+00:00",
+          "role": "user",
+          "sender_id": "ace_db4878357bb5234f251840e3917b12293d1749f52c8b78646f225898a437ffb0",
+          "source_type": "user_message",
+          "context_status": "active",
+          "truncated": false,
+          "usable_as_current_context": true,
+          "spans": [
+            {
+              "message_id": "ace_50c5bcf5818ff69bc2b319376f1e198293094f7a348227a1e961d61187ee87ce",
+              "sequence": 1,
+              "role": "user",
+              "sender_id": "ace_db4878357bb5234f251840e3917b12293d1749f52c8b78646f225898a437ffb0",
+              "source_type": "user_message",
+              "source_trust": "first_party",
+              "char_start": 0,
+              "char_end": 187,
+              "text": "For this project, our deployment requirement is that all servers remain inside our company building. Public cloud hosting is prohibited. Please retain this requirement for later sessions."
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "bundle_id": "9967f13d446cd344eebdddb680206768f47ae7f80587f488011f6ed1956a7dac",
+  "bundle_items": [
+    "ctx_47f68275626049198a86bbbd3b9f4967",
+    "ctx_64de1232820e4a99943a78c5961cb19b",
+    "ctx_a0915912e8d34cf599b7d2d81188d367",
+    "ctx_8f6d84f1fa1643e4a1f7359156fce21e"
+  ],
+  "source_sha256": {
+    "src/agent_context/retrieval.py": "5c0ff318fe8634cb27ad6d3dedbbb33fedd2075e570607883ca0712c887b93d1",
+    "src/agent_context/assembly.py": "22bda8595b10971907a410b9f327f172152a470e7815298fc1ca6c3de37d1faa",
+    "src/agent_context/governance.py": "1f7cbeab660942170a23e5eea4ce0f807c46aa01b84ae3bb007f555637663479"
+  },
+  "elapsed_seconds": 10.44536782799696,
+  "checks": {
+    "event_available": true,
+    "cross_session_search": true,
+    "semantic_signal": true,
+    "exact_source_spans": true,
+    "packed_context_uses_new_fact": true
+  },
+  "limitations": [
+    "One synthetic scenario, not a recall benchmark or latency SLO.",
+    "No claim of shared-database multi-tenancy or task-state completion."
+  ]
+}

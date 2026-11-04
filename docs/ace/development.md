@@ -91,7 +91,7 @@ cannot be satisfied. Event sequences start at 1 and must be contiguous; event
 times must not go backwards. Reuse the original event ID when retrying.
 
 The Python `AgentContextClient` supports event recording, context assembly,
-handoff preparation and handoff resume. It has timeouts and bounded retries for
+progressive context search, evidence inspection, handoff preparation and handoff resume. It has timeouts and bounded retries for
 transient failures. Close it using `await client.aclose()`.
 
 Context bundles use a conservative UTF-8 byte token bound unless a host injects
@@ -100,6 +100,46 @@ tokens explicitly. Count is checked after rendering; atomic items are never
 truncated. Keep `retrieved_data` in a data/tool channel, never elevate it into
 system instructions. Optional source failures are explicit; mandatory source
 or mandatory-budget failures fail closed.
+
+### Search, effective history and semantic retrieval
+
+`POST /v1/context/search` accepts `SearchRequest`: agent/session/project IDs,
+query, optional minimum sequence, limit (1–100), cursor and optional `as_of`.
+It returns candidate items and evidence handles, not a packed prompt or token
+budget. Use `AgentContextClient.search_context()` and then `.evidence(item_id)`.
+Search and assembly share authorization, lifecycle, ranking and conflict checks.
+Pages cover a bounded candidate window (256 per source by default); `window_full`
+signals possible truncation. Narrow the query when necessary. Every page reruns
+retrieval and privacy checks; a changed query, grants or result snapshot rejects
+the cursor with 422, requiring a fresh search. A cursor never grants access.
+
+`as_of` requests effective/event-time history. Superseded values are returned only
+before their supersession, within their validity window and after observation.
+This is not a bitemporal reconstruction of what the database knew then. Revoked
+or privacy-blocked items remain excluded even for historical searches. Historical
+results are labeled and are never inserted by the current-only assemble route.
+Evidence inspection intentionally permits a user to inspect their own withdrawn
+source; `usable_as_current_context=false` distinguishes it from active context.
+Excerpts include exact message offsets, role, speaker and per-span trust, capped
+at eight episodes, 4000 characters and 32 spans per episode. Legacy sources
+without spans retain their existing text and do not acquire invented offsets.
+
+The runtime now uses the existing embedding provider and stored Context vectors
+to rank authorized candidates before LIMIT. NIM requests use `input_type=query`;
+ingestion continues to use `passage`. Neo4j's cosine result is normalized so
+orthogonal vectors do not gain relevance. Model/dimension mismatches are excluded
+from semantic scoring; lexical matching remains available. This uses native
+cosine over the private indexed subject partition, avoiding global ANN top-k
+followed by authorization filtering. It does not establish large-partition load
+performance. No new vector service or graph planner is introduced.
+
+Configure the API's `EMBEDDING_API_KEY`, base URL/model and `EMBEDDING_DIMENSION`
+to match the worker. Local Compose uses the NVIDIA key as an embedding-key
+fallback. `ACE_SEMANTIC_RETRIEVAL=false` selects an explicit lexical-only mode;
+`ACE_SOURCE_TIMEOUT_SECONDS` bounds source latency (default 30 seconds). With
+semantic retrieval enabled, an embedding failure fails the required source with
+503 instead of silently claiming semantic recall. The API owns/closes its
+embedding connection pool. Storage readiness does not probe the model provider.
 
 Handoff completion requires an authenticated successful tool result with matching
 call/event/project/session references; a model saying “done” is insufficient.

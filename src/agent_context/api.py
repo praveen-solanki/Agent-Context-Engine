@@ -19,6 +19,9 @@ from agent_context.assembly import (
     ContextAssembler,
     ContextBundle,
     MandatoryContextTooLarge,
+    ContextQuery,
+    SearchRequest,
+    SearchResult,
 )
 from agent_context.contracts import (
     EventInput,
@@ -206,10 +209,7 @@ def create_app(
             status = status.model_copy(update={"state": ProcessingState.AVAILABLE})
         return status
 
-    @app.post("/v1/context/assemble")
-    async def assemble(
-        body: AssembleRequest, actor: Principal = Depends(authenticate)
-    ) -> ContextBundle:
+    async def wait_for_context(body: ContextQuery, actor: Principal) -> None:
         actor.require(Permission.VIEW, body.project_id)
         if body.minimum_sequence:
             async with asyncio.timeout(watermark_timeout_seconds):
@@ -217,6 +217,12 @@ def create_app(
                     await events.get(actor, body.session_id)
                 ).available_sequence < body.minimum_sequence:
                     await asyncio.sleep(0.05)
+
+    @app.post("/v1/context/assemble")
+    async def assemble(
+        body: AssembleRequest, actor: Principal = Depends(authenticate)
+    ) -> ContextBundle:
+        await wait_for_context(body, actor)
         bundle = await assembler.assemble(actor, body)
         state = await events.privacy.require_active(actor.tenant_id, actor.user_id)
         if any(item.item_id in state.blocked_item_ids for item in bundle.items):
@@ -228,9 +234,15 @@ def create_app(
 
     @app.post("/v1/context/search")
     async def search(
-        body: AssembleRequest, actor: Principal = Depends(authenticate)
-    ) -> ContextBundle:
-        return await assemble(body, actor)
+        body: SearchRequest, actor: Principal = Depends(authenticate)
+    ) -> SearchResult:
+        await wait_for_context(body, actor)
+        result = await assembler.search(actor, body)
+        state = await events.privacy.require_active(actor.tenant_id, actor.user_id)
+        if any(item.item_id in state.blocked_item_ids for item in result.items):
+            # A page cursor must not survive concurrent revocation.
+            raise RuntimeError("context changed during search; restart search")
+        return result
 
     @app.get("/v1/context/items/{item_id}/evidence")
     async def evidence(

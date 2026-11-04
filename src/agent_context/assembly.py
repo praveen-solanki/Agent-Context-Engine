@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import base64
 import hashlib
 import json
 import re
@@ -16,7 +17,7 @@ from typing_extensions import Self
 from agent_context.contracts import Contract, Identifier, Permission, Principal, utcnow
 from context_graph.domain.enums import ContextStatus, ScopeType
 
-ASSEMBLY_POLICY_VERSION = "ace-assembly-v2"
+ASSEMBLY_POLICY_VERSION = "ace-assembly-v3"
 
 
 def lexical_terms(text: str) -> set[str]:
@@ -64,13 +65,28 @@ class TokenBudget(Contract):
         return self
 
 
-class AssembleRequest(Contract):
+class ContextQuery(Contract):
     agent_id: Identifier
     session_id: Identifier
     project_id: Identifier | None = None
     query: str = Field(default="", max_length=16000)
     minimum_sequence: int = Field(default=0, ge=0)
+
+
+class AssembleRequest(ContextQuery):
     budget: TokenBudget
+
+
+class SearchRequest(ContextQuery):
+    """Progressive disclosure, never an instruction/assembly request.
+
+    as_of is effective/event time, not a reconstruction of what the database
+    knew at that time. Revocation and privacy fences always apply at read time.
+    """
+
+    as_of: AwareDatetime | None = None
+    limit: int = Field(default=20, ge=1, le=100)
+    cursor: str | None = Field(default=None, max_length=512)
 
 
 class ContextItem(Contract):
@@ -92,11 +108,14 @@ class ContextItem(Contract):
     required: bool = False
     trusted_policy: bool = False
     priority: float = Field(default=0, ge=0, le=1)
+    semantic_score: float = Field(default=0, ge=0, le=1)
+    superseded_at: AwareDatetime | None = None
+    unresolved_conflict: bool = False
 
 
 class CandidateSource(Protocol):
     async def fetch(
-        self, principal: Principal, request: AssembleRequest, *, limit: int
+        self, principal: Principal, request: ContextQuery, *, limit: int
     ) -> tuple[ContextItem, ...]: ...
 
 
@@ -142,6 +161,17 @@ class ContextBundle(Contract):
     warnings: tuple[str, ...] = ()
 
 
+class SearchResult(Contract):
+    items: tuple[ContextItem, ...]
+    next_cursor: str | None = None
+    snapshot_id: str
+    candidate_window: int
+    window_full: bool
+    historical: bool = False
+    as_of: AwareDatetime | None = None
+    warnings: tuple[str, ...] = ()
+
+
 class MandatoryContextTooLarge(ValueError):
     """Fail closed instead of silently removing a mandatory instruction."""
 
@@ -184,17 +214,25 @@ class ContextAssembler:
             settings or AssemblySettings(),
         )
 
-    async def assemble(
+    async def _rank(
         self,
         principal: Principal,
-        request: AssembleRequest,
+        request: ContextQuery,
         *,
         now: datetime | None = None,
-    ) -> ContextBundle:
+    ) -> tuple[list[ContextItem], list[Exclusion], Counter[str], list[str], bool]:
         principal.require(Permission.VIEW, request.project_id)
-        at = now or utcnow()
+        clock = now or utcnow()
+        historical = isinstance(request, SearchRequest) and request.as_of is not None
+        at = (
+            request.as_of
+            if isinstance(request, SearchRequest) and request.as_of
+            else clock
+        )
         if at.utcoffset() is None:
             raise ValueError("assembly clock must be timezone-aware")
+        if historical and at > clock:
+            raise ValueError("historical search cannot request a future instant")
 
         async def fetch(source: CandidateSource) -> tuple[ContextItem, ...]:
             return await asyncio.wait_for(
@@ -244,8 +282,17 @@ class ContextAssembler:
                 counts["unauthorized"] += 1
                 continue
             reason = None
-            if item.status != ContextStatus.ACTIVE:
+            if item.status != ContextStatus.ACTIVE and not (
+                historical
+                and item.status == ContextStatus.SUPERSEDED
+                and item.superseded_at is not None
+                and item.superseded_at > at
+            ):
                 reason = "inactive"
+            elif historical and item.observed_at > at:
+                reason = "not_yet_observed"
+            elif item.superseded_at is not None and item.superseded_at <= at:
+                reason = "superseded"
             elif (item.valid_from and item.valid_from > at) or (
                 item.valid_until and item.valid_until <= at
             ):
@@ -274,12 +321,18 @@ class ContextAssembler:
             if item.single_valued:
                 key = (item.scope_type.value, item.scope_id, item.canonical_key)
                 values.setdefault(key, set()).add(item.text)
-        conflicts = {key for key, texts in values.items() if len(texts) > 1}
+        conflicts = {key for key, texts in values.items() if len(texts) > 1} | {
+            (item.scope_type.value, item.scope_id, item.canonical_key)
+            for item in eligible
+            if item.single_valued and item.unresolved_conflict
+        }
         query_terms = lexical_terms(request.query)
 
         def score(item: ContextItem) -> float:
             terms = lexical_terms(item.text)
-            relevance = len(query_terms & terms) / max(1, len(query_terms))
+            relevance = max(
+                len(query_terms & terms) / max(1, len(query_terms)), item.semantic_score
+            )
             age_days = max(0, (at - item.observed_at).total_seconds()) / 86400
             return (
                 relevance * self.settings.relevance_weight
@@ -291,16 +344,85 @@ class ContextAssembler:
         ranked = sorted(
             eligible, key=lambda item: (not item.required, -score(item), item.item_id)
         )
-        selected: list[ContextItem] = []
-        content_keys: set[tuple[str, str, str]] = set()
+        if conflicts:
+            warnings.append("unresolved_single_value_conflicts")
+        unambiguous: list[ContextItem] = []
         for item in ranked:
             key = (item.scope_type.value, item.scope_id, item.canonical_key)
-            reason = None
             if item.single_valued and key in conflicts:
                 if item.required:
                     raise RuntimeError("mandatory policies conflict")
-                reason = "conflict"
-            elif (item.scope_id, item.canonical_key, item.text) in content_keys:
+                counts["conflict"] += 1
+                exclusions.append(Exclusion(item_id=item.item_id, reason="conflict"))
+            else:
+                unambiguous.append(item)
+        return unambiguous, exclusions, counts, warnings, any(
+            not isinstance(result, BaseException)
+            and len(result) == self.settings.max_candidates_per_source
+            for result in results
+        )
+
+    async def search(
+        self, principal: Principal, request: SearchRequest, *, now: datetime | None = None
+    ) -> SearchResult:
+        ranked, _, _, warnings, window_full = await self._rank(
+            principal, request, now=now
+        )
+        # A cursor is a position, never an authorization grant. Every page
+        # reruns live scoped retrieval/privacy checks. Changed results fail
+        # explicitly rather than silently skipping or repeating candidates.
+        principal_data = principal.model_dump(mode="json")
+        principal_data["projects"] = sorted(principal.projects)
+        principal_data["permissions"] = sorted(principal.permissions)
+        identity = {
+            "principal": principal_data,
+            "query": request.model_dump(mode="json", exclude={"limit", "cursor"}),
+            "items": [item.model_dump(mode="json") for item in ranked],
+        }
+        digest = hashlib.sha256(json.dumps(identity, sort_keys=True).encode()).hexdigest()
+        offset = 0
+        if request.cursor:
+            try:
+                cursor = json.loads(base64.urlsafe_b64decode(request.cursor))
+                offset = cursor["offset"]
+                if (
+                    cursor["snapshot"] != digest
+                    or type(offset) is not int
+                    or not 0 < offset < len(ranked)
+                ):
+                    raise ValueError("search snapshot changed; restart search")
+            except (ValueError, KeyError, TypeError) as error:
+                raise ValueError("invalid or stale search cursor; restart search") from error
+        end = offset + request.limit
+        following = (
+            base64.urlsafe_b64encode(
+                json.dumps({"offset": end, "snapshot": digest}).encode()
+            ).decode()
+            if end < len(ranked)
+            else None
+        )
+        return SearchResult(
+            items=tuple(ranked[offset:end]),
+            next_cursor=following,
+            snapshot_id=digest,
+            candidate_window=self.settings.max_candidates_per_source,
+            window_full=window_full,
+            historical=request.as_of is not None,
+            as_of=request.as_of,
+            warnings=tuple(warnings),
+        )
+
+    async def assemble(
+        self, principal: Principal, request: AssembleRequest, *, now: datetime | None = None
+    ) -> ContextBundle:
+        ranked, exclusions, counts, warnings, _ = await self._rank(
+            principal, request, now=now
+        )
+        selected: list[ContextItem] = []
+        content_keys: set[tuple[str, str, str]] = set()
+        for item in ranked:
+            reason = None
+            if (item.scope_id, item.canonical_key, item.text) in content_keys:
                 reason = "duplicate"
             elif (
                 self.counter.count(render([*selected, item])) > request.budget.available
@@ -316,8 +438,6 @@ class ContextAssembler:
             else:
                 selected.append(item)
                 content_keys.add((item.scope_id, item.canonical_key, item.text))
-        if conflicts:
-            warnings.append("unresolved_single_value_conflicts")
         rendered = render(selected)
         token_count = self.counter.count(rendered)
         principal_data = principal.model_dump(mode="json")

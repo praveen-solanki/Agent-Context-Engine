@@ -11,6 +11,7 @@ from agent_context.assembly import (
     AssemblySettings,
     ContextAssembler,
     ContextItem,
+    ContextQuery,
     MandatoryContextTooLarge,
     TokenBudget,
 )
@@ -28,7 +29,7 @@ class Source:
         self.called = False
 
     async def fetch(
-        self, principal: Principal, request: AssembleRequest, *, limit: int
+        self, principal: Principal, request: ContextQuery, *, limit: int
     ) -> tuple[ContextItem, ...]:
         self.called = True
         if self.broken:

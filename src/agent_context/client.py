@@ -7,7 +7,7 @@ import asyncio
 import httpx
 from pydantic import BaseModel
 
-from agent_context.assembly import AssembleRequest, ContextBundle
+from agent_context.assembly import AssembleRequest, ContextBundle, SearchRequest, SearchResult
 from agent_context.contracts import EventInput, EventStatus, ProcessingState, Stream
 from agent_context.handoff import HandoffArtifact, HandoffInput, ResumeResult
 
@@ -79,6 +79,18 @@ class AgentContextClient:
 
     async def assemble_context(self, request: AssembleRequest) -> ContextBundle:
         return await self._post("/v1/context/assemble", request, ContextBundle)
+
+    async def search_context(self, request: SearchRequest) -> SearchResult:
+        return await self._post("/v1/context/search", request, SearchResult)
+
+    async def evidence(self, item_id: str) -> list[dict[str, object]]:
+        # Item IDs come from typed search/bundle responses. Encode path data so
+        # an ID cannot change the requested endpoint.
+        from urllib.parse import quote
+
+        response = await self.http.get(f"/v1/context/items/{quote(item_id, safe='')}/evidence")
+        response.raise_for_status()
+        return response.json()
 
     async def prepare_handoff(self, request: HandoffInput) -> HandoffArtifact:
         return await self._post("/v1/handoffs", request, HandoffArtifact)

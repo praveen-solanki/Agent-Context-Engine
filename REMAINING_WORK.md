@@ -462,6 +462,53 @@ Do not rename context_graph imports or graph labels merely to call the product "
 
 ## 7. Live evidence ledger — update as you work
 
+### R01/R05 retrieval increment — 2026-11-05
+
+Inspected and fast-forwarded to the user's documentation-only update `6c76b13`.
+Pre-change focused assembly/API/retrieval/governance checks: **26 passed** with
+real MongoDB and Neo4j. Existing private scope, lifecycle, packing and R07
+behavior remain **CONFIRMED DONE — SKIP**. A new HTTP regression reproduced the
+search alias defect (422 without an assembly budget); a real evidence regression
+reproduced missing span/speaker/trust fields. Only these gaps and the documented
+semantic/effective-history path were extended.
+
+**CONFIRMED DONE within this increment:**
+- Distinct, bounded, paginated search without prompt packing; SDK search/evidence
+  methods; current authorization and privacy checks on every page; stale cursors
+  rejected rather than silently skipping results.
+- Native semantic scoring using the existing provider and stored vectors,
+  authorized lexical/semantic ranking before LIMIT, and semantic signal consumed
+  by the actual assembler. Runtime and Compose now wire query embeddings; NIM
+  query/passage modes are distinct. No global private ANN result window, new
+  index service, planner or LLM reranker.
+- Explicit effective-time historical search, with supersession/validity and
+  present-day revocation fences. History is labeled and not used as current
+  assembly instructions.
+- Bounded source excerpts with original speaker/role, exact message offsets and
+  per-span source trust. Owned withdrawn evidence remains inspectable with a
+  non-current label; search still excludes it. Episodes must belong to the
+  principal's session participation path.
+- Competing effective single-valued graph values remain a conflict even when
+  the candidate cap would otherwise hide the second value.
+
+Evidence: `tests/unit/test_context_search.py`, provider query-mode tests,
+`tests/integration/test_ace_retrieval.py`, API and governance tests. The first
+full regression after search/history/semantic/evidence changes passed **474
+tests, one legacy live-UI test deselected**, Pyright clean. Subsequent conflict
+guard validation passed **29 focused tests**; final regression evidence follows
+below. The live isolated API/worker/NVIDIA report is
+[retrieval-live-20261105.json](docs/ace/results/retrieval-live-20261105.json):
+record → availability → new-session semantic search → exact evidence → packed
+context, all five assertions passed. Source hashes identify the exercised build;
+one synthetic run is not a recall benchmark or latency SLO.
+
+**Still PARTIAL:** R01/R05 as whole requirements. Current task/project-state
+candidates depend on R02/R03; shared directory/TASK graph parity is still
+fail-closed under the selected physically isolated private deployment. Large
+partition query cost and benchmark ablations remain unmeasured. No migration of
+previously mis-scoped legacy data is implied. Search's bounded candidate window
+and effective-time semantics are documented in `docs/ace/development.md`.
+
 Initial assessments are anchored to the inspected commit. Updated rows below
 claim completion only within the explicitly verified boundaries and linked
 evidence. Open production/whole-product gates remain open.

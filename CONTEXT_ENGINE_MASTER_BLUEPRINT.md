@@ -670,6 +670,23 @@ Do not claim measured token reduction, task-success gain, p95 latency, multi-ten
 
 ### Progress ledger (the next agent should maintain this)
 
+2026-11-05 R01/R05 increment after inspecting `6c76b13`: existing private
+scope/lifecycle/packing behavior was confirmed (26 focused real-store tests)
+and skipped. The search alias and missing evidence span/trust fields were
+reproduced before changes. Runtime now combines native authorized lexical and
+semantic scoring using the existing embedding provider/vectors, distinct
+paginated search, effective-time history, and bounded exact source excerpts.
+History never becomes current instruction; privacy fences apply to every page.
+Current conflicts remain withheld even across the source candidate limit.
+The first full regression passed 474 tests with one legacy live-UI case
+deselected and Pyright clean; later conflict checks passed 29 focused tests.
+The isolated real API/worker/NVIDIA path passed record → availability →
+new-session semantic search → source spans → assembly; see
+`docs/ace/results/retrieval-live-20261105.json` and `REMAINING_WORK.md` for exact
+evidence/limits. These tested behaviors are **CONFIRMED DONE — SKIP**;
+R01/R05 remain partial for task/current-state integration and broader scope/load
+gates. No shared-database or production-performance claim is made.
+
 2026-11-04 evidence-first audit at `e55fb5a`: existing core/event/private-scope/
 packing/handoff/API/primary-privacy paths were traced and their unit/real-store
 tests passed. They are **CONFIRMED DONE** only within those existing boundaries
@@ -688,7 +705,7 @@ historical six-flag reports.
 |---|---|---|
 | 0 — baseline audit / ADRs | Baseline preserved at `3e2454e09deb12aa68c90e76a4948c221d7974b2`; ADRs recorded; comparative model metrics still pending | `docs/ace/architecture.md`; original 292 offline tests and Pyright passed |
 | 1 — authenticated event intake + feedback | Live NVIDIA event-to-context feedback verified; immutable derivation consent, trust-separated evidence and recovery tests added | `docs/ace/validation.md`; live host and Compose functional probes |
-| 2 — retrieval adapter/guardrails | Private scoped source plus authorized lexical ranking before candidate LIMIT verified; physical isolation required; semantic/hybrid, evidence search, shared/task and historical parity pending | `agent_context/retrieval.py`; real scope/lifecycle and 220-noise older-decision regression |
+| 2 — retrieval adapter/guardrails | Private lexical/semantic ranking before LIMIT, effective-history search and bounded exact evidence verified; physical isolation required; task-state and broader shared-scope/load gates pending | `agent_context/retrieval.py`, `assembly.py`, `governance.py`; real-store retrieval/search/privacy tests; `retrieval-live-20261105.json` |
 | 3 — context assembler | Deterministic scoring, dedup/conflict checks, atomic packing, reserves, JSON rendering and explainable exclusions implemented; comparative agent evaluation pending | `agent_context/assembly.py`; 19 focused tests; HTTP/SDK integration tests |
 | 4 — handoff/task state | Existing snapshot/correction/replay primitives verified; actual bounded demo recommendation now independently assessed; canonical live task state and cross-provider validation remain pending | `artifacts.py`, `demo.py`; `docs/ace/results/live-demo-verified-20261104.json`; old false-positive report preserved |
 | 5 — SDK/API/live demo | Research host, new console, local initializer, Compose stack, CI and `run.sh` local bootstrap implemented; production deployment remains pending | `docs/ace/operations.md`; launcher configuration/orchestration tests and fresh-stack verification recorded in `docs/ace/validation.md` |

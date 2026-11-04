@@ -55,6 +55,14 @@ services:
       retries: 12
   api:
     <<: *application
+    environment:
+      <<: *runtime-environment
+      ACE_SEMANTIC_RETRIEVAL: ${ACE_SEMANTIC_RETRIEVAL:-true}
+      ACE_SOURCE_TIMEOUT_SECONDS: ${ACE_SOURCE_TIMEOUT_SECONDS:-30}
+      EMBEDDING_API_KEY: ${EMBEDDING_API_KEY:-${NVIDIA_API_KEY:-}}
+      EMBEDDING_BASE_URL: ${EMBEDDING_BASE_URL:-https://integrate.api.nvidia.com/v1}
+      EMBEDDING_MODEL: ${EMBEDDING_MODEL:-nvidia/nemotron-3.5-embed-1b}
+      EMBEDDING_DIMENSION: ${EMBEDDING_DIMENSION:-2048}
     ports:
       - 127.0.0.1:${ACE_EXTERNAL_PORT:-18000}:8000
     healthcheck:
@@ -72,6 +80,7 @@ services:
       LLM_MODEL: ${LLM_MODEL:-nvidia/nemotron-3.5-bolt-e4b}
       EMBEDDING_BASE_URL: ${EMBEDDING_BASE_URL:-https://integrate.api.nvidia.com/v1}
       EMBEDDING_MODEL: ${EMBEDDING_MODEL:-nvidia/nemotron-3.5-embed-1b}
+      EMBEDDING_DIMENSION: ${EMBEDDING_DIMENSION:-2048}
       EMBEDDING_BATCH_SIZE: ${EMBEDDING_BATCH_SIZE:-1}
 
 volumes:
