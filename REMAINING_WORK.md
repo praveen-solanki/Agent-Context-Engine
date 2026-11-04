@@ -1,0 +1,539 @@
+# Agent Context Engine — Remaining Work, Verification and Completion Checklist
+
+**Repository:** https://github.com/praveen-solanki/Agent-Context-Engine  
+**Reference requirements:** [CONTEXT_ENGINE_MASTER_BLUEPRINT.md](CONTEXT_ENGINE_MASTER_BLUEPRINT.md)  
+**Reference implementation:** [docs/ace/architecture.md](docs/ace/architecture.md), [docs/ace/validation.md](docs/ace/validation.md), [docs/ace/operations.md](docs/ace/operations.md)  
+**Baseline inspected:** main at commit [4da284123868b1471d5add66c29810d11f5f351a](https://github.com/praveen-solanki/Agent-Context-Engine/commit/4da284123868b1471d5add66c29810d11f5f351a), 2026-11-04.  
+**Purpose:** Finish and verify the **already-agreed Agent Context Engine**, without introducing new product features, choosing a different product direction, or rebuilding the existing context graph.  
+**Status:** A gap-closing execution plan, **not** evidence that the work described as pending has been completed. Update this file after each verified change.
+
+> **MANDATORY INSTRUCTION TO ANY FUTURE CODING ASSISTANT:** Start by reading this entire file, the master blueprint, AGENTS.md, README.md, and the actual relevant source and tests. Re-check the latest main branch before changing anything. For **every** task below, search for the existing implementation, inspect its call path and tests, run the relevant tests, and compare observed behavior with the acceptance criteria. **If it is already implemented and passes meaningful verification, mark CONFIRMED DONE, cite the code/test/results, and SKIP it. Do not reimplement, refactor, rename or add a parallel version.** If partially implemented, fix only the concrete missing behavior. Do not take a checkbox, documentation claim, a passing mocked unit test or a previous chat's statement as sufficient proof.
+
+---
+
+## 0. Exact boundary: what success means, what must not change
+
+### 0.1 Product goal (unchanged)
+
+Build a **production-oriented context engineering system for long-running AI agents** which:
+- derives evidence-backed, scoped, temporally correct context from real user/agent activity;
+- knows which context is currently valid, relevant, safe and necessary for the agent's **next task step**;
+- assembles a minimal sufficient, budget-bounded context bundle with explicit evidence and selection reasons;
+- carries current project/task requirements, verified progress, blockers and next actions across sessions and compatible agents/models;
+- safely accepts feedback and corrections, handles revocation and deletion, and maintains provenance;
+- exposes an integration surface usable independently of the bundled research demo;
+- proves improvement or clearly reports no improvement through reproducible multi-session task evaluation;
+- meets the security, reliability, recovery and deployment gates originally defined for production usage.
+
+**The graph is an internal store/index, not the project purpose.** No new generic knowledge-graph capability is a goal. The product is the correct context at the correct agent step.
+
+### 0.2 Strict non-goals: no new features
+
+DO NOT add a new product use case or technology simply because it is trendy. In particular, this completion pass must **not**:
+- build another agent framework, unrestricted autonomous coding/browser/computer agent, or multi-agent platform;
+- build a second graph, migrate databases merely to remove the word graph, or introduce a new vector database;
+- add model training, fine-tuning, RL, new modalities, a new chatbot product, or a new frontend rewrite;
+- add MCP or unrelated SDK adapters merely for checklist optics; the existing HTTP/Python interface already establishes the integration boundary. An **independent host/model validation** is required; a new adapter is not, unless a real existing integration contract is broken;
+- expand Brave search, document ingestion, UI styling or graph visualization. Existing optional search and UI should remain intact.
+- create additional services, abstractions, dependencies or hardcoded thresholds without a demonstrated requirement from the master blueprint and a test proving the gap;
+- remove or rewrite working components because another architecture might be fashionable.
+
+Scope is **completing the existing master blueprint**, not feature discovery. If a blueprint item was expressly optional, do not start it unless it is needed to satisfy a mandatory acceptance criterion. A narrower solution passing the intended behavior is better than a large speculative rewrite.
+
+### 0.3 Required per-item verification protocol (apply EVERY time)
+
+Before implementation, fill an entry in the evidence ledger (Section 7):
+
+1. **Locate:** search current code, API routes, settings, tests, docs, call sites, integration points, CI, commits and real saved reports. Record exact files/functions.
+2. **Trace:** follow data end-to-end (input → auth → persistence → ingestion → retrieval → selection → host → output/feedback); identify where existing behavior is produced and whether it is wired into the actual product runtime, not just available in an unused module.
+3. **Confirm:** run focused unit tests plus relevant real Mongo/Neo4j integration or real-model/demo tests; create a meaningful regression assertion only where the existing test does not establish intended behavior.
+4. **Compare:** state which exact acceptance criterion is satisfied and which remains unsatisfied. Record proof of success or a reproducible counterexample.
+5. **Decide:** 
+   - **CONFIRMED DONE** — code reachable in production path AND relevant tests/results prove the expected behavior → **SKIP all implementation**; optionally update stale documentation.
+   - **PARTIAL** — implementation exists but missing wiring, semantics, quality or an acceptance gate → change the **smallest specific part**.
+   - **MISSING** — required behavior not found → implement it using current abstractions wherever possible.
+   - **UNVERIFIED** — apparent implementation, but tests/live dependencies unavailable → do not call missing or completed; record how to verify and avoid a rewrite.
+   - **NOT REQUIRED** — optional/out of scope → leave unchanged.
+6. **Verify after edits:** rerun focused tests, related integration, Pyright, old core regression suite and applicable end-to-end demo. No silent degradations.
+7. **Close:** link commit/PR, tests, real output, benchmark report, schema/compatibility implications, remaining limitation, date; update both this file and the master-blueprint progress ledger.
+
+Never automatically treat this document's **initial** assessment as final. It is grounded in the specified inspected commit and can become stale.
+
+### 0.4 Evidence strength hierarchy
+
+1. Reproducible, verified real end-to-end scenario, including behavior/asserted outcome and failure path.
+2. Live database/provider integration exercising the actual deployed service and worker.
+3. Contract/integration tests against real components or faithful doubles.
+4. Unit tests isolated around a component.
+5. Source inspection alone.
+6. README, checklists, saved self-reported validation and previous-chat claims.
+
+A passing GitHub Actions workflow proves the tests in that workflow passed; it does **not** prove all blueprint outcomes. A successful demo run may still have a faulty success criterion. Keep evidence categories separate.
+
+---
+
+## 1. What is already present — VERIFY ONCE, PRESERVE AND SKIP WHEN CONFIRMED
+
+| ID | Existing capability and location | Initial assessment (2026-11-04) | Confirm and then **skip** |
+|---|---|---|---|
+| B01 | Existing conversation/Episode/SourceSpan ingestion: src/context_graph/domain, pipeline, graph, ledger | Implemented baseline | Provenance exactness, topic-span integrity, no dropped content; original e2e tests |
+| B02 | LLM/similarity segmentation, relevance gate, token batching and temporary extraction rolling state | Implemented baseline | Regression tests; do not mistake temporary RollingSessionState for durable project state |
+| B03 | Extraction validation, embeddings, concept resolution, idempotent writing, supersession, scoped policy, candidate promotion and revocation | Implemented baseline | Tests for semantic identity, current value and trust; no duplicate writers |
+| B04 | Authenticated event contract and Mongo stream/outbox, event worker, event-to-SessionInput bridge: src/agent_context/contracts.py, events.py, event_store.py, bridge.py, runtime.py | Implemented for bounded ordered streams | User/agent roles, idempotent duplicate, worker retry, watermark/availability, incremental ingestion; do not rebuild ingestion |
+| B05 | Scope binding for a trusted project ID, private USER/SESSION/PROJECT candidate retrieval | Implemented for private scopes | tests/unit/test_project_binding.py + tests/integration/test_ace_retrieval.py; do not substitute model-supplied project labels |
+| B06 | ContextAssembler with deterministic ranking, dedup, conflict blocking, budget reserve, atomic item packing, JSON data rendering, exclusions | Basic implementation | tests/unit/test_assembly.py; **does not prove richer multi-source/task-aware orchestration** |
+| B07 | Versioned Mongo handoffs, optimistic concurrency, verified tool-result completion and content-hashed artifact registry | Implemented for explicit handoff contracts | tests/integration/test_ace_handoff.py; still assess live-state reconciliation |
+| B08 | FastAPI routes, trusted principal bindings, request-size limit, Python AgentContextClient | Implemented | tests/integration/test_ace_api.py + client tests; preserve paths and contracts |
+| B09 | ResearchAssistant demo, source citation validation and replay control; optional bounded Brave search | Implemented prototype | Host tests and saved live demo; completion evaluator has a weakness (Section 3.1) |
+| B10 | Immediate revocation fence, primary-data export, quarantine, lease-aware primary erasure | Implemented with stated limitations | tests/integration/test_ace_governance.py; production backup/legal/restore remains outstanding |
+| B11 | Development Docker Compose, one-command launcher, Streamlit console, CI, Pyright | Implemented for local workflow | run.sh, compose.yaml, .github/workflows/ci.yml, docs/ace/validation.md |
+| B12 | ConvoMem converter and synthetic generator + initial six-baseline experiment | Present | Comparative scope, methodology and completion metrics remain insufficient |
+
+**Existing claims must be reconciled with the current code.** Do **not** reimplement B01–B12 merely because they also appear in the original blueprint. Fix only problems exposed by Section 2/3 acceptance tests.
+
+**Known saved evidence at audit time:**
+- docs/ace/validation.md reports 427 regression passes with one legacy live-model UI test deselected in one run, plus separate live-provider runs; exact conditions differ.
+- Latest observed GitHub Actions check at commit 4da2841 was successful.
+- docs/ace/results/live-demo.json records a three-session NVIDIA-backed run.
+- docs/ace/results/baseline-probe.json reports **one** synthetic comparison with six baselines. All six got language and next-choice fields correct, so it cannot support ACE superiority.
+- Never combine these counts into a single newly asserted test run.
+
+---
+
+## 2. Required remaining implementation and verification — ordered by dependency
+
+### R01 — Complete candidate retrieval within the existing context service [CRITICAL]
+
+**Blueprint:** F3 and F4, Phase 2/3.  
+**Existing code:** src/agent_context/retrieval.py, assembly.py; retrieval_tester/retrieval.py, retrieval_tester/context_tool.py; src/context_graph/graph/neo4j_store.py.
+
+**Observed at audit:** The deployed runtime constructs ContextAssembler with one Neo4jCandidateSource. Its query filters active private USER/SESSION/PROJECT contexts, sorts mostly by type/recency, and LIMITs candidates *before* the assembler's query relevance scoring. The new assembler computes lexical overlap/priority/recency; the older retriever and schema-planner provide other retrieval behaviors but are not automatically combined into the live context bundle. Shared/team/task/historical retrieval parity is explicitly documented as pending.
+
+**Do, but only where absent:**
+1. Confirm what relevance search already exists in Neo4j graph store / original retriever; **reuse it**, not a new index/service.
+2. Define/confirm the existing candidate-source contract and expose **authorized** context candidates from semantic, lexical (if needed), pinned/standing, temporal, episodic/evidence and current project/task-state sources. Implement the minimum necessary using existing Neo4j/Mongo interfaces. Keep old graph planner optional and require ablation evidence before using it.
+3. Address pre-ranking LIMIT starvation: a relevant but older/non-pinned fact must not be hidden by a flood of recent unrelated facts. Use authorized indexed search + bounded candidate merging, not reading another user's data and filtering afterward.
+4. Enforce scope at the datastore query and repeat defensive authorization in assembly: tenant, user, session, bound project; preserve existing trusted organization/directory semantics where original blueprint requires. **Do not** infer grants from user/LLM text.
+5. Define requested as-of/current/historical behavior and only active effective state for present-oriented queries. Historic facts may be cited for "what changed" but must not be presented as current instructions.
+6. Evidence retrieval should return bounded source excerpts, exact episode/span references and source/trust labels; avoid injecting full transcripts by default. Respect raw event speaker and tool-trust boundaries.
+7. Implement an actual progressive **/v1/context/search** if the route still only aliases assemble; authorized search returns candidate/evidence results and pagination/limits rather than pretending a packed bundle is a search result. Reuse underlying retrieval service. If the current route has since been corrected and tested, mark DONE/SKIP.
+8. Confirm backend compatibility and performance; do not replace Neo4j for marketing.
+
+**Required adversarial and functional cases:**
+- Two hundred recent irrelevant facts cannot crowd out an older relevant project decision.
+- Synonymous wording retrieves the correct fact where embeddings/semantic retrieval are applicable; lexical exact key works too.
+- A corrected preference wins over its superseded value; historical query can report previous value without making it active.
+- A USER or other-project fact never crosses a boundary; TEAM/DEPARTMENT/ORG context only appears with genuine authoritative memberships and policy if included in the target.
+- An episode/source ID points to the exact supporting text and real speaker; an untrusted tool snippet is not promoted to user instruction.
+- Missing, stale, revoked or expired items do not leak through secondary search paths.
+
+**Done when:** The **actual deployed assembler** receives task/query-relevant, authorized candidates from required sources; tests prove freshness, recall, scope, evidence and bounded cost. A helper method that is never called by the runtime is not completion.
+
+### R02 — Finish adaptive, task-aware ContextBundle assembly [CRITICAL]
+
+**Blueprint:** F4, Phase 3.  
+**Existing code:** src/agent_context/assembly.py, contracts.py, retrieval.py, demo.py.
+
+**Observed:** ContextAssembler already does deterministic ranking, conflict withholding, exact rendered JSON, budget checks and exclusions. The initial scorer is query-word intersection + type priority + recency decay. The Neo4j adapter assigns priority 1 for Preference/Constraint/WorkingStyle but does **not** set the required flag. The runtime gives no separate live task-state or handoff candidate source. Thus it is a useful initial memory packer, not yet the complete context orchestration target.
+
+**Required behavior / smallest extension:**
+1. Define the **assembly input contract** around next-step objective, project/task ID, authorized session/run, current user request, available token reserves and purpose. Reuse AssembleRequest; only add missing fields justified by an end-to-end scenario.
+2. Source an explicit **current task/project state** (see R03) in addition to durable memory. Include effective requirements, decisions, completed verified work, pending actions, blockers and relevant source references in separate typed sections. Do not force the host to manually reconstruct this from unrelated handoff text.
+3. Distinguish (a) host-defined trusted policy, (b) user-approved must-keep task constraints, (c) ordinary relevance candidates, (d) untrusted retrieved evidence. A model/text snippet **must not** declare itself mandatory or grant policy authority. Verify origin before assigning required/pinned status.
+4. Preserve all applicable **must-keep** content within budget, fail explicitly when it cannot fit, and avoid silently dropping current requirements because there are too many high-priority preferences. Do not blindly treat *every* preference as a hard requirement.
+5. Resolve duplicate concepts, effective dates and **competing active single-valued values**; trace why values were excluded or why a conflict is unresolved. Do not select a stale fact solely from recency/similarity. Preserve conflict warning even when a reliable authority cannot resolve it.
+6. Implement task-aware, explainable candidate ranking using available relevance/priority/temporal/evidence signals. A deterministic formula is acceptable initially. **Do not require an LLM reranker**; only add one if a measured comparison proves value.
+7. Keep structural/semantic dependencies together, preserve immutable evidence handles and conversation/tool-turn boundaries. Support on-demand evidence via the already-intended scoped search interface.
+8. Count tokens **after final rendering**, including relevant host allocations. The current UTF-8 bytes method is a conservative upper bound, not actual billed provider tokens. Clearly distinguish the two; if tokenizer support already exists and works, reuse it. Do not claim model-token savings from byte bound alone.
+9. Expose selected/excluded reasons, context version, auth scope, source evidence, consistency watermark and runtime/assembly trace in existing bundle/diagnostics contracts where they are missing. Trace must not leak unauthorized IDs or raw private data.
+10. Keep retrieved data in data/tool channels; never turn it into system instructions. Test hostile quotes, prompt-like payloads and tool snippets.
+
+**Acceptance scenarios:** Semantically relevant older decision; latest project requirement; conflicting active values; irrelevant long tool result; revoked preference; small valid budget; impossible mandatory budget; unauthorized candidate; source timeout; repeated deterministic assembly; on-demand evidence; same agent action with and without context. Verify no required item silently excluded.
+
+**Done when:** A single authorized agent-step request yields **current, minimal sufficient, evidence-backed, task-aware context**, not just a list of memory facts. Continue to use the existing ContextAssembler and protect current tests.
+
+### R03 — Integrate genuine project/task continuation state with handoffs [CRITICAL]
+
+**Blueprint:** F5, Phase 4.  
+**Existing code:** src/agent_context/handoff.py, artifacts.py, outcomes.py, bridge.py, runtime.py, demo.py.
+
+**Observed:** Versioned handoffs with optimistic concurrency exist, and tool outcome/artifact hash checks are meaningful. Resume returns historical handoff plus a freshly assembled bundle and warning flags. However, the handoff is independently supplied by the host; there is no **general live current project/task state** in the context selection path. An old handoff's requirements are not consistently reconciled with newer canonical context. The research host merges historical_handoff separately into its prompt.
+
+**Required completion (no new platform):**
+1. Define and persist **current, authorized task/workflow state** using existing Mongo event/handoff/state primitives, only adding a narrowly scoped state projection if needed. Record goal, current requirements, status, verified actions and outputs, pending actions, blockers, dependencies, next-step references and last update/version. Avoid creating a second memory engine or graph ontology.
+2. Treat authenticated successful tool outcomes and verified artifact hashes as proof of completed work; model statements remain claims. Maintain a link to original event/episode and exact tool call.
+3. Ensure **user corrections and current authoritative requirements override an old handoff's outdated text**. A handoff is an immutable historical snapshot, not authoritative current instruction. Detect and explain stale/inconsistent task state.
+4. During resume, validate current principal/project grant, handoff revision/TTL, source event availability, in-flight/pending actions, artifact versions, current task/state version and current context. Mark unsafe and require reconciliation for changes.
+5. Produce one clear **resume context bundle** that states current goal, accepted changes, completed verified steps, pending next action, blockers, citations and handoff lineage. Avoid the host silently assembling a second inconsistent prompt using old handoff text.
+6. Preserve side-effect idempotency: no re-executing a successful action after retry, crash or session switch; pending/unknown outcome is not marked complete.
+7. Support new session and independent compatible agent/model consuming the same documented API; do not embed demo-only language or document names in core continuation logic.
+8. If some of these already work end-to-end, document proof and **skip** the matching change.
+
+**Critical acceptance demo:** Session A sets current requirements and completes action X. Session B changes a requirement, cancels an obsolete step and completes Y. Session C requests "continue"; the agent obtains **B's current requirements**, only X/Y as verifiably completed, correct next step and current artifacts. It must not reactivate A's outdated constraint, replay X/Y or make a fake completion claim. Repeat with an interrupted action and an expired/stale handoff. Verify at least one compatible second model or host uses the same engine.
+
+**Done when:** The agent **can actually resume and complete a multi-session task**, not merely receive a preference and a handoff JSON. All task-state claims are grounded in current state/evidence.
+
+### R04 — Complete event/feedback semantics required by continuation [HIGH]
+
+**Blueprint:** F1/F2/F5, Phase 1/4.  
+**Existing code:** src/agent_context/contracts.py, events.py, event_store.py, bridge.py, src/context_graph/pipeline/orchestrator.py.
+
+**Observed:** Bounded ordered streams, authenticated user/agent roles, tool results, corrections, revocations and automatic worker processing are present. The current EventKind does not explicitly represent task-state transitions, decisions, output artifacts or tool-call initiation; some information is carried through host handoffs and result events. Late/out-of-order messages are rejected and historical imports are not supported in the new event API. The original CLI does support historical session ingestion.
+
+**Only implement actual gaps found while validating R03:**
+- Verify every required workflow transition is attributable, ordered, idempotent and recoverable. If existing handoff/event types already express it correctly, **reuse them**; don't add event kinds for decoration.
+- Check session close and incremental append consistency, failed ingestion/availability watermark, duplicate replay, partial graph writes and worker claim expiry. Ensure no “recorded” acknowledgment is mistaken for “context available”.
+- Reconcile corrected values, revocations, derived-context opt-out and event source authority through the unchanged core extraction pipeline.
+- If old sessions/data need replay to satisfy the original import requirement, use the existing CLI adapter first. Add no new import subsystem until a concrete missing scenario proves necessity.
+- Keep tool outputs/agent messages as untrusted evidence; tests for mixed-user/tool spans and source attribution already exist—**confirm and skip** when they pass.
+- Validate ownership of project ID comes from trusted event/session binding, not an extraction model label.
+- Fail safely when an event is too large/late/inconsistent; document actual API behavior rather than pretending late events are automatically supported.
+
+**Done when:** User correction, tool outcome, task-state change, handoff and next-session assembly work through the real API/worker consistently under retries. No parallel event pipeline.
+
+### R05 — Preserve complete, correct scope and temporal semantics [HIGH]
+
+**Blueprint:** F2/F3/F7, Phase 2/7.  
+**Existing code:** src/context_graph/domain/*, pipeline/policy.py, writer.py, graph/neo4j_store.py; src/agent_context/retrieval.py, bridge.py, governance.py.
+
+**Observed:** Trusted private USER/SESSION/PROJECT path is implemented, including a recent project binding repair. Original Context Graph supports more scopes (TEAM/DEPARTMENT/ORGANIZATION) and historical value links; ACE public candidate path currently fails closed for unsupported/shared/task scopes. Documented mis-scoped historical data is not migrated automatically.
+
+**Verification and minimal closure:**
+1. Enumerate original supported scopes and the planned agent context semantics. For each, check **write scope → stored identity → authorized read scope → assembly scope**; mismatched namespace IDs must never silently hide data or make it accessible to another principal.
+2. Reuse original trusted organization membership logic where shared-scope parity is truly required. Never let a conversation self-grant membership or promote itself into shared authority.
+3. Ensure TASK/PROJECT state is attached to an authenticated task/project binding, not text similarity or LLM guessed IDs. Define behavior for unbound or unknown project/task claims.
+4. For all scope types actually required in the agreed target, test current values, expirations, supersessions, revocations, permission changes and explicit historical/as-of behavior.
+5. Test migrated/legacy input using real representative fixture IDs; when a migration is necessary, create explicit versioned migration, dry-run, rollback and re-ingestion policy. Avoid blanket rewriting old nodes or renaming the package.
+6. Test cross-user/project/team isolation and constraint validity before any prompt assembly, including evidence/search/trace/handoff routes.
+7. If a scope is deliberately unsupported under the **chosen single-user physical-partition deployment**, record that limitation and validate fail-closed behavior; do not falsely mark full shared/multi-tenant support complete.
+
+**Done when:** Intended scopes and temporal rules are coherent end-to-end; no unauthorized scope crosses into the model, and every unsupported case fails explicitly.
+
+### R06 — Prove the context engine works as a reusable agent service [HIGH]
+
+**Blueprint:** F6, Phase 5.  
+**Existing code:** src/agent_context/api.py, client.py, demo.py, runtime.py; ui/context_engine.py, context_engine_view.py.
+
+- Confirm the existing Python SDK and API are sufficient to integrate an **independent agent host** with record → status → assemble → read evidence → handoff → resume. Do not build a new framework or unrelated plugin.
+- Validate host/agent identity separation; no client-supplied tenant/user impersonation.
+- Check that the host actually consumes the engine's **assembled** bundle at relevant steps and sends authenticated execution outcomes back; it should not bypass the engine with raw historic handoff text.
+- Test model/provider portability with the existing OpenAI-compatible provider interfaces and a genuine alternate compatible provider/host where available. Log exact model and environment, do not claim cross-provider based on a config toggle alone.
+- Verify the new API contract remains graph-agnostic and usable without knowledge of Cypher, graph node labels or source repo internals.
+- Confirm local console shows live selected context, selected/excluded reasons, verified actions, handoff and citations; fix only broken behavior, not UI design aesthetics.
+- Keep the original retrieval tester/graph visualization for diagnostics only. Its intentionally read-only/manual ingestion semantics need not be changed or merged into ACE's new demo.
+- Confirm fixed endpoint paths do what they claim: especially /v1/context/search is not a no-op alias for assemble; create a distinct search behavior only to fulfill the original on-demand evidence contract (R01).
+
+**Done when:** One non-demo host uses the documented API to consume and update context across sessions with no graph-dependent integration code; real behavior and schema are documented.
+
+### R07 — Correct demo success criteria and establish reliable end-to-end acceptance [CRITICAL]
+
+**Blueprint:** Sections 8/9/13 and Phase 5/6.  
+**Existing code/artifacts:** src/agent_context/demo_cli.py, demo.py, tests/integration/test_ace_research_host.py; docs/ace/results/live-demo.json.
+
+**Concrete counterexample from saved report:** Session C's saved Spanish answer says it cannot deliver a final recommendation because it needs more information, while the report's six boolean checks all evaluate to true. The current demo checks "Spanish answer" via a list of Spanish keywords, including words from a *refusal to recommend*. Therefore **all six pass != task completed**. This is a test-oracle weakness in the saved example, **not** proof that the model always fails or that a later code change hasn't fixed it.
+
+**Required work:**
+1. First rerun current HEAD with the exact demo inputs and inspect artifacts. If the assertion already checks **actual recommendation and successful continuation**, record that and skip.
+2. Define machine-verifiable success for the existing synthetic task: correct current requirement, correct chosen option, adequate source support, final recommendation actually delivered, no stale instructions, correct next action, no repeated side effect, safe handoff and correct replay.
+3. Use typed structured outcome fields or deterministic assertions rather than keyword-presence in free-form text. Do **not** parse success from words like "recomendación" alone. Include explicit negative fixtures: ambiguous answer, contradictory answer, citation present but unsupported, stale requirement, abstention when sufficient evidence is present.
+4. Validate that document evidence actually supports every completed task claim; memory citation IDs alone prove provenance, not semantic entailment.
+5. For the original 3-session fixture, verify the last session truly completes the expected action; fail the demo if it merely states a limitation.
+6. Preserve separate checks for security/citations, correctness, cost, latency and tool replay; a pass in one category must not imply others.
+7. Save a new representative real-model run and failure log; keep earlier results unchanged for auditability.
+
+**Done when:** The demo rejects the exact false positive in the stored Session C result and only passes when agent task outcome is correct.
+
+### R08 — Complete comparative, public and adversarial evaluations [CRITICAL]
+
+**Blueprint:** F8, Section 9, Phase 6.  
+**Existing code/artifacts:** src/agent_context/evaluation.py; docs/ace/results/baseline-probe.json and validation.md; convomem_benchmark_converter/, test_conversation_generator/.
+
+**Observed:** One real-model synthetic test compares full history, last three records, running summary, vector top 3, original retriever and ACE. **All six** got required language and option; ACE had a first-pass citation-policy failure. This does NOT establish superior task completion, lower total cost or production reliability.
+
+**Required work (within original benchmark scope):**
+1. Reuse existing evaluation code. First establish reproducibility: fixed scenario IDs, commit/model/prompt/embedding versions, token budgets, deterministic fixtures, judge schemas, expected actions and dataset splits.
+2. Include multiple multi-session changed-requirement, conflicting/stale fact, project continuation, verified tool outcome, pending/replayed task, cross-scope, missing-information and source-injection scenarios.
+3. Run original planned public benchmarks **when usable/license-accessible**: ConvoMem, LongMemEval, LoCoMo; task/state/continuity datasets such as MemoryArena, StateMemBench and handoff benchmarks if available and actually appropriate. Record exact source/version/split and skip unavailable benchmarks transparently; do not fabricate numbers.
+4. Keep all six already-implemented baselines and equalize model, prompts, retrieved document access, tool budget, eval rubric and total context-token allowance. Report indexing/extraction/setup/summary/embedding costs separately **and** amortized end-to-end cost; do not compare ACE warm retrieval against a competitor's cold indexing.
+5. Test real **task completion and next action**, current-state accuracy, stale-value leakage, allowed citations, answer grounding, abstention when evidence is insufficient, context recall, missing must-keep constraints, authorization failures and duplicate external action rate.
+6. Report prompt and completion tokens, context render bytes vs real provider tokens, retrieval/assembly latency, total task latency, provider calls, cost when verifiable, p50/p95/p99 under appropriate sample sizes. Do not extrapolate from one trial.
+7. Run repeated trials and confidence intervals where practical; include failed/invalid trials and openly report uncertainty.
+8. Run **ablations of existing/planned behavior**: semantic vs lexical, recency, state, handoff, mandatory constraint retention, provenance, evidence/source selection, budget/noise, optional graph planner; don't build features exclusively for ablation.
+9. Compare the same agent's real next-step action with and without ACE. If ACE does not improve outcomes or cost enough to justify overhead, **fix selection strategy** and document what failed instead of inventing a win.
+10. Ensure the citations rubric matches the allowed source types (memory vs document) and separately scores source correctness; preserve the original probe's citation failure as a historical issue, rather than silently rewriting results.
+11. Produce reproducible JSON/Markdown reports and a short limitations section for every evaluation.
+
+**Done when:** There is a statistically and methodologically defensible report of ACE's benefits and trade-offs in multi-session agent tasks. A negative or mixed result is valid evidence, but the implementation must then be evaluated against the desired product outcome honestly.
+
+### R09 — Complete production-critical security and privacy guarantees [CRITICAL FOR PRODUCTION]
+
+**Blueprint:** F7/F8 and Phase 7.  
+**Existing:** auth bindings, Principal, policy, PrivacyControls, GovernanceService, scoped graph source and local deployment.
+
+**Already implemented, verify and skip:** authenticated actor distinction, private project binding, input-body caps, query-time scoped private retrieval, revocation replay fence, export, opt-out/derivation controls, primary-storage erasure, sanitized logs, fail-closed unsupported scopes.
+
+**Outstanding requirements / validation gates:**
+- **Critical security hygiene:** validation.md acknowledges a model credential previously appeared in committed history. Confirm credential owner and rotation/revocation; assume deleting from .env.example did not revoke it. Avoid printing or copying it while auditing.
+- **Production multi-tenancy:** runtime.py currently enforces **one tenant/user trust partition per database deployment** because original concept-resolution lookups are global. If the target product must serve multiple tenants/users in shared infrastructure, implement and test tenant partitioning through concept resolution, embeddings, graph writes, all retrieval/evidence/handoff/export/query paths and caches. If deployment isolation is the explicitly selected production model, verify it operationally and document scalability/cost; never claim shared DB multi-tenancy.
+- Test every endpoint against unauthorized cross-user/project access, including **event status, direct evidence, graph planner, historical retrieval, trace, export and erasure**; fail closed before data leaves the store.
+- Verify trusted directory/team/organization membership writes remain separate from conversational claims and cannot be promoted to access grants.
+- Add or validate rate limiting, quota boundaries, service identity, timeouts and audit trails required by the existing production specification. Do not expose the raw legacy graph/Streamlit demo as a public multi-tenant surface.
+- Prompt-injection/context poisoning tests across imported turns, tool results and web snippets. Already existing span-trust and citation repair tests count as evidence **only when they exercise the live path**.
+- Correct/revoke/erase semantics must be safe under concurrent worker claims, restore and retries. Existing primary erasure does not remove external backup/export copies; define an operator retention/legal-hold/restoration policy before promising a full erasure SLA.
+- Confirm encryption in transit, production secrets management, least-privilege DB accounts, key rotation and secure log redaction. Local Compose security is not a public deployment guarantee.
+- Run resource/exhaustion and denial-of-service tests for tokens, query work, events, revisions, large payloads, retry storms, long transactions and model/provider outages.
+- Keep security results explicit: **zero observed unauthorized contexts across defined test matrices** is a test result, not a universal mathematical guarantee.
+
+**Done when:** A documented threat model, negative tests, privacy erasure/recovery runbook and production identity/deployment proof meet the target's actual trust model.
+
+### R10 — Complete distributed reliability, observability and operational deployment [HIGH FOR PRODUCTION]
+
+**Blueprint:** F8/Section 11/Phase 7.  
+**Existing:** Mongo lease/fencing token, idempotent graph writes, CI, Docker, local launcher, log sanitization, docs/ace/operations.md.
+
+**Documented gaps:** distributed Neo4j write fencing, crash-during-driver-commit chaos testing, full backup restoration, TLS/identity production deployment, rate limits/quotas, SLOs and realistic load tests.
+
+**Required verification/completion:**
+1. Test simultaneous workers/competing claims, slow model requests beyond lease, process kill before/after graph write, Mongo commit failures, duplicate delivery, watermark reconciliation and dead-letter replay. Ensure a stale lease owner cannot write conflicting graph state even if Mongo fencing refuses its final watermark.
+2. Confirm graph+Mongo consistency semantics and read-your-writes behavior: availability watermark must correspond to durable complete context, not merely worker success. Monitor lag between event record and context availability.
+3. Validate idempotency for handoff versions, artifacts, correction/revocation, task actions and model retries; fail closed on unknown side-effect completion.
+4. Confirm real telemetry: structured request/run/session/event IDs; stage timings and error counts; safe counters for token/model calls and selected/excluded context; privacy-safe tracing. Choose existing logging/observability facilities and avoid unnecessary infrastructure.
+5. Establish measured latency, throughput, queue age, model-provider throughput and memory constraints under representative concurrency. Set realistic SLOs from these measurements; do not announce goals as achievements.
+6. Confirm versioned schema, migration and rollback process for Neo4j/Mongo, and a reproducible staging release; no destructive migration in an untested release.
+7. Verify backup/restore of both stores with consistent checkpoints, outbox and privacy fences (restored snapshots must not resurrect revoked/deleted content); document RPO/RTO capabilities actually achieved.
+8. Secure deployments: TLS, secret injection, least-privilege service identities, resource caps, readiness, graceful shutdown, upgrade/rollback and isolation. Existing Compose/launcher remains for **development**.
+9. Run full regression, integration, live-provider E2E, chaos/load smoke and CI after any deployment change.
+10. Record unsupported OS/platform setup honestly. Do not expand the launcher to every OS unless this is necessary to deliver the originally promised supported environment.
+
+**Done when:** Production readiness is backed by failure/recovery demonstrations and operational docs, not merely Docker build or 200 OK health endpoints.
+
+### R11 — Documentation and scope truthfulness [HIGH; NO NEW FEATURES]
+
+**Blueprint:** Sections 13–16.  
+**Existing:** README.md, AGENTS.md, docs/ace/*, master blueprint, this file.
+
+- Preserve the original Context Graph technical invariants; explain that new public ACE surfaces do not contradict the read-only **legacy retrieval tester**.
+- The README currently contains original POC statements such as "retrieval is deliberately not implemented here" **after** the newer ACE introduction. Keep legacy description clearly labeled so new contributors do not mistake it for current ACE behavior.
+- Correct any stale statement that the new repository is private if its GitHub visibility is public. Do not disclose sensitive configuration.
+- Show actual API maturity and feature limitations: private-scope current retrieval, isolation assumptions, handoff semantics, source retrieval, optional search and stored results.
+- Keep one source of truth for target design (master blueprint), one for outstanding work (this file) and one for completed verification (docs/ace/validation.md). Cross-link; don't maintain contradictory checklists.
+- Update runbooks and README only when code/tests substantiate the changed capability.
+- Resume claims: distinguish **existing implemented** vs **demonstrated E2E** vs **measured improvement** vs **production certified**. Do not invent metrics or cross-provider proof.
+
+**Done when:** Someone opening the repo cold can accurately tell what works, what remains, how to reproduce tests, and what is not claimed.
+
+---
+
+## 3. Concrete known risks that must be re-verified before marking complete
+
+### 3.1 Saved demo's false-positive task-success check
+
+**Evidence:** docs/ace/results/live-demo.json, src/agent_context/demo_cli.py.
+
+The stored Session C answer says the agent cannot deliver the final recommendation, despite having a brief describing two options. The success criteria include looking for Spanish words such as "recomendación" in the answer. **A refusal or incomplete answer can pass that check.** Correct this evaluator **only if current HEAD still has this issue**. Add a negative regression using the saved C answer. The model's real answer and the evaluator's judgment must be reviewed separately. A six-flag pass is not a complete task-success score.
+
+### 3.2 ContextAssembler currently works on limited candidates
+
+**Evidence:** src/agent_context/runtime.py instantiates ContextAssembler(Neo4jCandidateSource); retrieval.py query and assembly.py scorer. The candidate source can exclude relevant information before the scorer sees it; keyword overlap is not enough for semantic/long-task relevance. Reuse current graph semantic capabilities when filling this verified gap. Do not build an entirely new retriever by default.
+
+### 3.3 Current constraints are ranked but not necessarily mandatory
+
+**Evidence:** src/agent_context/retrieval.py marks preference/constraint/working style priority but not required; assembly.py may exclude non-required items for budget. Determine when a current, authoritative, user-approved constraint **must** be kept, and test impossible-budget behavior. Do not elevate every retrieved statement to a policy.
+
+### 3.4 Handoff and current task context are not yet unified
+
+**Evidence:** handoff.py and demo.py. Resume produces a historical handoff plus separate live bundle; host serializes both. A changed requirement in the current context may conflict with an older handoff. Validate reconciliation and make the **resulting next-step context** unambiguous, without inventing new agent tool types.
+
+### 3.5 Search endpoint currently appears to be an assembly alias
+
+**Evidence:** src/agent_context/api.py defines /v1/context/search by calling assemble. Verify current HEAD and correct this only if true. The intended behavior was scoped on-demand context/evidence search; this is completion of original F3/F4, not a new feature proposal.
+
+### 3.6 Provider/database isolation and public repo credential risk
+
+**Evidence:** src/agent_context/runtime.py singleton trust partition; docs/ace/validation.md notes credential exposure in prior history. These are release blockers for any multi-user production claim. Revoke affected secrets promptly, verify scope before deploying, and do not leak secrets in issue comments/tests/reports.
+
+### 3.7 Evidence of value is still inconclusive
+
+**Evidence:** docs/ace/results/baseline-probe.json. All six approaches got the task fields right in the only recorded example; ACE had a citation-rubric mismatch. Current first-pass comparison should be preserved and evaluated with a matching rubric; it does not establish quality or cost gains.
+
+### 3.8 Existing fixes must not be regressed
+
+**Evidence:** docs/ace/validation.md and tests/unit/test_project_binding.py, test_memory_grounding.py, test_bridge_trust.py (and live/integration tests). Existing trust-separated episodes, project ID binding, revocation replay prevention, stale citation checks, settings-source isolation and new-session UI state reset appear implemented. **Re-run and skip**; do not write these fixes again.
+
+---
+
+## 4. Required implementation order and dependencies (no speculative work)
+
+| Order | Gate | Execute only if needed; skip when confirmed | Release evidence |
+|---|---|---|---|
+| 0 | **Current-state verification** | Re-read code, tests, blueprint and baseline; mark B01–B12 done/unverified, identify concrete failing examples | Audit ledger + exact commit SHA |
+| 1 | **R07: fix faulty task success oracle** | First ensure live/demo outcomes are measured correctly | False-positive regression rejected |
+| 2 | **R01 + R05: authorized retrieval parity** | Complete only missing candidate/evidence/scope/temporal behaviors | Real Neo4j scoped retrieval tests |
+| 3 | **R02: context assembly correctness** | Integrate necessary retrieval and effective context, protect mandatory constraints | Actual context bundle and test traces |
+| 4 | **R03 + R04: task state and handoff continuity** | Complete real next-step status and event feedback; avoid duplicate parallel state | Multi-session live E2E, negative retry/stale cases |
+| 5 | **R06: independent host/model portability** | Prove existing HTTP/SDK can be used outside demo | Reproducible non-demo integration |
+| 6 | **R08: controlled comparative evaluation** | Measure real task success, correctness and full costs; fix only problems exposed | Versioned benchmark report and ablations |
+| 7 | **R09 + R10: security and production closure** | Tenant/isolation strategy, reliability, deletion/recovery and load gates | Threat model, tests, runbooks, deployment evidence |
+| 8 | **R11: documentation and final acceptance** | Reconcile claims, archive proofs, update checklists | README + master blueprint + validation consistent |
+
+**Rule:** Do not expand scope to make every phase look busy. If a task is confirmed complete, mark it done and go to the next incomplete item. If a new defect appears, fix it within its existing requirement rather than adding a new product feature.
+
+---
+
+## 5. Mandatory end-to-end acceptance suite: the product we originally wanted
+
+These scenarios are required to prove **end-to-end behavior**, not to add features. Reuse existing test fixtures/data and provider/client interfaces whenever possible.
+
+| ID | Scenario | Pass condition | Core requirements |
+|---|---|---|---|
+| E01 | User says preference in A; new session B asks a related question | Current value used; provenance available without replay of entire A | F1/F2/F3/F4 |
+| E02 | User changes a prior preference/constraint | Current value wins, stale value excluded, historical provenance preserved | F2/F3/F4 |
+| E03 | User changes a project requirement and cancels step | Resume uses newest requirement, avoids canceled step | F4/F5 |
+| E04 | Agent completes verified tool action; crash then retry | No repeated side effect or unverified completed action | F1/F5/F8 |
+| E05 | "Continue the project" with multiple unfinished steps | Correct next action, blockers, completed work and current artifacts returned | F4/F5 |
+| E06 | Significant old fact vs many recent irrelevant facts | Relevant fact selected without excessive prompt noise | F3/F4 |
+| E07 | Need evidence for a specific answer | Exact authorized source excerpt and citation; no fabricated sources | F3/F4 |
+| E08 | Forbidden user/project/team or forged identity | Nothing unauthorized returned in candidate, bundle, trace, evidence or host prompt | F3/F7 |
+| E09 | Expired/revoked data, permission change, stale cache | Data excluded immediately within documented consistency guarantees | F2/F7 |
+| E10 | Untrusted tool/web source contains instructions | Content is data, not privileged instruction; no authority elevation | F7 |
+| E11 | Context budget smaller than required constraints | Explicit safe failure, never silent truncation of must-keep conditions | F4 |
+| E12 | Partial model/DB failure or duplicate/out-of-order event | Bounded retry/dead-letter, no duplicate context, visible status, safe recovery | F1/F8 |
+| E13 | Handoff artifact changed after snapshot | Resume indicates unsafe/stale; reconciles before next external action | F5 |
+| E14 | Multi-session independent agent/second compatible model | Existing SDK/API delivers same current context semantics with no graph coupling | F6 |
+| E15 | User correction/erasure during in-flight event | Revocation fence/quarantine prevents reappearance; no foreign record erased | F7/F8 |
+| E16 | Real final task recommendation in saved research scenario | Actual correct recommendation delivered, grounded citation, not just Spanish keywords | F5/F6/Section 9 |
+| E17 | Multiple benchmark tasks and baseline variants | Comparative task/cost metrics reproducible with explicit limitations | Section 9 |
+| E18 | Production restore after data correction/deletion | No resurrection after restore, consistency reconciled, observable outcome | F7/F8 |
+
+**Test evidence must show:** actual input, expected state, observed result, exact code/model/config versions, used data stores, final assertion, cost/latency where relevant, and failure diagnostics. Use synthetic data and test-only credentials. No real personal/enterprise data in public artifacts.
+
+---
+
+## 6. Exact code map and permitted change strategy
+
+| Current location | Primary responsibility | Guidance |
+|---|---|---|
+| src/context_graph/domain/* | Source messages, Episode spans, canonical context, scopes, lineage | **Preserve** data and identity invariants; extend only required contracts |
+| src/context_graph/pipeline/* | Segmentation, gate, extraction, resolution, policy, lifecycle/writer | **Reuse**; fix only discovered correctness, trust or idempotency defect |
+| src/context_graph/graph/* and ledger/* | Neo4j persistence and Mongo processing checkpoints | **Reuse**; add required safe query/scope/migration behavior; no DB swap |
+| src/agent_context/contracts.py, events.py, event_store.py, bridge.py | Public event contract, auth semantics, durable event feedback | **Confirm existing**, then minimal task-state/consistency extension if R03/R04 proves necessary |
+| src/agent_context/retrieval.py | Actual deployed authorized candidate source | **High-priority review** for recall, source diversity, scope/time/evidence and candidate starvation |
+| src/agent_context/assembly.py | Core context selection, conflict/duplicate policy, budget packing | **High-priority review** for task awareness, mandatory context, evidence and relevance |
+| src/agent_context/handoff.py, outcomes.py, artifacts.py | Versioned session/project handoff and verified progress | **Extend minimally** to align snapshot with current task state |
+| src/agent_context/api.py, client.py | Agent-facing transport and SDK | **Keep**, correct semantics of search and missing actual integration only |
+| src/agent_context/demo.py, demo_cli.py, evaluation.py | Research host, example task, baselines | **Fix outcome tests**, add fair scenarios and reporting using current harness |
+| src/agent_context/privacy.py, governance.py, runtime.py | Privacy, erasure, auth/partition, API worker | **Preserve existing safety**, close release gates with tests |
+| ui/*, compose.yaml, run.sh, .github/workflows/ci.yml | Developer interface, local setup, CI | **Keep**; fix only broken acceptance paths or production requirements |
+| docs/ace/*, README.md, AGENTS.md, master blueprint, this file | Product direction and evidence | **Reconcile after verification**, not as a substitute for actual tests |
+
+Do not rename context_graph imports or graph labels merely to call the product "context". A narrow public facade is already present. The implementation should emphasize context engineering, not graph traversal. If code already uses a fitting interface, extend it rather than creating a second copy.
+
+---
+
+## 7. Live evidence ledger — update as you work
+
+Initial statuses are **provisional** and anchored to the inspected commit. Use a checked row only when current code and tests prove completion. **No rows below are claimed completed by this document.**
+
+| Requirement | Starting status | Verified code path / test / report / commit | Next decision |
+|---|---|---|---|
+| B01–B03 Core ingestion/lifecycle | LIKELY IMPLEMENTED | To fill after verification | Confirm then SKIP |
+| B04 Events and worker | LIKELY IMPLEMENTED | To fill after verification | Confirm then SKIP |
+| B05 Private scope binding | LIKELY IMPLEMENTED | To fill after verification | Confirm then SKIP |
+| B06 Basic assembler | LIKELY IMPLEMENTED | To fill after verification | Confirm then SKIP basic parts |
+| B07 Handoff/artifact base | LIKELY IMPLEMENTED | To fill after verification | Confirm then SKIP base |
+| B08 API/SDK | LIKELY IMPLEMENTED | To fill after verification | Confirm then SKIP base |
+| B09 Research demo/citation handling | LIKELY IMPLEMENTED | To fill after verification | Confirm then SKIP proven parts |
+| B10 Primary privacy controls | LIKELY IMPLEMENTED | To fill after verification | Confirm then SKIP base |
+| B11 Local deployment/CI | LIKELY IMPLEMENTED | To fill after verification | Confirm then SKIP local setup |
+| R01 Relevant candidate retrieval | PARTIAL | To fill | Verify, close missing selection/scope/evidence |
+| R02 Task-aware assembly | PARTIAL | To fill | Verify, close precise gap |
+| R03 Live task state + coherent resume | PARTIAL | To fill | Verify, close precise gap |
+| R04 Event feedback/task transitions | PARTIAL/VERIFY | To fill | Use existing types wherever adequate |
+| R05 Scope/temporal parity | PARTIAL | To fill | Verify targeted missing scopes/validity |
+| R06 Independent agent integration | PARTIAL/UNVERIFIED | To fill | Prove existing API/SDK portability |
+| R07 Real outcome evaluation | KNOWN SAVED-REPORT GAP; REVERIFY | To fill | Reject saved false-positive if still reproducible |
+| R08 Comparative benchmarks | PARTIAL | To fill | Multi-scenario, repeated trials/cost |
+| R09 Production security/privacy | PARTIAL | To fill | Rotation/isolation/negative gates |
+| R10 Production ops/chaos/recovery | PARTIAL | To fill | Verify failures/restore/load |
+| R11 Documentation consistency | PARTIAL | To fill | Correct after code verification |
+
+For each finished item, append a compact evidence note:
+
+~~~text
+Requirement:
+Checked at commit:
+Date:
+Code functions/call paths:
+Tests executed (exact command):
+Real service/provider/database?:
+Observed pass result or reproducer:
+Status: CONFIRMED DONE / PARTIAL / MISSING / UNVERIFIED / NOT REQUIRED
+Change (if any):
+Commit/PR:
+Migration/compatibility impact:
+Residual limitations:
+Skip justification (if already done):
+~~~
+
+**Do not delete past failed benchmark data or mutate old results to make them appear passing.** Maintain reproducible before/after runs.
+
+---
+
+## 8. Reproducibility: first commands and verification sequence
+
+At the start of a coding session, inspect the **actual** repo state, prerequisites, environment and credentials. Use the repository's own runbooks; examples below are not guaranteed to work on every host.
+
+~~~sh
+git status --short
+git rev-parse HEAD
+uv sync --frozen
+uv run --frozen pyright
+uv run --frozen pytest
+
+# Only against explicitly disposable integration databases:
+CG_INTEGRATION=1 CG_NEO4J__URI=bolt://127.0.0.1:7690   CG_MONGO__DATABASE=ace_baseline_test uv run --frozen pytest
+
+# Dev stack, if configured with safe ignored credentials:
+./run.sh --skip-demo
+
+# Configured live-provider E2E example:
+./run.sh --demo
+
+# Existing comparative harness, given a valid saved demo output:
+uv run --frozen agent-context-evaluate data/ace_demo/<run-id>.json
+~~~
+
+Follow docs/ace/operations.md for ports, isolation, credentials, warnings and cleanup. Do not run integration suites against any production user data; some suites use different embedding dimensions and must not share the same index. Do not put tokens, production data or secrets in logs, output files or Git.
+
+**Test levels, in order:** static read and call trace → deterministic unit/contract regression → real stores integration → live provider and API/worker/agent multi-session E2E → repeatable comparative benchmarks → load/chaos/security → deployment/restore. A test may be skipped for lack of a model/service credential; record **UNVERIFIED**, not falsely green or missing.
+
+---
+
+## 9. Final Definition of Done — no new features, just the original goal
+
+The overall project can be called **complete relative to the master blueprint** only when all of these are verified:
+
+- [ ] Existing Context Graph extraction, exact-source evidence, semantic resolution, scope and lifecycle invariants remain preserved.
+- [ ] User/agent/tool events are authenticated, safely queued, consumed, recoverable and reflected in new-session context without manual ingestion.
+- [ ] Current effective context and project/task state are retrievable without stale/unauthorized/missing-required facts.
+- [ ] Adaptive context selection combines relevant current user/project knowledge, evidence, verified progress and constraints into a bounded agent-step bundle.
+- [ ] Versioned handoffs and resume use **current verified task state**, avoid old requirements and repeat no completed action.
+- [ ] The independent public API/SDK works for a compatible agent/model without graph coupling.
+- [ ] The demo proves **actual task completion**, not just language/citation/keyword checks.
+- [ ] Comparative evaluation across multiple scenarios and baselines reports accuracy, continuity, cost, latency, uncertainty and failures honestly.
+- [ ] Production identity/privacy/scope/isolation, operational failure recovery and erasure/restore obligations satisfy the chosen deployment model.
+- [ ] CI, Pyright, live system integration, threat/security tests, failure/load tests and migration/recovery evidence meet the declared release gates.
+- [ ] README, validation report, blueprint and this file agree on what exists, what was verified and what remains out of scope.
+
+**If a requirement is already satisfied:** confirm with evidence → mark **CONFIRMED DONE** → **SKIP**.  
+**If only partially satisfied:** implement the minimum correct missing behavior, test it, and stop.  
+**If genuinely optional/out of scope:** mark **NOT REQUIRED**; do not turn it into a new feature.  
+**If blocked by unavailable tests or credentials:** mark **UNVERIFIED** and record how to verify; do not claim finished.
+
+---
+
+## 10. Ready-to-use instruction for a new chat / coding agent
+
+> Work in **praveen-solanki/Agent-Context-Engine**, not the original Context-Graph repository. Read REMAINING_WORK.md, CONTEXT_ENGINE_MASTER_BLUEPRINT.md, AGENTS.md, README.md, docs/ace/architecture.md and docs/ace/validation.md, then inspect the relevant current source/tests. **The product scope is frozen: finish only the originally planned Agent Context Engine; introduce no unrelated new features.** Begin by verifying each existing capability, with a source-level call-path trace and meaningful tests. If anything is already implemented and passes, mark it CONFIRMED DONE with code/test evidence and SKIP it entirely. For partial gaps, fix only missing correctness/integration/evaluation/production behavior, preserving all current features and tests. Prioritize real context selection and task-aware assembly, current-state handoff continuity, genuine end-to-end task success, rigorous benchmarks, and original production gates. Document exact tests, live outputs, changed files, compatibility and remaining limitations. Update REMAINING_WORK.md and the master blueprint after each verified milestone. Do not claim a task complete merely because the README or an old report says so; do not create new architectures, frameworks or graph products.
+
+**Ultimate criterion:** Not "more AI features"; **a fully validated, reusable context engine whose timely, authorized, evidence-backed context helps long-running agents complete real work across sessions and can be operated safely under the documented conditions.**
