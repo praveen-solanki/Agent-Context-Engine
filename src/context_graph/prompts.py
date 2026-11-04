@@ -12,7 +12,7 @@ from context_graph.domain.enums import ContextType, ScopeType, SignalOperation
 from context_graph.domain.extraction import EpisodeChunk
 
 #: Bump when the prompt text changes; stored in every Context's lineage.
-PROMPT_VERSION = "extraction-v2"
+PROMPT_VERSION = "extraction-v3"
 ADJUDICATION_PROMPT_VERSION = "adjudication-v1"
 
 
@@ -20,7 +20,8 @@ def _values(values: Iterable[str]) -> str:
     return ", ".join(values)
 
 
-EXTRACTION_SYSTEM = f"""You extract durable personalization context from conversation turns.
+EXTRACTION_SYSTEM = f"""You extract durable user context from conversation turns,
+including preferences and explicitly remembered facts.
 
 You interpret language only. You never decide identity, permissions or storage.
 
@@ -54,8 +55,16 @@ Rules:
   Never cue a scope whose name the text does not give - fall back to USER when
   the statement is durable for the speaker, or SESSION when it applies only to
   this conversation. Do not widen a named team to DEPARTMENT or ORGANIZATION.
+- A scope_ref is the independently named scope, never the value being remembered.
+  A codename, identifier or other attribute value does not establish a project or
+  task name. "Remember that my project's codename is Cedar-42" means a Fact with
+  concept project_codename, value "Cedar-42", subject "user", durability_cue true,
+  and USER scope: the project itself was not named. Do not invent PROJECT scope
+  with scope_ref "Cedar-42". The same rule applies to any explicitly remembered
+  fact about an unnamed project or task; retain it privately at USER scope.
 - Use SESSION only when the user limits it to this conversation ("for this chat",
-  "just now"). "Always", "from now on" and "never" mean USER, not SESSION.
+  "just now"). "Remember", "always", "from now on" and "never" mean USER,
+  not SESSION, unless the user explicitly limits their scope.
 - operation is "{SignalOperation.REVOKE}" only when the user explicitly withdraws or
   cancels earlier context; otherwise "{SignalOperation.ASSERT}".
 - durability_cue is true only for explicit durability language such as "always",

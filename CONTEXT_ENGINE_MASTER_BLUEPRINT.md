@@ -689,6 +689,12 @@ public source links and citations use the existing authenticated event/read
 pipeline. Provider/UI/replay behavior is tested with mocked search responses;
 live Brave validation is explicitly deferred until `BRAVE_SEARCH_API_KEY` is set.
 
+Explicit-memory scope fix: extraction-v3 distinguishes remembered attribute
+values from project/task identifiers. A remembered codename for an unnamed
+project stays a private USER-scoped Fact rather than being stored under a
+model-invented project ID that the next session cannot retrieve. This changes
+new extractions only; previously mis-scoped assertions must be stated again.
+
 **Maintenance rule:** When a phase is finished, link the code diff/PR, tests executed, benchmark artifact, migration notes and remaining caveats. Correct "verified existing" facts if the repository changes. Update this document alongside code rather than keeping implementation history exclusively in chat memory.
 
 ---
