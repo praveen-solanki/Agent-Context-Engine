@@ -1,5 +1,64 @@
 # Development and recovery runbook
 
+## One-command local launcher
+
+In a local clone of the private Agent-Context-Engine repository, run:
+
+```sh
+./run.sh
+```
+
+Run as your normal user. On Ubuntu/Debian (including systemd-enabled WSL2), the
+launcher installs missing Docker Engine using Docker's official installer, and
+installs an available Compose v2 package if needed. On macOS, it installs missing
+Homebrew and Docker Desktop through their official installers. OS installation
+can require your administrator password; Docker Desktop may need first-launch
+approval. Windows users run this script inside Ubuntu/WSL2, not PowerShell.
+Other Linux distributions can use an already installed Docker/Compose setup.
+Allow roughly 8 GB memory and 10 GB free disk for a comfortable local demo.
+
+The launcher installs uv if absent, uses Python 3.12 and frozen dependencies,
+creates private `.env` authentication with the existing initializer, generates a
+database password only for a fresh local file, and asks for a missing NVIDIA key
+without echoing it. For unattended execution, provide `NVIDIA_API_KEY` through a
+secure environment. Optional `BRAVE_SEARCH_API_KEY` can be set in `.env` later;
+the launcher never requires it. Real keys are not provided by the repository.
+
+It builds/starts MongoDB, Neo4j, the API and worker with Compose readiness checks,
+starts the UI on loopback, prints both URLs, and attempts to open your browser.
+The worker automatically processes events; no separate ingestion command is
+needed. Once per checkout, the launcher also runs the existing synthetic
+three-session demo against the actual API/worker/NVIDIA model. This consumes
+provider quota and records demo language preferences in this local trust
+partition. A successful demo is marked only after all six outcome checks pass.
+If it fails, the UI remains available and the failure/log location is printed;
+the next launch retries. Demo reports are not automatically displayed in the
+console's new browser session; inspect `data/ace_demo/` or `.ace/demo.log` and
+send your own request in the UI.
+
+Defaults are UI `http://127.0.0.1:8501` and API `http://127.0.0.1:18000`.
+These are local URLs, not a public deployment. Keep the launcher terminal open.
+Ctrl+C stops its UI while backend services and data remain available.
+
+```sh
+./run.sh --skip-demo           # services + UI, no startup model demo
+./run.sh --demo                # repeat the live three-session demo
+./run.sh --no-browser          # print URLs without opening a browser
+./run.sh --logs                # follow backend logs
+./run.sh --stop                # stop backend services, retain database volumes
+ACE_UI_PORT=8502 ACE_EXTERNAL_PORT=18200 ./run.sh
+```
+
+Reruns reuse existing credentials and database volumes. Configuration is never
+executed as shell code. The console API URL is set to the locally launched API;
+existing bearer tokens, database password, model/search settings are preserved.
+An incomplete pre-existing authentication file fails with repair guidance rather
+than generating replacement identities. `.env` and ignored `.ace/` logs/state
+are private (new files mode 0600; new directories mode 0700). They are excluded
+from Git and the Docker build context. A valid CA file is selected for Docker's
+build secret/runtime mount; an explicit invalid CA path fails without disabling
+verification. The startup path does not delete volumes or reset stored context.
+
 ## Fresh local setup
 
 ```sh

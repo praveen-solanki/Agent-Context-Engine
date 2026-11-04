@@ -519,7 +519,7 @@ Do not introduce 20 empty packages on day one. Add modules only when a vertical 
 
 ### Ops / deployment
 
-- [ ] Local one-command setup, model credential instructions without actual secrets.
+- [x] Local one-command setup, model credential instructions without actual secrets (`./run.sh`; local development, not production deployment).
 - [ ] API/worker startup, health/readiness, graceful shutdown, streaming backpressure.
 - [ ] CI formatting/lint/type/unit/contract, optional integration, secret/dependency scan.
 - [ ] Staging with isolated Neo4j/Mongo, migrations, synthetic load tests.
@@ -677,7 +677,7 @@ Do not claim measured token reduction, task-success gain, p95 latency, multi-ten
 | 2 — retrieval adapter/guardrails | Private scoped Neo4j source implemented; physical trust-partition isolation required; semantic/hybrid, shared/task and historical parity pending | `agent_context/retrieval.py`; real Cypher negative authorization/lifecycle test |
 | 3 — context assembler | Deterministic scoring, dedup/conflict checks, atomic packing, reserves, JSON rendering and explainable exclusions implemented; comparative agent evaluation pending | `agent_context/assembly.py`; 19 focused tests; HTTP/SDK integration tests |
 | 4 — handoff/task state | Live three-session correction/handoff/replay verified; private artifact registry verifies server-computed content hashes; cross-provider validation remains pending | `artifacts.py`, `demo.py`; `docs/ace/results/live-demo.json` |
-| 5 — SDK/API/live demo | Research host, new console, local initializer, Compose stack and CI workflow implemented; live UI and container event-to-context checks passed | `docs/ace/operations.md`; 375-test full local run, Pyright clean; remote CI outcome recorded separately |
+| 5 — SDK/API/live demo | Research host, new console, local initializer, Compose stack, CI and `run.sh` local bootstrap implemented; production deployment remains pending | `docs/ace/operations.md`; launcher configuration/orchestration tests and fresh-stack verification recorded in `docs/ace/validation.md` |
 | 6 — reproducible comparative evaluations | Six-baseline, one-scenario live probe recorded; no superiority claim; public datasets, multiple trials, ablations and total billing remain pending | `evaluation.py`; `docs/ace/results/baseline-probe.json` preserves the first-pass citation failure |
 | 7 — production hardening/governance | Revocation replay fences, derivation consent, export, lease-aware scoped primary erasure, safe logs and auth-source isolation implemented/tested; distributed guarantees, backup retention, TLS deployment and load/chaos gates remain pending | `privacy.py`, `governance.py`; `docs/ace/operations.md` and validation evidence |
 | 8 — optional adapters/research | Not started | To record |

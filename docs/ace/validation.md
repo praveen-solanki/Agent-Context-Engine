@@ -1,4 +1,27 @@
-# Validation evidence — 2026-11-03
+# Validation evidence — 2026-11-04
+
+## Local launcher
+
+- Complete credential-free regression suite against disposable MongoDB/Neo4j:
+  **427 passed, 1 live-model legacy UI test deselected**. Strict Pyright passed
+  with zero errors/warnings; `bash -n run.sh` passed.
+- Launcher tests cover fresh/private configuration, preserving existing credentials,
+  custom/invalid ports, CA path errors, missing keys, sanitized validation errors,
+  supported environment overrides through sudo, simulated missing Docker/uv
+  installation, startup ordering, successful-demo replay suppression, explicit
+  reruns, skipped/failed demos, backend failures, help and safe stop behavior.
+- Real fresh-copy launcher smoke test on Linux with existing Docker: built and
+  started isolated MongoDB/Neo4j/API/worker services, and served the UI. Both API
+  and UI health endpoints returned HTTP 200.
+- The automatic NVIDIA-backed demo passed all six real-model checks (document
+  reads/citations, current Spanish requirement, excluded superseded English,
+  Spanish answer and cached replay). Its measured demo duration was **48.604 s**;
+  this excludes installation/build and is not a timing guarantee.
+- Real `--stop` and restart passed. The existing `.env` was byte-for-byte
+  unchanged, services/UI became ready again, and the completed demo was skipped.
+- Native fresh-OS Docker installation, macOS/Homebrew/Docker Desktop and WSL2
+  were not executed in this Linux workspace. Missing-tool installers are exercised
+  through hermetic fake executables; native platform acceptance remains pending.
 
 The original Context-Graph checkout remains unchanged. Work continues only in the
 private Agent-Context-Engine copy. Baseline: `3e2454e09deb12aa68c90e76a4948c221d7974b2`.

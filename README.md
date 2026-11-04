@@ -2,6 +2,17 @@
 
 Persistent Context Management and Runtime Context Engineering for AI Agents.
 
+From a local clone, start the complete development app with:
+
+```sh
+./run.sh
+```
+
+The launcher installs missing Docker/uv/Python prerequisites on supported systems,
+asks for an NVIDIA key on first use, starts the databases/API/worker, opens the
+Streamlit UI, and runs the real-model three-session demo once. Keep its terminal
+open for the UI. See [launcher setup, options and platform requirements](docs/ace/operations.md#one-command-local-launcher).
+
 This private continuation preserves the Context Graph ingestion foundation and
 adds authenticated event contracts, a Mongo outbox/worker, guarded private-context
 retrieval, deterministic token-budgeted context assembly, durable versioned
