@@ -1,0 +1,28 @@
+{
+  "source_report": "docs/ace/results/live-demo.json",
+  "source_sha256": "0ca7cc18aad053f0b13f1670c0082595dc36e43ccb3ec5096ea2c99981c4b6fe",
+  "source_revision": "8ee37a4dca82b424dedbe6d4005785de3f0078da",
+  "verifier_version": "research-recommendation-v1",
+  "model": "nvidia/nemotron-3.5-bolt-e4b",
+  "old_checks_all_passed": true,
+  "assessment": {
+    "status": "abstained",
+    "selected_option": null,
+    "report_language": "Spanish",
+    "recommendation_quote": "",
+    "evidence_quote": "Option A costs 10 units and supports offline operation. Option B costs 20 units and requires a network."
+  },
+  "checks": {
+    "recommendation_delivered": false,
+    "correct_option": false,
+    "current_language": true,
+    "recommendation_quote_from_answer": false,
+    "evidence_quote_from_document": true,
+    "option_present_in_answer_quote": false,
+    "option_present_in_evidence_quote": true,
+    "required_document_facts_supported": true,
+    "document_cited": true
+  },
+  "rejected": true,
+  "seconds": 1.04
+}

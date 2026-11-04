@@ -16,6 +16,13 @@ from typing_extensions import Self
 from agent_context.contracts import Contract, Identifier, Permission, Principal, utcnow
 from context_graph.domain.enums import ContextStatus, ScopeType
 
+ASSEMBLY_POLICY_VERSION = "ace-assembly-v2"
+
+
+def lexical_terms(text: str) -> set[str]:
+    """Treat snake_case concept keys and natural-language words consistently."""
+    return set(re.findall(r"[^\W_]+", text.casefold()))
+
 
 class TokenBudget(Contract):
     model_context_tokens: int = Field(gt=0)
@@ -125,7 +132,7 @@ class Exclusion(Contract):
 
 class ContextBundle(Contract):
     bundle_id: str
-    policy_version: str = "ace-assembly-v1"
+    policy_version: str = ASSEMBLY_POLICY_VERSION
     tokenizer_version: str
     items: tuple[ContextItem, ...]
     rendered: str
@@ -268,10 +275,10 @@ class ContextAssembler:
                 key = (item.scope_type.value, item.scope_id, item.canonical_key)
                 values.setdefault(key, set()).add(item.text)
         conflicts = {key for key, texts in values.items() if len(texts) > 1}
-        query_terms = set(re.findall(r"\w+", request.query.casefold()))
+        query_terms = lexical_terms(request.query)
 
         def score(item: ContextItem) -> float:
-            terms = set(re.findall(r"\w+", item.text.casefold()))
+            terms = lexical_terms(item.text)
             relevance = len(query_terms & terms) / max(1, len(query_terms))
             age_days = max(0, (at - item.observed_at).total_seconds()) / 86400
             return (
@@ -321,7 +328,7 @@ class ContextAssembler:
                 "principal": principal_data,
                 "request": request.model_dump(mode="json"),
                 "items": [i.model_dump(mode="json") for i in selected],
-                "policy": "ace-assembly-v1",
+                "policy": ASSEMBLY_POLICY_VERSION,
                 "tokenizer": self.counter.version,
                 "rendered": rendered,
                 "settings": self.settings.model_dump(),

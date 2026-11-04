@@ -432,7 +432,9 @@ Do not rename context_graph imports or graph labels merely to call the product "
 
 ## 7. Live evidence ledger — update as you work
 
-Initial statuses are **provisional** and anchored to the inspected commit. Use a checked row only when current code and tests prove completion. **No rows below are claimed completed by this document.**
+Initial assessments are anchored to the inspected commit. Updated rows below
+claim completion only within the explicitly verified boundaries and linked
+evidence. Open production/whole-product gates remain open.
 
 | Requirement | Starting status | Verified code path / test / report / commit | Next decision |
 |---|---|---|---|
@@ -446,13 +448,13 @@ Initial statuses are **provisional** and anchored to the inspected commit. Use a
 | B10 Primary privacy controls | CONFIRMED DONE (documented primary-storage scope) | e55fb5a: real revocation/export/quarantine/erasure tests passed | SKIP base; external backup/restore/operator gates remain R09/R10 |
 | B11 Local deployment/CI | CONFIRMED DONE (existing Linux local path) | e55fb5a baseline exposed fake-readiness race; corrected test handshake then 462 passed, one live legacy UI test deselected. Fresh isolated Compose API/worker run reached real model answers | SKIP production launcher; native macOS/WSL install remains unverified |
 | B12 Converter/generator and initial benchmark | CONFIRMED DONE (existing tools only); PARTIAL (evaluation breadth) | e55fb5a converter/generator unit tests passed; saved six-baseline report inspected | SKIP converter/generator; no comparative-superiority claim |
-| R01 Relevant candidate retrieval | PARTIAL | To fill | Verify, close missing selection/scope/evidence |
+| R01 Relevant candidate retrieval | PARTIAL — pre-limit literal-recall gap fixed | Real Neo4j regression with 220 unrelated recent preferences, a 90-day-old project decision, candidate limit 32 and 1000-token bundle failed before changes and passes after authorized lexical ranking before LIMIT | SKIP redoing this fix; semantic/state/history/search parity and retrieval cost/load gates remain open |
 | R02 Task-aware assembly | PARTIAL | To fill | Verify, close precise gap |
 | R03 Live task state + coherent resume | PARTIAL | To fill | Verify, close precise gap |
 | R04 Event feedback/task transitions | PARTIAL/VERIFY | To fill | Use existing types wherever adequate |
 | R05 Scope/temporal parity | PARTIAL | To fill | Verify targeted missing scopes/validity |
 | R06 Independent agent integration | PARTIAL/UNVERIFIED | To fill | Prove existing API/SDK portability |
-| R07 Real outcome evaluation | PARTIAL — oracle weakness confirmed before edits | e55fb5a: demo_cli checks Spanish keywords, not delivered recommendation; stored session C explicitly refuses while all six flags pass. Fresh isolated live rerun started before edits | Replace only inadequate outcome oracle; preserve old report |
+| R07 Real outcome evaluation | CONFIRMED DONE (existing bounded research task) | Source checkpoint 9ad2d52; live-demo-verified-20261104.json passes all per-session typed/quote/source checks; recommendation-oracle-negative-v2-20261104.json rejects the exact preserved refusal; unit negative matrix passes | SKIP rebuilding oracle; same-model-judge limits and broader R08 benchmark gates remain explicit |
 | R08 Comparative benchmarks | PARTIAL | To fill | Multi-scenario, repeated trials/cost |
 | R09 Production security/privacy | PARTIAL | To fill | Rotation/isolation/negative gates |
 | R10 Production ops/chaos/recovery | PARTIAL | To fill | Verify failures/restore/load |
@@ -534,6 +536,50 @@ Skip justification (if already done):
 **Do not delete past failed benchmark data or mutate old results to make them appear passing.** Maintain reproducible before/after runs.
 
 ---
+
+### Verified milestone — R07 and the reproduced R01 literal-recall defect
+
+- **R07 source checkpoint:** `9ad2d52`. Report:
+  [live-demo-verified-20261104.json](docs/ace/results/live-demo-verified-20261104.json).
+  Real isolated Mongo/Neo4j/API/worker plus NVIDIA host/verifier; final Option A
+  recommendation delivered in Spanish, English superseded, verified reads and
+  document citations present, cached replay. All per-session quote/source/choice/
+  language checks passed. Recorded elapsed time 46.726 s is one observation, not
+  an SLO or comparative benefit.
+- **Negative real-model proof:**
+  [recommendation-oracle-negative-v2-20261104.json](docs/ace/results/recommendation-oracle-negative-v2-20261104.json)
+  classifies the preserved false-positive refusal as abstained and rejects it.
+  The original report is unchanged. The v1 verifier's failed format/language
+  trial is preserved in `docs/ace/results/demo-oracle-v1-failure-20261104.json`;
+  the unchanged-HEAD citation failure is preserved separately as
+  `docs/ace/results/demo-audit-baseline-20261104.json`. Failed trials are not
+  dropped from the evidence.
+- **Minimal R07 change:** use existing `require_sources` mode for this document
+  demo and replace the weak success oracle. Completion and answer-only language
+  assessments are separate typed calls; deterministic checks validate actual
+  quoted choice, exact supporting document facts and source ID. Host/verifier
+  usage is separate. Worker ingestion billing is not available; total cost and
+  universal semantic correctness are not claimed.
+- **R01 reproducer:**
+  `CG_INTEGRATION=1 .venv/bin/pytest tests/integration/test_ace_retrieval.py::test_older_relevant_decision_survives_recent_irrelevant_candidate_pressure -q`
+  failed on the old query, then passed after a narrow fix to the existing source.
+  Query words are normalized consistently with assembly, matched only inside
+  authorized valid rows, and ranked before LIMIT. No new index/service/database
+  or model call is introduced. Assembly policy version is now `ace-assembly-v2`.
+  This proves literal-recall behavior, **not** complete hybrid/semantic retrieval.
+- **Post-change regression:** 463 passed, one unrelated legacy live-model UI
+  case deselected, in 18.82 s; strict Pyright zero errors/warnings. Command uses
+  `CG_MONGO__DATABASE=ace_remaining_final` with the previously recorded options.
+- **Compatibility:** no data migration or public API field/path removal. Old
+  demo reports remain readable and intact; request `./run.sh --demo` once after
+  updating if an old launcher success marker would otherwise skip the new oracle.
+- **Credentials:** the owner supplied a replacement key; it is stored only in
+  ignored mode-0600 local configuration and was used successfully by the isolated
+  worker and host. Revocation of the previously exposed key is still UNVERIFIED.
+- **Next ordered gate:** finish the unproven parts of R01/R05, then R02 and R03.
+  Current task projection, richer evidence/search, historical/shared/task parity,
+  independent host/provider validation, broad benchmarks and production gates are
+  **not** marked complete by this milestone. No optional PDF/framework/UI work.
 
 ## 8. Reproducibility: first commands and verification sequence
 

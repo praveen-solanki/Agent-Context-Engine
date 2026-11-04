@@ -676,17 +676,21 @@ tests passed. They are **CONFIRMED DONE** only within those existing boundaries
 and are skipped; see `REMAINING_WORK.md` for exact commands and open gates. The
 baseline found a fake-launcher readiness race (test-only fix) and confirmed the
 saved demo's keyword-based success oracle could accept a refusal. R07 now adds
-typed recommendation assessment with independent quote/choice/source checks;
-fresh live verification is pending. No production or full task-state completion
-is inferred from historical six-flag reports.
+typed recommendation assessment with independent quote/choice/source checks.
+Fresh real-service verification at `9ad2d52` delivers the actual final decision;
+the current verifier also rejects the preserved refusal. See the new verified
+and negative reports in `docs/ace/results/`. The pre-limit literal-retrieval
+starvation defect is reproduced and fixed; semantic/task/history/search parity
+remains open. No production or full task-state completion is inferred from the
+historical six-flag reports.
 
 | Phase | Current known status as of blueprint | PR/commit, tests, evidence |
 |---|---|---|
 | 0 — baseline audit / ADRs | Baseline preserved at `3e2454e09deb12aa68c90e76a4948c221d7974b2`; ADRs recorded; comparative model metrics still pending | `docs/ace/architecture.md`; original 292 offline tests and Pyright passed |
 | 1 — authenticated event intake + feedback | Live NVIDIA event-to-context feedback verified; immutable derivation consent, trust-separated evidence and recovery tests added | `docs/ace/validation.md`; live host and Compose functional probes |
-| 2 — retrieval adapter/guardrails | Private scoped Neo4j source implemented; physical trust-partition isolation required; semantic/hybrid, shared/task and historical parity pending | `agent_context/retrieval.py`; real Cypher negative authorization/lifecycle test |
+| 2 — retrieval adapter/guardrails | Private scoped source plus authorized lexical ranking before candidate LIMIT verified; physical isolation required; semantic/hybrid, evidence search, shared/task and historical parity pending | `agent_context/retrieval.py`; real scope/lifecycle and 220-noise older-decision regression |
 | 3 — context assembler | Deterministic scoring, dedup/conflict checks, atomic packing, reserves, JSON rendering and explainable exclusions implemented; comparative agent evaluation pending | `agent_context/assembly.py`; 19 focused tests; HTTP/SDK integration tests |
-| 4 — handoff/task state | Live three-session correction/handoff/replay verified; private artifact registry verifies server-computed content hashes; cross-provider validation remains pending | `artifacts.py`, `demo.py`; `docs/ace/results/live-demo.json` |
+| 4 — handoff/task state | Existing snapshot/correction/replay primitives verified; actual bounded demo recommendation now independently assessed; canonical live task state and cross-provider validation remain pending | `artifacts.py`, `demo.py`; `docs/ace/results/live-demo-verified-20261104.json`; old false-positive report preserved |
 | 5 — SDK/API/live demo | Research host, new console, local initializer, Compose stack, CI and `run.sh` local bootstrap implemented; production deployment remains pending | `docs/ace/operations.md`; launcher configuration/orchestration tests and fresh-stack verification recorded in `docs/ace/validation.md` |
 | 6 — reproducible comparative evaluations | Six-baseline, one-scenario live probe recorded; no superiority claim; public datasets, multiple trials, ablations and total billing remain pending | `evaluation.py`; `docs/ace/results/baseline-probe.json` preserves the first-pass citation failure |
 | 7 — production hardening/governance | Revocation replay fences, derivation consent, export, lease-aware scoped primary erasure, safe logs and auth-source isolation implemented/tested; distributed guarantees, backup retention, TLS deployment and load/chaos gates remain pending | `privacy.py`, `governance.py`; `docs/ace/operations.md` and validation evidence |

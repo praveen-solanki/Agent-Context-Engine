@@ -3,11 +3,12 @@
 from __future__ import annotations
 
 import json
+import re
 from typing import Any, LiteralString
 
 from neo4j import AsyncDriver, RoutingControl
 
-from agent_context.assembly import AssembleRequest, ContextItem
+from agent_context.assembly import AssembleRequest, ContextItem, lexical_terms
 from agent_context.bridge import scoped_id
 from agent_context.contracts import Permission, Principal, utcnow
 from agent_context.privacy import PrivacyControls
@@ -23,7 +24,12 @@ WHERE (c.valid_from IS NULL OR c.valid_from <= $now)
   AND ((c.scope_type = 'USER' AND c.scope_id = $user_id)
        OR (c.scope_type = 'SESSION' AND c.scope_id = $session_id)
        OR (c.scope_type = 'PROJECT' AND c.scope_id = $project_id))
-WITH c ORDER BY CASE WHEN c.context_type IN ['Constraint','Preference','WorkingStyle']
+WITH c, toLower(replace(coalesce(c.concept_key,''),'_',' ') + ' ' +
+                coalesce(toString(c.value),'')) AS searchable
+WITH c, reduce(relevance = 0, pattern IN $query_patterns |
+               relevance + CASE WHEN searchable =~ pattern THEN 1 ELSE 0 END) AS relevance
+ORDER BY relevance DESC,
+                CASE WHEN c.context_type IN ['Constraint','Preference','WorkingStyle']
                     THEN 0 ELSE 1 END, c.observed_at DESC, c.context_id
 LIMIT $limit
 RETURN properties(c) AS context
@@ -72,6 +78,10 @@ class Neo4jCandidateSource:
             else None,
             now=utcnow(),
             blocked_ids=list(state.blocked_item_ids) if state else [],
+            query_patterns=[
+                rf"(?s).*\b{re.escape(term)}\b.*"
+                for term in sorted(lexical_terms(request.query))
+            ],
             limit=limit,
             database_=self.database,
             routing_=RoutingControl.READ,

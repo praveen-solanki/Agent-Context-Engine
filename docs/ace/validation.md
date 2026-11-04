@@ -1,5 +1,42 @@
 # Validation evidence — 2026-11-04
 
+## Evidence-first completion audit
+
+Baseline `e55fb5a` was verified before implementation: 450 passed, one launcher
+test-double readiness race failed, one unrelated legacy live-model UI case was
+deselected. The fake health probe was corrected; production `run.sh` is unchanged.
+After the minimal outcome/recall fixes: **463 passed, 1 deselected in 18.82 s**,
+strict Pyright zero errors/warnings. Real integration used disposable MongoDB and
+Neo4j (7690), separate from the live-model fixture. Commands and per-item skip
+decisions are in [REMAINING_WORK.md](../../REMAINING_WORK.md).
+
+The saved `live-demo.json` has a false-positive task oracle: its last answer
+declines to recommend while all six old flags pass. That report remains intact
+and is not evidence of completed work. The current unchanged-HEAD live rerun did
+deliver Option A, but B/C used memory-only citations for document claims; see
+[baseline failure](results/demo-audit-baseline-20261104.json). The first stricter
+verifier also exposed its own format/language classification errors, preserved
+in [v1 failure](results/demo-oracle-v1-failure-20261104.json).
+
+Source checkpoint `9ad2d52` separates typed completion and answer-only language
+assessment and independently verifies option, exact quotes, document facts and
+citations. [Verified live run](results/live-demo-verified-20261104.json) passes
+all per-session outcome checks using actual isolated API/worker/Mongo/Neo4j and
+NVIDIA. [Current negative proof](results/recommendation-oracle-negative-v2-20261104.json)
+rejects the exact old refusal. Host/verifier provider usage is reported separately;
+worker ingestion billing and total cost are unknown. Same-model judging and one
+synthetic scenario do not establish universal correctness or comparative benefit.
+
+A real-store regression with 220 recent unrelated preferences hid a 90-day-old
+relevant project decision at a candidate cap of 32. Authorized lexical scoring
+now precedes LIMIT; the failing test passes. Assembly policy is `ace-assembly-v2`.
+No new infrastructure/model call is used. Semantic retrieval, richer search,
+task-state sources, temporal/shared parity and source-cost/load gates remain open.
+
+GitHub metadata reports the repository is public. A replacement model credential
+was provided and successfully used from ignored private configuration. Revocation
+of the earlier exposed key remains unverified by this workspace.
+
 ## Project binding, session reset and memory grounding
 
 - **54 focused unit/UI checks passed**, with strict Pyright clean. No local
@@ -44,7 +81,7 @@
   through hermetic fake executables; native platform acceptance remains pending.
 
 The original Context-Graph checkout remains unchanged. Work continues only in the
-private Agent-Context-Engine copy. Baseline: `3e2454e09deb12aa68c90e76a4948c221d7974b2`.
+Agent-Context-Engine copy. Baseline: `3e2454e09deb12aa68c90e76a4948c221d7974b2`.
 
 ## Current validation
 
@@ -55,8 +92,9 @@ private Agent-Context-Engine copy. Baseline: `3e2454e09deb12aa68c90e76a4948c221d
   legacy Streamlit test with entirely fictional person/team fixtures.
 - Strict Pyright: **zero errors and warnings**.
 - Real NVIDIA structured-chat and 2048-dimensional embedding probes passed.
-- Live three-session research/correction/handoff/replay demo passed all six
-  explicit outcome checks. See [the captured report](results/live-demo.json).
+- Historical three-session report passed six weak checks but its last answer
+  refused to recommend. It is preserved as a negative example; the newly verified
+  report above supersedes it as evidence of bounded task completion.
 - Container image build, database readiness and authenticated API readiness
   passed. API/worker run as a non-root user; runtime logs use a writable path.
 - Credential-value scan of tracked and pending source files passed. The supplied

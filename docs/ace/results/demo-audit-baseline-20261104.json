@@ -1,0 +1,54 @@
+{
+  "run_id": "0755e1440c21",
+  "model": "nvidia/nemotron-3.5-bolt-e4b",
+  "sessions": [
+    {
+      "session": "A",
+      "answer": "Option A is the cheapest option that works offline, costing 10 units.\n\nSources: [research-brief]",
+      "context": [
+        "personalization:report_language: English",
+        "personalization:recommendation_criteria: cheapest option that works offline"
+      ],
+      "context_tokens_upper_bound": 362,
+      "model_calls": 2,
+      "verified_reads": 1
+    },
+    {
+      "session": "B",
+      "answer": "La opción más barata que funciona sin conexión es la Opción A, con un costo de 10 unidades.\n\nSources: [memory:ctx_64de1232820e4a99943a78c5961cb19b], [memory:ctx_8f6d84f1fa1643e4a1f7359156fce21e]",
+      "context": [
+        "personalization:report_language: Spanish",
+        "personalization:recommendation_criteria: cheapest option that works offline"
+      ],
+      "context_tokens_upper_bound": 362,
+      "model_calls": 2,
+      "verified_reads": 1
+    },
+    {
+      "session": "C",
+      "answer": "La recomendación final es la Opción A, ya que es la opción más barata que funciona sin conexión, cumpliendo con los criterios establecidos.\n\nSources: [memory:ctx_8f6d84f1fa1643e4a1f7359156fce21e]",
+      "context": [
+        "personalization:report_language: Spanish",
+        "personalization:recommendation_criteria: cheapest option that works offline"
+      ],
+      "context_tokens_upper_bound": 362,
+      "model_calls": 2,
+      "verified_reads": 1
+    }
+  ],
+  "replay_cached": true,
+  "checks": {
+    "read_each_session": true,
+    "citations_each_session": false,
+    "current_language_in_C": true,
+    "no_superseded_english_in_C": true,
+    "spanish_answer_in_C": true,
+    "replay_cached": true
+  },
+  "elapsed_seconds": 35.804,
+  "limitations": [
+    "Synthetic bounded document scenario",
+    "No cross-provider switch in this run",
+    "End-to-end timing includes live ingestion and provider calls; no per-token price estimate"
+  ]
+}

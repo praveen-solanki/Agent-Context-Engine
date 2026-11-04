@@ -68,9 +68,19 @@ tool; no existing membership assertions are promoted into new permissions.
   enforces one tenant/user trust partition per database deployment. Scoped private
   datastore retrieval, deterministic assembly and durable handoffs have real
   database tests; full historical/shared/task parity is still pending.
-- A credentialed research-agent demo, original UI integration, governance/erasure,
-  distributed fencing/quotas, full deployment/recovery and fair comparative
-  benchmarks remain required gates. No data deletion SLA is claimed. External
+- The bounded credentialed research demo and primary governance primitives have
+  recorded verification. Canonical live task state, independent host/provider
+  portability, distributed fencing/quotas, full deployment/recovery and fair
+  comparative benchmarks remain required gates. No data deletion SLA is claimed. External
   artifact references fail closed without an authoritative host verifier.
 
 The later implementation adds trusted artifact versions, immediate revocation fences, derivation opt-out, streaming export and lease-aware primary erasure. Privacy controls quarantine subjects before deletion, retain minimal tombstones, and report external backup responsibilities explicitly. See operations.md for the supported lifecycle and remaining gates.
+
+The 2026-11-04 completion audit preserves and skips verified base functionality.
+The original six-flag demo could accept a refusal; current task verification uses
+typed output assessment and independent quote/choice/source checks. Failed and
+passing runs remain separate artifacts. Authorized literal relevance is now
+applied before candidate LIMIT, with consistent snake_case tokenization in
+assembly (`ace-assembly-v2`); no storage/schema migration is required. This does
+not close semantic/state/evidence-search/temporal parity or production gates.
+See REMAINING_WORK.md and validation.md for exact source revisions and commands.

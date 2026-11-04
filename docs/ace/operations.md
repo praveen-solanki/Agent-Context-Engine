@@ -2,7 +2,7 @@
 
 ## One-command local launcher
 
-In a local clone of the private Agent-Context-Engine repository, run:
+In a local clone of the Agent-Context-Engine repository, run:
 
 ```sh
 ./run.sh
@@ -48,6 +48,13 @@ Ctrl+C stops its UI while backend services and data remain available.
 ./run.sh --stop                # stop backend services, retain database volumes
 ACE_UI_PORT=8502 ACE_EXTERNAL_PORT=18200 ./run.sh
 ```
+
+After upgrading from the old six-flag demo, run `./run.sh --demo` once: an old
+success marker otherwise skips the new outcome verifier. The updated demo
+requires a delivered supported recommendation, not just Spanish words or a source
+name. Reports retain typed assessments, independently checked quotes/source IDs,
+model/source versions and separate host/verifier usage. The verifier uses the
+same provider as generation; it is not universal semantic proof or total billing.
 
 Reruns reuse existing credentials and database volumes. Configuration is never
 executed as shell code. The console API URL is set to the locally launched API;
