@@ -11,7 +11,6 @@ from dotenv import load_dotenv
 
 from agent_context.client import AgentContextClient
 from agent_context.demo import (
-    MEMORY_SOURCE_PREFIX,
     DemoSettings,
     ResearchAssistant,
     ResearchTurn,
@@ -26,13 +25,20 @@ from agent_context.search import (
 )
 from context_graph.config import Settings
 from context_graph.providers.chat_backend import ChatLLMProvider
+from ui.context_engine_view import (
+    ConversationTurn,
+    apply_style,
+    brand,
+    header,
+    render_turn,
+    welcome,
+)
 
 load_dotenv(override=False)
-st.set_page_config(page_title="Agent Context Engine", layout="wide")
-st.title("Agent Context Engine")
-st.caption(
-    "Research across sessions with current preferences, cited evidence and explicit handoffs."
+st.set_page_config(
+    page_title="Agent Context Engine", page_icon=":material/notes:", layout="wide",
 )
+apply_style()
 
 if "ace_session" not in st.session_state:
     st.session_state.ace_session = "console-" + uuid4().hex[:16]
@@ -40,6 +46,8 @@ if "ace_session" not in st.session_state:
     st.session_state.ace_turn = 0
     st.session_state.ace_handoff = None
     st.session_state.ace_handoff_version = 0
+
+st.session_state.setdefault("ace_conversation", [])
 
 
 def client(variable: str) -> AgentContextClient:
@@ -118,148 +126,115 @@ def new_session() -> None:
     st.session_state.ace_message = ""
     st.session_state.ace_search_query = ""
     st.session_state.ace_use_web = False
+    st.session_state.ace_source_mode = "Sample brief"
+    st.session_state.ace_conversation = []
+
+
+def source_controls(settings: SearchSettings) -> tuple[tuple[SearchResult, ...], bool]:
+    with st.expander("Sources", expanded=True):
+        mode = st.radio("Research source", ["Sample brief", "Web search"],
+                        key="ace_source_mode", label_visibility="collapsed")
+        if mode == "Sample brief":
+            st.caption("A short, built-in comparison. No search key needed.")
+            return (), False
+        if not settings.configured:
+            st.caption("Web search is not connected.")
+            with st.expander("Connect web search"):
+                st.caption("Add BRAVE_SEARCH_API_KEY to your server environment or ignored .env file, then restart the UI.")
+        query = st.text_input("Search query", placeholder="Search the web…", key="ace_search_query")
+        if st.button("Search web", icon=":material/search:", width="stretch",
+                     disabled=not settings.configured or not query.strip()):
+            st.session_state.ace_web_results = ()
+            st.session_state.ace_use_web = False
+            try:
+                with st.spinner("Searching…"):
+                    response = asyncio.run(search_web(query, settings))
+                st.session_state.ace_web_results = response.results
+                st.session_state.ace_use_web = bool(response.results)
+                if not response.results:
+                    st.caption("No usable results. Try a different query.")
+                if response.discarded_results:
+                    st.caption("Some results could not be safely validated and were excluded.")
+            except SearchError as error:
+                st.error(str(error))
+            except ValueError:
+                st.error("Keep the search query within 1000 bytes.")
+        results: tuple[SearchResult, ...] = st.session_state.get("ace_web_results", ())
+        for index, source in enumerate(results, 1):
+            with st.expander(f"Source {index}"):
+                st.text(source.title)
+                st.text(source.snippet)
+                st.link_button("Open source", str(source.url), key=f"search_source_{index}")
+        use_web = st.checkbox("Use these sources", disabled=not results, key="ace_use_web")
+        st.caption("Only this query is sent to search. Results are snippets, not full pages.")
+        return results, use_web
 
 
 with st.sidebar:
-    st.header("Project continuity")
-    st.caption(st.session_state.ace_session)
-    st.button("New session", on_click=new_session)
-    goal = st.text_input("Project goal", value="Compare the supplied research options")
-    pending = st.text_area("Next steps", value="Deliver a cited recommendation")
-    if st.button("Save handoff", disabled="ace_result" not in st.session_state):
+    brand()
+    st.button("New session", icon=":material/add:", width="stretch", on_click=new_session)
+    st.caption("Start fresh here. Stored memory stays available.")
+    st.divider()
+    st.subheader("Continue your work")
+    with st.expander("Project notes"):
+        goal = st.text_input("Project goal", value="Compare the supplied research options", key="ace_goal")
+        pending = st.text_area("Next steps", value="Deliver a cited recommendation", key="ace_pending")
+        st.caption("These notes are included when you save progress.")
+    if st.button("Save progress", icon=":material/bookmark:", width="stretch",
+                 disabled="ace_result" not in st.session_state):
         try:
-            asyncio.run(
-                handoff(
-                    goal, tuple(line for line in pending.splitlines() if line.strip())
-                )
-            )
-            st.success("Handoff saved. A new session can continue from this state.")
+            asyncio.run(handoff(goal, tuple(line for line in pending.splitlines() if line.strip())))
+            st.success("Progress saved for your next session.")
         except Exception:
-            st.error("The handoff could not be saved. Check service access and retry.")
+            st.error("Progress could not be saved. Check service access and try again.")
     if st.session_state.ace_handoff:
-        st.caption(f"Handoff revision {st.session_state.ace_handoff_version}")
-
-search_settings = SearchSettings()
-with st.expander("Web search (optional)", expanded=search_settings.configured):
-    st.caption(
-        "Only the search query below is sent to Brave Search. Personal memory and chat history are not sent as search queries."
-    )
-    if not search_settings.configured:
-        st.info(
-            "Web search is not configured. Add BRAVE_SEARCH_API_KEY to the server environment or ignored .env file to enable it. The sample-document demo remains available."
+        st.caption("Saved progress will carry into your next session.")
+    else:
+        st.caption("Save your goal and next steps after an answer.")
+    st.divider()
+    web_results, use_web = source_controls(SearchSettings())
+    st.divider()
+    with st.popover("How this works", icon=":material/help_outline:", width="stretch"):
+        st.markdown(
+            "1. **Ask or share a preference.** Useful context can be remembered.\n"
+            "2. **Check an answer’s details.** See sources, memory and recorded work.\n"
+            "3. **Start a new session.** Relevant memory stays available.\n"
+            "4. **Save progress.** Carry your goal and next steps forward."
         )
-    search_query = st.text_input(
-        "Web search query",
-        placeholder="What would you like to research?",
-        key="ace_search_query",
-    )
-    if st.button(
-        "Search web",
-        disabled=not search_settings.configured or not search_query.strip(),
-    ):
-        st.session_state.ace_web_results = ()
-        st.session_state.ace_use_web = False
-        try:
-            with st.spinner("Searching the web…"):
-                response = asyncio.run(search_web(search_query, search_settings))
-            st.session_state.ace_web_results = response.results
-            st.session_state.ace_use_web = bool(response.results)
-            if not response.results:
-                st.info("No usable web results were returned. Try another query.")
-            if response.discarded_results:
-                st.caption(
-                    "Some results were excluded because they could not be safely validated."
-                )
-        except SearchError as error:
-            st.error(str(error))
-        except ValueError:
-            st.error("Use a search query of at most 1000 bytes.")
-    web_results: tuple[SearchResult, ...] = st.session_state.get("ace_web_results", ())
-    for index, source in enumerate(web_results, 1):
-        st.text(source.title)
-        st.text(source.snippet)
-        st.link_button(f"Open search result {index}", str(source.url))
-    use_web = st.checkbox(
-        "Use these web results for the next answer",
-        disabled=not web_results,
-        key="ace_use_web",
-    )
-    if web_results:
-        st.caption(
-            "These are search-result snippets. The app does not fetch full web pages."
-        )
+        st.caption("Conversation history shown here belongs to this browser session. It is not a saved-session browser.")
+    with st.expander("Session details"):
+        st.caption("Current session")
+        st.code(st.session_state.ace_session, language=None)
+        if st.session_state.ace_handoff:
+            st.caption(f"Saved progress revision {st.session_state.ace_handoff_version}")
 
-message = st.text_area(
-    "Message",
-    key="ace_message",
-    placeholder="Ask for a cited comparison, or change a preference and continue in a new session.",
-)
-if st.button("Send", type="primary", disabled=not message.strip()):
+header()
+history: list[ConversationTurn] = st.session_state.ace_conversation
+for index, turn in enumerate(history):
+    render_turn(turn, index)
+
+example = welcome(with_web=use_web) if not history else None
+message = st.chat_input("Ask a question or share something to remember…", key="ace_message", max_chars=16000)
+request = example or message
+if request:
+    with st.chat_message("user", avatar=":material/person:"):
+        st.caption("YOU")
+        st.text(request)
     try:
         documents = (
             {source.document_id: source.as_document() for source in web_results}
-            if use_web and web_results
-            else {
+            if use_web and web_results else {
                 "research-brief": "Option A costs 10 units and works offline. Option B costs 20 units and requires a network."
             }
         )
-        with st.spinner(
-            "Recording the turn, gathering current context and researching…"
-        ):
-            result = asyncio.run(send(message, documents, require_sources=use_web))
+        with st.spinner("Finding relevant context and preparing your answer…"):
+            result = asyncio.run(send(request, documents, require_sources=use_web))
+        sources = web_results if use_web else ()
+        history.append(ConversationTurn(request, result, sources))
         st.session_state.ace_result = result
-        st.session_state.ace_result_web_sources = web_results if use_web else ()
+        st.session_state.ace_result_web_sources = sources
         st.session_state.ace_sequence = result.next_sequence
         st.session_state.ace_turn += 1
+        st.rerun()
     except Exception:
-        st.error(
-            "This turn could not complete. Retry the same message or start a new session."
-        )
-
-if "ace_result" in st.session_state:
-    result: ResearchTurn = st.session_state.ace_result
-    # Plain text prevents untrusted snippets/model output from embedding remote
-    # images or executable HTML. Citation links come only from validated sources.
-    st.text(result.answer)
-    for item in result.bundle.items:
-        if MEMORY_SOURCE_PREFIX + item.item_id in result.citations:
-            st.text("Cited memory: " + item.text)
-            st.caption("Memory evidence: " + ", ".join(item.evidence_ids))
-    cited_sources: tuple[SearchResult, ...] = st.session_state.get(
-        "ace_result_web_sources", ()
-    )
-    for index, source in enumerate(
-        (source for source in cited_sources if source.document_id in result.citations),
-        1,
-    ):
-        st.text(source.title)
-        st.link_button(f"Cited web source {index}", str(source.url))
-    context, trace, work = st.tabs(
-        ["Current context", "Selection trace", "Verified work"]
-    )
-    with context:
-        st.caption(f"{result.bundle.token_count} tokens (conservative upper bound)")
-        for item in result.bundle.items:
-            st.write(item.text)
-            st.caption("Evidence: " + ", ".join(item.evidence_ids))
-    with trace:
-        st.json(
-            {
-                "bundle_id": result.bundle.bundle_id,
-                "excluded": result.bundle.excluded_counts,
-                "reasons": [x.model_dump() for x in result.bundle.exclusions],
-                "warnings": result.bundle.warnings,
-            }
-        )
-    with work:
-        for action in result.completed:
-            st.write(action.description)
-            st.caption(f"Tool outcome: {action.result_event_id}")
-        if result.cached:
-            st.info(
-                "Recovered the previously recorded answer without repeating the model or reads."
-            )
-else:
-    st.info(
-        "Send a research request to see the answer, selected context, evidence and continuation state."
-    )
+        st.error("This request could not complete. Try the same message again, or start a new session.")
