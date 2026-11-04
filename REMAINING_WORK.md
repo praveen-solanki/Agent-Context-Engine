@@ -436,28 +436,84 @@ Initial statuses are **provisional** and anchored to the inspected commit. Use a
 
 | Requirement | Starting status | Verified code path / test / report / commit | Next decision |
 |---|---|---|---|
-| B01–B03 Core ingestion/lifecycle | LIKELY IMPLEMENTED | To fill after verification | Confirm then SKIP |
-| B04 Events and worker | LIKELY IMPLEMENTED | To fill after verification | Confirm then SKIP |
-| B05 Private scope binding | LIKELY IMPLEMENTED | To fill after verification | Confirm then SKIP |
-| B06 Basic assembler | LIKELY IMPLEMENTED | To fill after verification | Confirm then SKIP basic parts |
-| B07 Handoff/artifact base | LIKELY IMPLEMENTED | To fill after verification | Confirm then SKIP base |
-| B08 API/SDK | LIKELY IMPLEMENTED | To fill after verification | Confirm then SKIP base |
-| B09 Research demo/citation handling | LIKELY IMPLEMENTED | To fill after verification | Confirm then SKIP proven parts |
-| B10 Primary privacy controls | LIKELY IMPLEMENTED | To fill after verification | Confirm then SKIP base |
-| B11 Local deployment/CI | LIKELY IMPLEMENTED | To fill after verification | Confirm then SKIP local setup |
+| B01–B03 Core ingestion/lifecycle | CONFIRMED DONE (existing invariants) | e55fb5a: original unit + in-memory ingestion tests and real Neo4j/Mongo store tests passed in baseline; pipeline/graph/ledger call paths preserved | SKIP implementation; broader extraction-quality benchmarks remain R08 |
+| B04 Events and worker | CONFIRMED DONE (bounded ordered-stream base) | e55fb5a: contracts/events → MongoEventStore → EventWorker → existing ingestion; real event/runtime tests passed | SKIP base; retain R04/R10 task and distributed gates |
+| B05 Private scope binding | CONFIRMED DONE | e55fb5a: trusted stream → bridge metadata → WriterPolicy → scoped Neo4j query; project-binding unit and real retrieval tests passed | SKIP this fix; richer retrieval remains R01/R05 |
+| B06 Basic assembler | CONFIRMED DONE (basic packing) | e55fb5a: runtime constructs ContextAssembler; assembly budget/conflict/dedup/source tests and HTTP tests passed | SKIP basic parts; task-aware sources remain R02 |
+| B07 Handoff/artifact base | CONFIRMED DONE (snapshot primitives) | e55fb5a: HandoffService/ArtifactStore/EventOutcomeVerifier; real handoff and governance tests passed | SKIP base; current-state reconciliation remains R03 |
+| B08 API/SDK | CONFIRMED DONE (existing base routes) | e55fb5a: FastAPI + AgentContextClient exercised by real API/research-host tests | SKIP base; search route semantics remain R01 |
+| B09 Research demo/citation handling | CONFIRMED DONE (source/replay protocol); PARTIAL (outcomes) | e55fb5a: memory-grounding unit and real research-host tests passed; saved false-positive outcome remains reproducible from oracle code | SKIP citations/replay implementation; fix R07 only |
+| B10 Primary privacy controls | CONFIRMED DONE (documented primary-storage scope) | e55fb5a: real revocation/export/quarantine/erasure tests passed | SKIP base; external backup/restore/operator gates remain R09/R10 |
+| B11 Local deployment/CI | CONFIRMED DONE (existing Linux local path) | e55fb5a baseline exposed fake-readiness race; corrected test handshake then 462 passed, one live legacy UI test deselected. Fresh isolated Compose API/worker run reached real model answers | SKIP production launcher; native macOS/WSL install remains unverified |
+| B12 Converter/generator and initial benchmark | CONFIRMED DONE (existing tools only); PARTIAL (evaluation breadth) | e55fb5a converter/generator unit tests passed; saved six-baseline report inspected | SKIP converter/generator; no comparative-superiority claim |
 | R01 Relevant candidate retrieval | PARTIAL | To fill | Verify, close missing selection/scope/evidence |
 | R02 Task-aware assembly | PARTIAL | To fill | Verify, close precise gap |
 | R03 Live task state + coherent resume | PARTIAL | To fill | Verify, close precise gap |
 | R04 Event feedback/task transitions | PARTIAL/VERIFY | To fill | Use existing types wherever adequate |
 | R05 Scope/temporal parity | PARTIAL | To fill | Verify targeted missing scopes/validity |
 | R06 Independent agent integration | PARTIAL/UNVERIFIED | To fill | Prove existing API/SDK portability |
-| R07 Real outcome evaluation | KNOWN SAVED-REPORT GAP; REVERIFY | To fill | Reject saved false-positive if still reproducible |
+| R07 Real outcome evaluation | PARTIAL — oracle weakness confirmed before edits | e55fb5a: demo_cli checks Spanish keywords, not delivered recommendation; stored session C explicitly refuses while all six flags pass. Fresh isolated live rerun started before edits | Replace only inadequate outcome oracle; preserve old report |
 | R08 Comparative benchmarks | PARTIAL | To fill | Multi-scenario, repeated trials/cost |
 | R09 Production security/privacy | PARTIAL | To fill | Rotation/isolation/negative gates |
 | R10 Production ops/chaos/recovery | PARTIAL | To fill | Verify failures/restore/load |
 | R11 Documentation consistency | PARTIAL | To fill | Correct after code verification |
 
 For each finished item, append a compact evidence note:
+
+### Audit checkpoint — 2026-11-04, baseline e55fb5a
+
+Traced intake/auth → event stream/outbox → worker/bridge → original ingestion →
+scoped candidates → assembler → SDK/host, plus handoff/artifact and primary
+privacy paths. The latest upstream commit adds only this checklist; implementation
+matches the inspected UI revision. No existing base component is being rebuilt.
+
+Exact pre-change command:
+
+```sh
+CG_INTEGRATION=1 CG_NEO4J__URI=bolt://127.0.0.1:7690 CG_MONGO__DATABASE=ace_remaining_baseline UV_CACHE_DIR=/workspace/.cache/uv uv run --frozen pytest -k 'not test_the_ui_runs_the_tool_and_shows_the_result' -q
+UV_CACHE_DIR=/workspace/.cache/uv uv run --frozen pyright
+```
+
+Observed: **450 passed, 1 failed, 1 deselected**; Pyright zero errors/warnings.
+The failure is `test_startup_order_and_once_only_demo`: fake curl always returns
+success, so the background fake UI can log after the demo. Real launcher code
+does wait for actual UI health; this is a test-double race, not evidence that
+production startup skips readiness. Real integration used disposable Neo4j on
+7690 and test-only Mongo databases, separate from the live-model fixture.
+
+R07's old saved result is preserved: its session C refusal satisfies the Spanish
+keyword check. A new baseline live run uses a fresh Compose project
+`ace-remaining-audit`, private stores and synthetic `ace-live/research-user`
+identities. Its output will be recorded separately from old reports. The first
+attempt reached a harness connection error because editable-package dotenv lookup
+found source-checkout settings; the rerun explicitly supplies isolated settings.
+
+Production credential rotation, external backups, alternate-provider credentials,
+native macOS/WSL setup and production TLS/identity remain **UNVERIFIED**; local
+unit/integration success does not close those gates. PDF ingestion, new frameworks,
+UI styling and optional adapter expansion are **NOT REQUIRED** in this pass.
+
+R07 unchanged-HEAD live rerun: report `0755e1440c21.json` now delivers Option A
+in the final Spanish response, so the historical refusal is **not** asserted to
+reproduce on the current model. The run correctly fails its document-citation
+flag because B/C cite only memory despite reading the brief. The stale keyword
+oracle still accepts the old saved refusal. The minimal changes are typed,
+quoted output assessment plus the existing host's `require_sources` setting for
+this document-based demo. Same-model judging is disclosed and source/quote checks
+are independent; no universal semantic-accuracy claim is made.
+
+GitHub metadata currently reports `private: false` (2026-11-04). Documentation
+must not call the repository private. Previously exposed-key revocation remains
+UNVERIFIED pending the credential owner's response; repository visibility is not
+changed by this audit.
+
+Post-change preserved regression: **462 passed, 1 deselected in 14.02 s** using
+the same command with `CG_MONGO__DATABASE=ace_remaining_regression`. The launcher
+double now acknowledges actual fake-UI readiness; `run.sh` is unchanged. R07 unit
+cases reject the saved false positive, abstained/ambiguous/contradictory judgments,
+wrong options/language, fabricated/incomplete quotes and memory-only support for
+document claims. Strict Pyright is clean. A source checkpoint precedes the next
+live run so the report can record the precise implementation revision.
 
 ~~~text
 Requirement:

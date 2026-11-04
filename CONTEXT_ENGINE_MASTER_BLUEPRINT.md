@@ -670,6 +670,16 @@ Do not claim measured token reduction, task-success gain, p95 latency, multi-ten
 
 ### Progress ledger (the next agent should maintain this)
 
+2026-11-04 evidence-first audit at `e55fb5a`: existing core/event/private-scope/
+packing/handoff/API/primary-privacy paths were traced and their unit/real-store
+tests passed. They are **CONFIRMED DONE** only within those existing boundaries
+and are skipped; see `REMAINING_WORK.md` for exact commands and open gates. The
+baseline found a fake-launcher readiness race (test-only fix) and confirmed the
+saved demo's keyword-based success oracle could accept a refusal. R07 now adds
+typed recommendation assessment with independent quote/choice/source checks;
+fresh live verification is pending. No production or full task-state completion
+is inferred from historical six-flag reports.
+
 | Phase | Current known status as of blueprint | PR/commit, tests, evidence |
 |---|---|---|
 | 0 — baseline audit / ADRs | Baseline preserved at `3e2454e09deb12aa68c90e76a4948c221d7974b2`; ADRs recorded; comparative model metrics still pending | `docs/ace/architecture.md`; original 292 offline tests and Pyright passed |

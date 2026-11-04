@@ -13,7 +13,7 @@ asks for an NVIDIA key on first use, starts the databases/API/worker, opens the
 Streamlit UI, and runs the real-model three-session demo once. Keep its terminal
 open for the UI. See [launcher setup, options and platform requirements](docs/ace/operations.md#one-command-local-launcher).
 
-This private continuation preserves the Context Graph ingestion foundation and
+This continuation preserves the Context Graph ingestion foundation and
 adds authenticated event contracts, a Mongo outbox/worker, guarded private-context
 retrieval, deterministic token-budgeted context assembly, durable versioned
 handoffs, a FastAPI service and a Python client. Implementation of the master
@@ -30,9 +30,20 @@ See [one-command development setup and recovery](docs/ace/operations.md),
 [architecture and remaining gates](docs/ace/architecture.md). The original
 ingestion and demo documentation follows.
 
+Use [REMAINING_WORK.md](REMAINING_WORK.md) for the evidence-first completion
+checklist. The master blueprint defines the target; the remaining-work ledger
+records verified completion and open gates.
+
 > **Planned next-generation product:** [Agent Context Engine — Master Implementation Blueprint](CONTEXT_ENGINE_MASTER_BLUEPRINT.md) documents how to evolve this POC into a production-oriented, end-to-end context engineering system for AI agents. The blueprint distinguishes existing code from proposed features; it does **not** mean those features are implemented yet.
 
-Implements the Context Graph ingestion specification: conversations become
+## Preserved Context Graph ingestion documentation
+
+The sections below describe the original ingestion package and legacy diagnostic
+tools. ACE adds authenticated runtime retrieval and context assembly through
+`/v1/context/assemble`; the legacy package's boundary statements do not describe
+the newer ACE API.
+
+The original package implements the Context Graph ingestion specification: conversations become
 immutable Episodes in Neo4j, and durable personalization Context is derived from
 them with explicit provenance, scope and write-time governance. Request-time
 scope applicability and authorization belong to the separate retrieval design

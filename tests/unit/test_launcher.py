@@ -25,12 +25,21 @@ printf 'uv %s\\n' "$*" >> "$LAUNCH_COMMANDS"
 if [[ "$*" == *'agent_context.local_setup'* ]]; then
   printf 'http://127.0.0.1:18000\\thttp://127.0.0.1:8501\\t8501\\n'
 elif [[ "$*" == *'streamlit run'* ]]; then
-  sleep 0.2
+  touch "$LAUNCH_COMMANDS.ui-ready"
+  trap 'rm -f "$LAUNCH_COMMANDS.ui-ready" "$LAUNCH_COMMANDS.ui-ack"' EXIT
+  while [[ ! -f "$LAUNCH_COMMANDS.ui-ack" ]]; do sleep 0.005; done
+  sleep 0.1
 elif [[ "$*" == *'agent-context-demo'* && ${FAIL_DEMO:-0} == 1 ]]; then
   exit 1
 fi
 """,
-        "curl": "#!/usr/bin/env bash\nexit 0\n",
+        "curl": """#!/usr/bin/env bash
+for ((attempt=0; attempt<200; attempt++)); do
+  if [[ -f "$LAUNCH_COMMANDS.ui-ready" ]]; then touch "$LAUNCH_COMMANDS.ui-ack"; exit 0; fi
+  sleep 0.005
+done
+exit 1
+""",
         # Browser availability must never launch anything on the test host.
         "xdg-open": "#!/usr/bin/env bash\nexit 0\n",
     }
@@ -164,7 +173,13 @@ while [[ $# -gt 0 ]]; do
   esac
   shift
 done
-if [[ -z $output ]]; then exit 0; fi
+if [[ -z $output ]]; then
+  for ((attempt=0; attempt<200; attempt++)); do
+    if [[ -f "$LAUNCH_COMMANDS.ui-ready" ]]; then touch "$LAUNCH_COMMANDS.ui-ack"; exit 0; fi
+    sleep 0.005
+  done
+  exit 1
+fi
 if [[ $url == https://get.docker.com ]]; then
   printf '#!/bin/sh\\ncp "$INSTALL_ROOT/docker.template" "$INSTALL_BIN/docker"\\n' > "$output"
 else
