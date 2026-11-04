@@ -12,7 +12,7 @@ from context_graph.domain.enums import ContextType, ScopeType, SignalOperation
 from context_graph.domain.extraction import EpisodeChunk
 
 #: Bump when the prompt text changes; stored in every Context's lineage.
-PROMPT_VERSION = "extraction-v3"
+PROMPT_VERSION = "extraction-v4"
 ADJUDICATION_PROMPT_VERSION = "adjudication-v1"
 
 
@@ -52,19 +52,18 @@ Rules:
 - Cue TASK, PROJECT, TEAM, DEPARTMENT or ORGANIZATION when the statement
   describes how that named group or thing works, and put its name in scope_ref:
   a convention the user's Search team follows is TEAM with scope_ref "Search".
-  Never cue a scope whose name the text does not give - fall back to USER when
-  the statement is durable for the speaker, or SESSION when it applies only to
-  this conversation. Do not widen a named team to DEPARTMENT or ORGANIZATION.
-- A scope_ref is the independently named scope, never the value being remembered.
-  A codename, identifier or other attribute value does not establish a project or
-  task name. "Remember that my project's codename is Cedar-42" means a Fact with
-  concept project_codename, value "Cedar-42", subject "user", durability_cue true,
-  and USER scope: the project itself was not named. Do not invent PROJECT scope
-  with scope_ref "Cedar-42". The same rule applies to any explicitly remembered
-  fact about an unnamed project or task; retain it privately at USER scope.
+  Except for the current PROJECT described below, never cue a scope whose name
+  the text does not give. Fall back to USER when durable for the speaker, or
+  SESSION when limited to this conversation. Do not widen a named team to
+  DEPARTMENT or ORGANIZATION.
+- A scope_ref is the independently named scope, never the attribute value being
+  remembered. For facts about the current project, cue PROJECT and leave scope_ref
+  null if no separate project name was given. The host resolves the authorized
+  project identifier; you never create or choose storage IDs. Keep project facts
+  project-scoped rather than widening them to USER merely to remember them.
 - Use SESSION only when the user limits it to this conversation ("for this chat",
-  "just now"). "Remember", "always", "from now on" and "never" mean USER,
-  not SESSION, unless the user explicitly limits their scope.
+  "just now"). "Remember", "always", "from now on" and "never" mean durable
+  USER or PROJECT context, not SESSION, unless explicitly limited to this chat.
 - operation is "{SignalOperation.REVOKE}" only when the user explicitly withdraws or
   cancels earlier context; otherwise "{SignalOperation.ASSERT}".
 - durability_cue is true only for explicit durability language such as "always",

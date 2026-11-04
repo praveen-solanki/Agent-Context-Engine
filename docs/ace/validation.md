@@ -1,5 +1,25 @@
 # Validation evidence — 2026-11-04
 
+## Project binding, session reset and memory grounding
+
+- **54 focused unit/UI checks passed**, with strict Pyright clean. No local
+  end-to-end or live-database suite was run for this focused revision.
+- PROJECT write decisions and retrieval query parameters match for multiple
+  authorized project IDs, including IDs that cannot be preserved by slugifying.
+  Missing project bindings fail closed; untrusted model labels do not select
+  graph IDs. Existing message metadata/fingerprints are preserved.
+- UI checks verify New session clears the old input, answer, context and search
+  query, disables stale handoff saves, and retains an explicit saved handoff.
+- Host checks verify memory-only answers without unrelated reads, source/evidence
+  presentation, durable citation replay, missing-citation repair, rejection of
+  invented/unread source IDs and stale-memory replay, reserved source namespaces,
+  and continued document-citation requirements for web research. Tests use
+  multiple values; runtime behavior contains no codename/fruit-specific rules.
+- Citation checks establish source identity and evidence provenance. They do not
+  constitute a universal semantic correctness guarantee for model-generated text.
+- No bulk migration of old mis-scoped data is performed. Reassert those facts
+  after upgrading API, worker and console; historical evidence remains intact.
+
 ## Local launcher
 
 - Complete credential-free regression suite against disposable MongoDB/Neo4j:

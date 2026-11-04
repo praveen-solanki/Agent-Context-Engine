@@ -25,7 +25,7 @@ from context_graph.domain.extraction import ExtractedSignal
 from context_graph.domain.ids import slugify
 
 #: Bump when these rules change; stored in every Context's lineage.
-POLICY_VERSION = "writer-policy-v1"
+POLICY_VERSION = "writer-policy-v2"
 
 #: Ways a conversation refers to the speaking user.
 _SELF_REFERENCES = frozenset({"user", "me", "i", "myself", "my", "self", "the user"})
@@ -117,6 +117,17 @@ class WriterPolicy:
             return scope_type, session.user_id
         if scope_type is ScopeType.SESSION:
             return scope_type, session.session_id
+        if (
+            scope_type is ScopeType.PROJECT
+            and session.metadata.get("ace_event_bridge") is True
+        ):
+            # The event gateway authorized this immutable project binding. A
+            # model's label/value cannot create or select another project ID.
+            project_id = session.metadata.get("ace_project_id")
+            return (
+                scope_type,
+                project_id if isinstance(project_id, str) and project_id else None,
+            )
         reference = cue.scope_ref if cue else None
         return scope_type, slugify(reference) if reference else None
 

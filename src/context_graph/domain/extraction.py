@@ -47,11 +47,10 @@ class ScopeCue(BaseModel):
         default=None,
         description=(
             "Name mentioned in the conversation for that scope, e.g. 'Apollo' or "
-            "'Search'. Required for TASK, PROJECT, TEAM, DEPARTMENT and "
-            "ORGANIZATION; null for USER and SESSION. This names the scope, "
-            "not the attribute value: a remembered codename does not itself "
-            "name a project. Use USER for an explicitly remembered fact about "
-            "an unnamed project/task."
+            "'Search'. Required for TASK, TEAM, DEPARTMENT and ORGANIZATION; "
+            "null for USER and SESSION. For the current PROJECT it may be null: "
+            "the host resolves its authorized project ID. This names the scope, "
+            "not the attribute value, and never grants access to a project."
         ),
     )
 

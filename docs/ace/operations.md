@@ -99,6 +99,27 @@ evidence, exclusion reasons, verified tool work and handoff revisions. The origi
 `ui/streamlit_app.py` remains a local legacy diagnostic view. Do not expose its raw
 user-selection/graph-planning interface as a multi-tenant authenticated product.
 
+## Updating project memory and session behavior
+
+After pulling the project-binding/grounding fix, restart using
+`./run.sh --skip-demo` (stop the existing UI with Ctrl+C first). The launcher
+rebuilds API/worker code as well as restarting the console. PROJECT context is
+now stored under the authenticated event's project ID using the same tenant
+namespace as retrieval; model-generated project labels do not choose IDs.
+No database-wide scope migration or authorization widening is performed.
+Previously mis-scoped records must be asserted again after upgrading. Existing
+USER-scoped records remain user-scoped; historical evidence is preserved.
+
+Answers can cite `memory:<context-id>` in addition to verified document IDs. The
+console shows the cited memory and its evidence episode IDs. These citations
+validate source identity/provenance, not automatic semantic proof of every
+sentence. A cached answer whose cited memory is no longer selected cannot be
+reused; start a new turn. Web-required mode still requires document evidence.
+
+**New session** clears previous input, result/context and web-search selections.
+An explicit saved handoff remains available for continuation; durable memory is
+not erased by starting a new session.
+
 ## Optional web search
 
 Set `BRAVE_SEARCH_API_KEY` in the console process's secure environment or ignored

@@ -10,7 +10,12 @@ import streamlit as st
 from dotenv import load_dotenv
 
 from agent_context.client import AgentContextClient
-from agent_context.demo import ResearchAssistant, ResearchTurn, DemoSettings
+from agent_context.demo import (
+    MEMORY_SOURCE_PREFIX,
+    DemoSettings,
+    ResearchAssistant,
+    ResearchTurn,
+)
 from agent_context.handoff import HandoffInput
 from agent_context.search import (
     BraveSearch,
@@ -104,14 +109,21 @@ async def handoff(goal: str, pending: tuple[str, ...]) -> None:
         await user.aclose()
 
 
+def new_session() -> None:
+    st.session_state.ace_session = "console-" + uuid4().hex[:16]
+    st.session_state.ace_sequence = 1
+    st.session_state.ace_turn = 0
+    for key in ("ace_result", "ace_result_web_sources", "ace_web_results"):
+        st.session_state.pop(key, None)
+    st.session_state.ace_message = ""
+    st.session_state.ace_search_query = ""
+    st.session_state.ace_use_web = False
+
+
 with st.sidebar:
     st.header("Project continuity")
     st.caption(st.session_state.ace_session)
-    if st.button("New session"):
-        st.session_state.ace_session = "console-" + uuid4().hex[:16]
-        st.session_state.ace_sequence = 1
-        st.session_state.ace_turn = 0
-        st.rerun()
+    st.button("New session", on_click=new_session)
     goal = st.text_input("Project goal", value="Compare the supplied research options")
     pending = st.text_area("Next steps", value="Deliver a cited recommendation")
     if st.button("Save handoff", disabled="ace_result" not in st.session_state):
@@ -179,6 +191,7 @@ with st.expander("Web search (optional)", expanded=search_settings.configured):
 
 message = st.text_area(
     "Message",
+    key="ace_message",
     placeholder="Ask for a cited comparison, or change a preference and continue in a new session.",
 )
 if st.button("Send", type="primary", disabled=not message.strip()):
@@ -208,6 +221,10 @@ if "ace_result" in st.session_state:
     # Plain text prevents untrusted snippets/model output from embedding remote
     # images or executable HTML. Citation links come only from validated sources.
     st.text(result.answer)
+    for item in result.bundle.items:
+        if MEMORY_SOURCE_PREFIX + item.item_id in result.citations:
+            st.text("Cited memory: " + item.text)
+            st.caption("Memory evidence: " + ", ".join(item.evidence_ids))
     cited_sources: tuple[SearchResult, ...] = st.session_state.get(
         "ace_result_web_sources", ()
     )

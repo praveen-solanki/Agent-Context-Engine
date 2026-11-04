@@ -70,6 +70,11 @@ def to_session(stream: Stream) -> SessionInput:
             "external_session_id": stream.session_id,
             "ace_event_bridge": True,
             "ace_derive_context": stream.derive_context,
+            # Stream identity is authorized on intake and immutable. Keep the
+            # binding outside message metadata to preserve old fingerprints.
+            "ace_project_id": scoped_id(stream.tenant_id, stream.project_id)
+            if stream.project_id
+            else None,
         },
     )
 
