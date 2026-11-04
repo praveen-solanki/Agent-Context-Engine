@@ -11,6 +11,36 @@
 
 ---
 
+## Current status and next execution — verified 2026-11-05
+
+**Latest inspected implementation:** [ec793a8854c8d2d713ea7d3f2ce6492d955a2880](https://github.com/praveen-solanki/Agent-Context-Engine/commit/ec793a8854c8d2d713ea7d3f2ce6492d955a2880) (commit date 2026-11-04). This status supplements the older baseline at the top; **re-verify at HEAD before coding**.
+
+**Already done — confirm and SKIP, do not rebuild:**
+- Existing ingestion, segmentation, exact Episode/source spans, extraction, concept resolution, scoped lifecycle, supersession and provenance (B01–B03).
+- Bounded authenticated event intake/outbox/worker, corrected project binding, private current-scope retrieval, core deterministic assembler, basic verified handoffs, API/SDK, demo host, primary privacy controls, Docker/local launcher and CI (B04–B11). Preserve implementations and tests.
+- **R07 bounded research-demo outcome oracle is fixed and verified**: typed recommendation checks reject the exact prior false-positive refusal; a separate real NVIDIA-backed three-session run delivers the actual Spanish Option A recommendation with document citation. See [verified demo](docs/ace/results/live-demo-verified-20261104.json) and [negative proof](docs/ace/results/recommendation-oracle-negative-v2-20261104.json). Do not implement another oracle; broaden **R08** separately.
+- **R01 specific literal-recall starvation defect is fixed**: authorized lexical relevance is scored before the Neo4j LIMIT, with a real-database regression of 220 irrelevant newer items versus a relevant older decision. Do not recreate this fix; **R01 still has other gaps**.
+
+**Still open — in strict priority order:**
+
+| Order | Requirement | Still needed (only if current code/tests do not already satisfy it) | Concrete finish criterion |
+|---|---|---|---|
+| 1 | **R01 + R05 — candidate retrieval, evidence, scopes and temporal semantics** | Semantic/hybrid retrieval reusing existing embedding/index interfaces; evidence/episodic and historical lookup; current effective values; trusted TEAM/DEPARTMENT/ORG and TASK parity where original blueprint requires it; fix `/v1/context/search`, currently an alias of assemble. Keep datastore-level access guards. | Authorized relevant recall/evidence and scope/history end-to-end, including negative isolation tests; no stale selection or candidate starvation. |
+| 2 | **R02 — adaptive context assembly** | Make the actual deployed bundle combine current task/project state, verified progress, effective constraints, evidence and relevance within budget. Current scoring is largely lexical/recency/priority; constraint priority is **not** the same as mandatory inclusion. Preserve deterministic conflict, safety and token packing already implemented. | One accurate, task-aware, policy-safe context package with mandatory constraints, reasons, evidence and measured budget; no unnecessary extra LLM call. |
+| 3 | **R03 + remaining R04 — coherent multi-session continuation** | Tie current verified task state to handoff and assembly, reconcile stale handoff requirements against latest corrections and action outcomes, handle pending/failed work/replay safely. Existing HandoffService verifies versions, hashes and outcomes, but resume currently returns separate historic handoff + live bundle. | Multi-session continuation executes the correct next task action after changed requirements; no old instruction or duplicate side effect. |
+| 4 | **R06 — independent agent/model use** | Validate existing HTTP/Python SDK through another compatible host/model, not a new framework. | Same context semantics through an independent integration; record model/runtime and actual output. |
+| 5 | **R08 — rigorous evaluation** | Expand beyond the one synthetic six-baseline probe: representative multi-session datasets, repeated task-success checks, state correctness, ablations, full ingestion/host/provider token-cost and latency accounting, security failures. | Reproducible comparison showing measured benefits **or honest negative findings**, no invented superiority claim. |
+| 6 | **R09 + R10 — production gates** | Tenant-isolation/deployment decision; verify rotation/revocation of historically exposed credential; security and poisoning tests; distributed worker/write fencing; rates/quotas; secure TLS/identity; observability; load/chaos; privacy-aware backup restore and retention. | Target deployment's security, recovery and reliability supported by actual tests/runbooks, not local Docker alone. |
+| 7 | **R11 — documentation reconciliation** | Keep README, master blueprint, validation and this file consistent with proven functionality. | Code, tests, documentation and status table agree. |
+
+**Important current code confirmations:** `src/agent_context/api.py` still makes `/v1/context/search` call the assemble handler; `src/agent_context/runtime.py` wires `ContextAssembler(Neo4jCandidateSource)` without a task-state candidate source; `src/agent_context/retrieval.py` ranks private current candidates lexically before LIMIT, but has no integrated semantic/historical/shared retrieval; `src/agent_context/handoff.py` returns historical handoff plus separate live bundle without reconciling changed requirements into a single current next-step package. These are **existing blueprint requirements**, not license to invent features.
+
+**Testing evidence:** the repository's audit ledger records **463 passing tests and one deselected legacy live-UI case**, Pyright clean, and the latest inspected commit has a successful [GitHub Actions run](https://github.com/praveen-solanki/Agent-Context-Engine/actions/runs/41933094232). The connected review did not itself rerun those tests. Prior credential rotation of the historically exposed key remains unverified, despite a replacement key being used. Do not claim production readiness or statistical performance gains.
+
+**Immediate next task:** Begin **R01 + R05** by inspecting the current source and running existing focused tests; implement **only** proven remaining behavior, then complete R02/R03 in order. Do not rework R07 or repeat the fixed lexical-recall change. Update the evidence ledger and master blueprint after each verified milestone.
+
+---
+
 ## 0. Exact boundary: what success means, what must not change
 
 ### 0.1 Product goal (unchanged)
@@ -367,7 +397,7 @@ The stored Session C answer says the agent cannot deliver the final recommendati
 | Order | Gate | Execute only if needed; skip when confirmed | Release evidence |
 |---|---|---|---|
 | 0 | **Current-state verification** | Re-read code, tests, blueprint and baseline; mark B01–B12 done/unverified, identify concrete failing examples | Audit ledger + exact commit SHA |
-| 1 | **R07: fix faulty task success oracle** | First ensure live/demo outcomes are measured correctly | False-positive regression rejected |
+| 1 | **R07 already confirmed — SKIP** | Bounded demo oracle and negative regression verified; do not redo. Broader outcome evaluation stays in R08 | [Verified demo](docs/ace/results/live-demo-verified-20261104.json) and [negative proof](docs/ace/results/recommendation-oracle-negative-v2-20261104.json) |
 | 2 | **R01 + R05: authorized retrieval parity** | Complete only missing candidate/evidence/scope/temporal behaviors | Real Neo4j scoped retrieval tests |
 | 3 | **R02: context assembly correctness** | Integrate necessary retrieval and effective context, protect mandatory constraints | Actual context bundle and test traces |
 | 4 | **R03 + R04: task state and handoff continuity** | Complete real next-step status and event feedback; avoid duplicate parallel state | Multi-session live E2E, negative retry/stale cases |
