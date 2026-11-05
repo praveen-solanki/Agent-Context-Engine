@@ -127,6 +127,7 @@ ON CREATE SET c += $props, c.created_at = datetime()
 // A repeat of the same scoped value re-activates the instance: the newest
 // assertion decides the status, while history survives as SUPERSEDES edges.
 ON MATCH SET c.last_seen_at = datetime(),
+             c.personal_scope = CASE WHEN $props.personal_scope=true THEN true ELSE c.personal_scope END,
              c.observed_at = CASE WHEN $props.observed_at > c.observed_at
                                   THEN $props.observed_at ELSE c.observed_at END,
              c.valid_until = coalesce($props.valid_until, c.valid_until),

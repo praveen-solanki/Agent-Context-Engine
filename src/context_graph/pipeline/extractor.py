@@ -7,12 +7,15 @@ never sent to the model again.
 
 from __future__ import annotations
 
+import re
+
 from context_graph.config import LLMSettings, RetrySettings
 from context_graph.domain.extraction import (
     ExtractedSignal,
     ExtractionBatch,
     ExtractionEnvelope,
 )
+from context_graph.domain.enums import SourceType
 from context_graph.errors import ExtractionValidationError
 from context_graph.ledger.models import ExtractionBatchRecord
 from context_graph.ledger.mongo import MongoLedger
@@ -40,7 +43,9 @@ class ExtractionService:
         self._settings = llm_settings
         self._retry = retry_settings
 
-    async def extract(self, batch: ExtractionBatch, rolling_state: str = "") -> ExtractionEnvelope:
+    async def extract(
+        self, batch: ExtractionBatch, rolling_state: str = ""
+    ) -> ExtractionEnvelope:
         """Extract signals for ``batch``, reusing stored work where possible."""
         stored = await self._ledger.batch_record(batch.run_id, batch.batch_key)
         if (reused := self._reusable(stored)) is not None:
@@ -50,7 +55,7 @@ class ExtractionService:
                 batch_key=batch.batch_key,
                 signals=len(reused.signals),
             )
-            return reused
+            return self._supported_assertions(batch, reused, legacy=True)
 
         await self._ledger.start_batch(batch)
         try:
@@ -87,7 +92,9 @@ class ExtractionService:
                 signals.extend((await self.extract(half, rolling_state)).signals)
             return ExtractionEnvelope(signals=tuple(signals)).merged()
 
-    async def _call(self, batch: ExtractionBatch, rolling_state: str) -> ExtractionEnvelope:
+    async def _call(
+        self, batch: ExtractionBatch, rolling_state: str
+    ) -> ExtractionEnvelope:
         user = render_batch(
             batch.chunks, overlap=batch.overlap_chunks, rolling_state=rolling_state
         )
@@ -105,7 +112,9 @@ class ExtractionService:
                 f"limit is {self._settings.max_signals_per_batch}"
             )
 
-        result = envelope.for_episodes(frozenset(batch.episode_ids)).merged()
+        result = self._supported_assertions(
+            batch, envelope.for_episodes(frozenset(batch.episode_ids))
+        ).merged()
         log_event(
             _logger,
             "extraction.completed",
@@ -116,6 +125,63 @@ class ExtractionService:
             token_estimate=batch.token_estimate,
         )
         return result
+
+    @staticmethod
+    def _supported_assertions(
+        batch: ExtractionBatch, envelope: ExtractionEnvelope, *, legacy: bool = False
+    ) -> ExtractionEnvelope:
+        """Schema-valid proposals still need actual assertive source evidence.
+
+        A question/refusal cannot manufacture the missing value. Explicit user
+        statements of uncertainty remain valid; no value-word blacklist is used.
+        Legacy results without the additive classification remain readable.
+        """
+        episodes = {chunk.episode_id: chunk.episode for chunk in batch.chunks}
+        kept: list[ExtractedSignal] = []
+        for signal in envelope.signals:
+            if signal.assertion_kind != "asserted":
+                continue
+            spans = [
+                span
+                for identifier in signal.source_episode_ids
+                if identifier in episodes
+                for span in episodes[identifier].spans
+            ]
+            if not spans:
+                continue
+            ace = any(
+                "event_kind" in span.metadata and "tenant_id" in span.metadata
+                for span in spans
+            )
+            quote = signal.evidence_quote
+            if (
+                ace
+                and not quote
+                and (not legacy or "assertion_kind" in signal.model_fields_set)
+            ):
+                continue
+            supported = [span for span in spans if quote is None or quote in span.text]
+            if not supported:
+                continue
+            # ACE assistant answers are derived outputs, not new first-party
+            # assertions about user/project state. Tool evidence retains its
+            # existing unverified provenance; it is not promoted to user text.
+            supported = [
+                span
+                for span in supported
+                if not (ace and span.source_type is SourceType.AGENT_MESSAGE)
+                and not _question_only(span.text, quote)
+            ]
+            if not supported:
+                continue
+            source_ids = tuple(
+                identifier
+                for identifier in signal.source_episode_ids
+                if identifier in episodes
+                and any(span in supported for span in episodes[identifier].spans)
+            )
+            kept.append(signal.model_copy(update={"source_episode_ids": source_ids}))
+        return envelope.model_copy(update={"signals": tuple(kept)})
 
     async def _verify_token_budget(self, user: str) -> None:
         """Confirm a near-budget batch against the model's own tokenizer."""
@@ -135,3 +201,22 @@ class ExtractionService:
         if record is None or record.result is None:
             return None
         return record.result
+
+
+def _question_only(text: str, quote: str | None = None) -> bool:
+    """A source-boundary guard, complementary to semantic classification.
+
+    No language-specific interrogative keywords or value assumptions are used.
+    Statements in mixed messages are preserved instead of dropping the message.
+    """
+    parts = [
+        part.strip().rstrip("\"'”’»)]")
+        for part in re.split(r"(?<=[.!?。！？؟])\s+|\n+", text)
+        if part.strip()
+    ]
+    if quote:
+        relevant = [part for part in parts if quote in part]
+        if not relevant:
+            return _question_only(quote)
+        parts = relevant
+    return bool(parts) and all(part.endswith(("?", "？", "؟")) for part in parts)

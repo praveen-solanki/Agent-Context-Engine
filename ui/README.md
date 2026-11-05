@@ -11,7 +11,8 @@ research host and governance services are reused. This update adds no separate
 demo app, database or agent framework.
 
 - **Left:** authorized projects and saved conversations. New conversation starts
-  a clean chat in the same project. Rename changes the conversation title.
+  a clean chat. Automatic mode resolves its project from the message; Selected
+  project pins an explicit choice. Rename conversation changes only its title.
 - **Centre:** normal conversation. Describe objectives, requirements, plans,
   progress or corrections; there is no Save progress step. Reopening a saved
   conversation restores recorded messages without calling the answer model.
@@ -58,9 +59,23 @@ coding/browser executor.
 warm neutral/teal styles. User/model/source content renders as plain text. Custom
 HTML is limited to static repository-owned styles/layout.
 
-Projects are existing server-granted IDs (`ACE_AUTH_BINDINGS`), never inferred
-from text. The built-in local initializer grants `research-project`. User and host
-must both have the selected project grant; host events use `research-agent`.
+Projects now support automatic matching and private owned creation. The default
+**Automatic** mode resolves an existing project by name/alias/description or
+creates one for clear active new work. Unclear/multi-project messages wait for
+selection or rephrasing before recording; general unbound chat uses **Personal**.
+Selecting a project in the sidebar enables **Selected project** until Automatic
+is chosen again. Owned projects have a **Project name and aliases** form; rename
+keeps their ID/context. Current-request sources and routing decisions are frozen
+through retries. A switch opens a new bound stream rather than changing history.
+
+`ACE_AUTH_BINDINGS` remains the trusted identity/permission registry. The server
+creates owned memberships and validates the configured same-owner host delegate;
+model-generated IDs never grant access. The built-in initializer's research-project
+still works. Update API, worker and UI together. Read the
+[edge-case/operation guide](../docs/ace/project-routing.md) for configuration,
+limits, legacy preference handling, unsent-draft behavior and explicit correction
+of a wrong association. Unsent routing drafts remain in browser state until
+recorded; do not refresh/close an unsent draft you need to keep.
 There is one workspace plan (`project-work`) per user/project. Existing API/SDK
 multi-task functionality is preserved. Session event, task revision, entry and
 context-budget limits are unchanged; starting a new conversation does not reset a
@@ -85,3 +100,7 @@ Design references retained from the existing UI:
 
 - [NN/g: Progressive Disclosure](https://www.nngroup.com/articles/progressive-disclosure/)
 - [W3C: Contrast Minimum](https://www.w3.org/WAI/WCAG22/Understanding/contrast-minimum.html)
+
+When automatic routing is uncertain about a new undertaking, copy its exact name
+from your message into **Create and use project**. This confirms creation before
+the unsent message is recorded. Multi-project updates require rephrasing instead.

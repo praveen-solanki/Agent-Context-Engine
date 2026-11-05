@@ -3,9 +3,10 @@
 from __future__ import annotations
 
 import json
+import hashlib
 import os
 from contextlib import AsyncExitStack
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from typing import Any
 from uuid import uuid4
 
@@ -21,9 +22,16 @@ from agent_context.continuity import (
     successful_actions,
 )
 from agent_context.contracts import Contract, EventInput, EventKind, Stream
-from agent_context.demo import ResearchTurn
+from agent_context.demo import ResearchAssistant, ResearchTurn
 from agent_context.governance import RevocationInput
-from agent_context.navigation import ProjectDirectory, SessionPage
+from agent_context.navigation import (
+    ProjectCreate,
+    ProjectDirectory,
+    ProjectEdit,
+    ProjectEntry,
+    SessionPage,
+)
+from agent_context.project_routing import ProjectResolver
 from agent_context.search import SearchResult
 from agent_context.task_state import TaskState
 from context_graph.config import Settings
@@ -47,6 +55,11 @@ class PendingTurn(Contract):
     sequence: int
     correction: bool = False
     correction_target: RevocationInput | None = None
+    routed: bool = False
+    manual: bool = False
+    documents: dict[str, str] | None = None
+    source_snapshots: tuple[SearchResult, ...] = ()
+    require_sources: bool = False
 
 
 @dataclass(frozen=True)
@@ -60,6 +73,14 @@ class WorkspaceSnapshot:
     memory: ContextSearch
     task: TaskState | None
     pending: PendingTurn | None = None
+
+
+@dataclass(frozen=True)
+class PreparedTurn:
+    snapshot: WorkspaceSnapshot
+    pending: PendingTurn
+    clarification: str | None = None
+    candidates: tuple[ProjectEntry, ...] = ()
 
 
 def client(variable: str = "ACE_DEMO_USER_TOKEN") -> AgentContextClient:
@@ -154,6 +175,7 @@ def restore(stream: Stream) -> tuple[tuple[ConversationTurn, ...], PendingTurn |
                 sequence=source.sequence,
                 correction=source.kind == EventKind.CORRECTION,
                 correction_target=source.correction_target,
+                routed=True,
             )
     return tuple(result), pending
 
@@ -165,6 +187,10 @@ async def load(
     try:
         directory = await user.projects()
         projects = {project.project_id for project in directory.projects}
+        if not projects and project_id is None:
+            await user.personal_project()
+            directory = await user.projects()
+            projects = {project.project_id for project in directory.projects}
         if not projects:
             raise PermissionError("no authorized workspace projects")
         selected = project_id or directory.projects[0].project_id
@@ -227,6 +253,8 @@ async def send(
         snapshot.session_id,
     ):
         raise PermissionError("request belongs to another conversation")
+    if not pending.routed:
+        raise ValueError("resolve the project before recording the request")
     async with AsyncExitStack() as resources:
         user = client()
         resources.push_async_callback(user.aclose)
@@ -242,8 +270,18 @@ async def send(
             host=host,
             llm=llm,
             project_id=snapshot.project_id,
-            documents=documents,
-            require_sources=require_sources,
+            documents=pending.documents if pending.documents is not None else documents,
+            require_sources=pending.require_sources
+            if pending.documents is not None
+            else require_sources,
+            track_task=next(
+                (
+                    entry.kind != "personal"
+                    for entry in snapshot.directory.projects
+                    if entry.project_id == snapshot.project_id
+                ),
+                True,
+            ),
         )
         return await assistant.turn(
             session_id=snapshot.session_id,
@@ -332,5 +370,144 @@ async def source_event(
             "tool_succeeded": record.event.tool_succeeded,
             "event_id": event_id,
         }
+    finally:
+        await user.aclose()
+
+
+async def prepare(
+    snapshot: WorkspaceSnapshot,
+    pending: PendingTurn,
+    *,
+    selected_project_id: str | None = None,
+    new_project_name: str | None = None,
+) -> PreparedTurn:
+    """Resolve before persistence, and freeze the chosen scope for all retries."""
+    if new_project_name is not None and (selected_project_id or pending.routed):
+        raise ValueError("choose an existing project or confirm a new one, not both")
+    if (pending.project_id, pending.session_id) != (
+        snapshot.project_id,
+        snapshot.session_id,
+    ):
+        raise PermissionError("request belongs to another conversation")
+    if pending.routed:
+        if selected_project_id and selected_project_id != pending.project_id:
+            raise ValueError(
+                "a routed request cannot be reassigned; start a new conversation"
+            )
+        return PreparedTurn(snapshot, pending)
+    if snapshot.stream:
+        identifier = ResearchAssistant.event_identifier(
+            snapshot.session_id, pending.turn_id
+        )
+        recorded = next(
+            (
+                item.event
+                for item in snapshot.stream.events
+                if item.event.event_id == identifier
+            ),
+            None,
+        )
+        if recorded:
+            if recorded.text != pending.message:
+                raise ValueError("turn ID cannot be reused for a different message")
+            return PreparedTurn(snapshot, pending.model_copy(update={"routed": True}))
+    if pending.correction_target is not None:
+        return PreparedTurn(
+            snapshot, pending.model_copy(update={"routed": True, "manual": True})
+        )
+    async with AsyncExitStack() as resources:
+        user = client()
+        resources.push_async_callback(user.aclose)
+        directory: ProjectDirectory | None = None
+        if new_project_name is not None:
+            directory = await user.projects()
+            chosen = await user.create_project(
+                ProjectCreate(
+                    title=new_project_name.strip(),
+                    name_quote=new_project_name.strip(),
+                    source_text=pending.message,
+                    idempotency_key=pending.turn_id,
+                    expected_revision=directory.revision,
+                )
+            )
+            directory = await user.projects()
+        elif pending.manual or selected_project_id:
+            directory = await user.projects()
+            identifier = selected_project_id or snapshot.project_id
+            chosen = next(
+                (
+                    entry
+                    for entry in directory.projects
+                    if entry.project_id == identifier
+                ),
+                None,
+            )
+            if chosen is None:
+                raise PermissionError("selected project is not accessible")
+        else:
+            settings = Settings()
+            llm = ChatLLMProvider(
+                backend=settings.chat, llm=settings.llm, retry=settings.retry
+            )
+            resources.push_async_callback(llm.aclose)
+            decision = await ProjectResolver(user, llm).resolve(
+                message=pending.message,
+                request_id=pending.turn_id,
+                current_project_id=snapshot.project_id
+                if snapshot.stream and snapshot.stream.events
+                else None,
+            )
+            if decision.project is None:
+                return PreparedTurn(
+                    snapshot, pending, decision.clarification, decision.candidates
+                )
+            chosen = decision.project
+        host = client("ACE_DEMO_AGENT_TOKEN")
+        resources.push_async_callback(host.aclose)
+        if chosen.project_id not in {
+            entry.project_id for entry in (await host.projects()).projects
+        }:
+            raise PermissionError("configured host cannot access the selected project")
+        if chosen.project_id == snapshot.project_id:
+            current = replace(
+                snapshot,
+                directory=directory if directory is not None else await user.projects(),
+            )
+            return PreparedTurn(
+                current,
+                pending.model_copy(
+                    update={
+                        "routed": True,
+                        "manual": pending.manual
+                        or selected_project_id is not None
+                        or new_project_name is not None,
+                    }
+                ),
+            )
+        session = (
+            "auto-"
+            + hashlib.sha256(
+                (pending.turn_id + ":" + chosen.project_id).encode()
+            ).hexdigest()[:32]
+        )
+        current = await load(chosen.project_id, session)
+        bound = pending.model_copy(
+            update={
+                "project_id": chosen.project_id,
+                "session_id": session,
+                "sequence": len(current.stream.events) + 1 if current.stream else 1,
+                "routed": True,
+                "manual": pending.manual
+                or selected_project_id is not None
+                or new_project_name is not None,
+            }
+        )
+        return PreparedTurn(current, bound)
+
+
+async def edit_project(project_id: str, request: ProjectEdit) -> ProjectEntry:
+    user = client()
+    try:
+        return await user.edit_project(project_id, request)
     finally:
         await user.aclose()

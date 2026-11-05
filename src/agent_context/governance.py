@@ -13,6 +13,8 @@ from agent_context.bridge import scoped_id
 from agent_context.contracts import Permission, Principal, RevocationInput, utcnow
 from agent_context.events import EventConflict
 from agent_context.privacy import PrivacyControls
+from agent_context.project_store import COLLECTION as PROJECT_COLLECTION
+from agent_context.navigation import ProjectEntry
 from context_graph.domain.conversation import SourceSpan
 
 _OWNED: LiteralString = """
@@ -96,7 +98,9 @@ class GovernanceService:
         self, principal: Principal, item_id: str
     ) -> list[dict[str, Any]]:
         principal.require(Permission.VIEW)
-        state = await self.privacy.require_active(principal.tenant_id, principal.user_id)
+        state = await self.privacy.require_active(
+            principal.tenant_id, principal.user_id
+        )
         records, _, _ = await self.driver.execute_query(
             _EVIDENCE,
             **self._parameters(principal),
@@ -140,12 +144,15 @@ class GovernanceService:
                 else None
             )
             excerpt["usable_as_current_context"] = bool(
-                excerpt["usable_as_current_context"] and item_id not in state.blocked_item_ids
+                excerpt["usable_as_current_context"]
+                and item_id not in state.blocked_item_ids
             )
             # Inspection of one's revoked source is intentional, but it must
             # never look like an active instruction or bypass current search.
             excerpts.append(excerpt)
-        current = await self.privacy.require_active(principal.tenant_id, principal.user_id)
+        current = await self.privacy.require_active(
+            principal.tenant_id, principal.user_id
+        )
         if item_id in current.blocked_item_ids:
             for excerpt in excerpts:
                 excerpt["usable_as_current_context"] = False
@@ -200,6 +207,26 @@ class GovernanceService:
                     + "\n"
                 )
         owned = {"tenant_id": principal.tenant_id, "user_id": principal.user_id}
+        directory = await self.db[PROJECT_COLLECTION].find_one(owned)
+        if directory:
+            for row in directory.get("entries", []):
+                if row["project_id"] in principal.projects:
+                    await self.privacy.require_active(
+                        principal.tenant_id, principal.user_id
+                    )
+                    entry = ProjectEntry.model_validate(
+                        {
+                            key: value
+                            for key, value in row.items()
+                            if key in ProjectEntry.model_fields
+                        }
+                    )
+                    yield (
+                        json.dumps(
+                            {"kind": "project", "data": entry.model_dump(mode="json")}
+                        )
+                        + "\n"
+                    )
         collections = ("ace_handoffs_v1", "ace_artifacts_v1")
         for name in collections:
             async for document in (
@@ -355,7 +382,12 @@ FOREACH(s IN sessions | DETACH DELETE s)
         await self.db["ace_event_streams_v1"].delete_many(
             {"tenant_id": principal.tenant_id, "data.user_id": principal.user_id}
         )
-        for name in ("ace_handoffs_v1", "ace_artifacts_v1", "ace_assemblies_v1"):
+        for name in (
+            "ace_handoffs_v1",
+            "ace_artifacts_v1",
+            "ace_assemblies_v1",
+            PROJECT_COLLECTION,
+        ):
             await self.db[name].delete_many(owned)
         await self.db["ace_erasure_v1"].update_one(
             owned,

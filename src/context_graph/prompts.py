@@ -12,7 +12,7 @@ from context_graph.domain.enums import ContextType, ScopeType, SignalOperation
 from context_graph.domain.extraction import EpisodeChunk
 
 #: Bump when the prompt text changes; stored in every Context's lineage.
-PROMPT_VERSION = "extraction-v4"
+PROMPT_VERSION = "extraction-v5"
 ADJUDICATION_PROMPT_VERSION = "adjudication-v1"
 
 
@@ -32,6 +32,17 @@ Rules:
 - Cite the episode_id(s) that support each signal in source_episode_ids.
 - Do NOT extract small talk, acknowledgements, or restatements of your own replies.
 - Do NOT invent a subject, scope, value or time that the text does not support.
+- Only asserted evidence becomes memory. A question does not assert its answer;
+  a refusal or failed recall does not establish an "unknown" attribute value.
+  Classify assertion_kind from the cited source, not from a proposed answer.
+  Omit questions, hypotheticals, assistant restatements and inferred absence.
+  A user explicitly stating that an actual status is pending/unknown is a valid
+  assertion. In a mixed statement/question, keep only the asserted information.
+  evidence_quote must copy the exact supporting source span for each assertion.
+- personal_scope is true only for real personal traits, preferences or constraints
+  applying across undertakings (including personal accessibility/dietary needs).
+  It is false for a project's budget, location, schedule, resources and attendees,
+  even when the user says "remember". A project-specific preference remains false.
 - concept is a short reusable snake_case anchor (for example: response_detail,
   meeting_schedule, deployment_strategy). Prefer an existing common concept name
   over inventing a synonym, and keep it coarse: 'response_detail', never

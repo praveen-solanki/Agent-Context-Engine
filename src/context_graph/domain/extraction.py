@@ -6,7 +6,7 @@ concepts grow without the prompt turning into a global attribute list.
 
 from __future__ import annotations
 
-from typing import Self
+from typing import Literal, Self
 
 from pydantic import (
     AwareDatetime,
@@ -19,7 +19,12 @@ from pydantic import (
 )
 
 from context_graph.domain.conversation import Episode
-from context_graph.domain.enums import Cardinality, ContextType, ScopeType, SignalOperation
+from context_graph.domain.enums import (
+    Cardinality,
+    ContextType,
+    ScopeType,
+    SignalOperation,
+)
 from context_graph.domain.ids import canonical_value, deterministic_id
 
 #: Spellings of "no value" models write as strings instead of JSON null.
@@ -54,7 +59,9 @@ class ScopeCue(BaseModel):
         ),
     )
 
-    _absent_scope_ref = field_validator("scope_ref", mode="before")(_null_literal_to_none)
+    _absent_scope_ref = field_validator("scope_ref", mode="before")(
+        _null_literal_to_none
+    )
 
 
 class ExtractedSignal(BaseModel):
@@ -96,6 +103,16 @@ class ExtractedSignal(BaseModel):
     durability_cue: bool = False
     confidence: float = Field(default=0.5, ge=0.0, le=1.0)
     evidence_quote: str | None = None
+    assertion_kind: Literal[
+        "asserted", "question", "hypothetical", "inferred_absence"
+    ] = Field(
+        default="asserted",
+        description="Classify the cited evidence. Questions, hypotheticals and inferred absence/refusals are not assertions and must not become facts.",
+    )
+    personal_scope: bool | None = Field(
+        default=None,
+        description="True only for the speaker's personal traits/preferences/constraints that apply across projects. False for project facts, resources or requirements. Remembering a project fact does not make it personal. Null means not established.",
+    )
     source_episode_ids: tuple[str, ...] = Field(min_length=1)
 
     _absent_optionals = field_validator(
@@ -120,6 +137,8 @@ class ExtractedSignal(BaseModel):
             cue.scope_type.value if cue else "",
             (cue.scope_ref or "").casefold() if cue else "",
             (self.condition or "").casefold(),
+            self.assertion_kind,
+            str(self.personal_scope),
         )
 
     @model_validator(mode="after")
@@ -163,9 +182,8 @@ class ExtractionEnvelope(BaseModel):
                 )
                 for signal in self.signals
                 if episode_ids.intersection(signal.source_episode_ids)
-            )
+            ),
         )
-
 
     def merged(self) -> ExtractionEnvelope:
         """Collapse duplicate signals, e.g. from chunks of one large Episode.
@@ -183,7 +201,9 @@ class ExtractionEnvelope(BaseModel):
             merged[key] = existing.model_copy(
                 update={
                     "source_episode_ids": tuple(
-                        dict.fromkeys(existing.source_episode_ids + signal.source_episode_ids)
+                        dict.fromkeys(
+                            existing.source_episode_ids + signal.source_episode_ids
+                        )
                     ),
                     "confidence": max(existing.confidence, signal.confidence),
                     "durability_cue": existing.durability_cue or signal.durability_cue,

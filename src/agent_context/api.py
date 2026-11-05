@@ -33,6 +33,8 @@ from agent_context.contracts import (
 )
 from agent_context.event_store import MongoEventStore
 from agent_context.navigation import (
+    ProjectCreate,
+    ProjectEdit,
     ProjectDirectory,
     ProjectEntry,
     SessionEntry,
@@ -40,6 +42,7 @@ from agent_context.navigation import (
     SessionTitle,
 )
 from agent_context.artifacts import ArtifactInput, ArtifactDocument, ArtifactStore
+from agent_context.project_store import ProjectStore
 from agent_context.governance import GovernanceService, RevocationInput
 from agent_context.events import CapacityExceeded, EventConflict
 from agent_context.handoff import (
@@ -114,6 +117,7 @@ def create_app(
     artifacts: ArtifactStore | None = None,
     governance: GovernanceService | None = None,
     tasks: TaskStateService | None = None,
+    project_store: ProjectStore | None = None,
 ) -> FastAPI:
     """Bindings map SHA256(high-entropy bearer token) to server-owned identities."""
     if not auth_bindings or any(len(key) != 64 for key in auth_bindings):
@@ -135,6 +139,8 @@ def create_app(
             )
         if request.url.path not in ("/v1/users/me/erasure", "/v1/users/me/context"):
             await events.privacy.require_active(principal.tenant_id, principal.user_id)
+        if project_store is not None and request.url.path != "/v1/users/me/erasure":
+            principal = await project_store.authorize(principal)
         return principal
 
     @app.exception_handler(PermissionError)
@@ -300,6 +306,8 @@ def create_app(
     @app.get("/v1/projects")
     async def projects(actor: Principal = Depends(authenticate)) -> ProjectDirectory:
         actor.require(Permission.VIEW)
+        if project_store is not None:
+            return await project_store.directory(actor)
         return ProjectDirectory(
             projects=tuple(
                 ProjectEntry(
@@ -310,6 +318,46 @@ def create_app(
             ),
             permissions=actor.permissions,
         )
+
+    def require_delegate(actor: Principal, identifier: str) -> None:
+        if not any(
+            candidate.tenant_id == actor.tenant_id
+            and candidate.user_id == actor.user_id
+            and candidate.actor_kind == "agent"
+            and candidate.actor_id == identifier
+            and {Permission.VIEW, Permission.ASSERT}.issubset(candidate.permissions)
+            for candidate in auth_bindings.values()
+        ):
+            raise PermissionError(
+                "project host must be a configured agent for this owner"
+            )
+
+    @app.post("/v1/projects")
+    async def create_project(
+        body: ProjectCreate, actor: Principal = Depends(authenticate)
+    ) -> ProjectEntry:
+        if project_store is None:
+            raise RuntimeError("owned project directory unavailable")
+        require_delegate(actor, body.delegate_agent_id)
+        return await project_store.create(actor, body)
+
+    @app.post("/v1/projects/personal")
+    async def personal_project(
+        delegate_agent_id: str = "research-agent",
+        actor: Principal = Depends(authenticate),
+    ) -> ProjectEntry:
+        if project_store is None:
+            raise RuntimeError("owned project directory unavailable")
+        require_delegate(actor, delegate_agent_id)
+        return await project_store.personal(actor, delegate_agent_id)
+
+    @app.post("/v1/projects/{project_id}/metadata")
+    async def edit_project(
+        project_id: str, body: ProjectEdit, actor: Principal = Depends(authenticate)
+    ) -> ProjectEntry:
+        if project_store is None:
+            raise RuntimeError("owned project directory unavailable")
+        return await project_store.edit(actor, project_id, body)
 
     @app.get("/v1/sessions")
     async def sessions(
@@ -385,8 +433,12 @@ def create_app(
             assembler=assembler,
             current_task=tasks.snapshot if tasks else None,
         )
-        return result.model_copy(update={
-            "bundle": result.bundle.model_copy(update={"consistency_sequence": watermark}),
-        })
+        return result.model_copy(
+            update={
+                "bundle": result.bundle.model_copy(
+                    update={"consistency_sequence": watermark}
+                ),
+            }
+        )
 
     return app

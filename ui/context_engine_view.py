@@ -45,7 +45,7 @@ def brand() -> None:
 def header(title: str) -> bool:
     main, toggle = st.columns([4, 1], vertical_alignment="center")
     with main:
-        st.title(title)
+        st.title(plain_label(title))
         st.caption("Conversation, memory and progress in one place.")
     with toggle:
         show = st.toggle("Context", value=True, key="ace_show_context")

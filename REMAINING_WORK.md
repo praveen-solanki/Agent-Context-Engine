@@ -11,6 +11,50 @@
 
 ---
 
+## Automatic owned projects and concurrent defect corrections — 2026-11-05
+
+**CONFIRMED DONE within the scoped verification bounds.** The owner explicitly
+authorized this extension and concurrent screenshot defect fixes, overriding older
+fixed-project/UI-freeze notes for this increment. Reused existing auth, immutable
+streams, task CAS, retrieval/assembler, SDK/host and governance rather than rebuilding.
+
+- Added a bounded owner directory and trusted same-owner host delegation; semantic
+  proposals resolve before event/memory/tool/task writes. Clear existing projects
+  reuse their ID; clear new active work creates a private owned entry.
+- Added ambiguity/multi-project rephrasing, manual override, stable aliases/renames,
+  quota/conflict handling, Personal space and project-less owner bootstrap. Existing
+  configured projects use approved goal hints and stable-ID display-name overlays.
+- Scope switches open new bound conversations; retries retain their binding and
+  explicit research sources. No existing transcript/task identity is rewritten.
+- Fixed stale headings/chat/task during project switches, project-specific USER
+  memories crossing the panel boundary, and question/refusal-derived unknown facts.
+  Explicit personal preferences and real user uncertainty remain supported.
+- Included directory metadata in owner export/primary erasure and privacy quarantine.
+
+Evidence: **79 targeted checks passed across scoped runs**, changed-code/test
+Pyright clean; source-level reproductions and a four-second local stale-frame
+browser check are recorded in [validation](docs/ace/validation.md) and the
+[verification artifact](docs/ace/results/automatic-project-routing-20261105.json).
+See the [complete identified failure matrix](docs/ace/project-routing.md) for
+coverage, setup, architecture and limits. No full suite/application run, public benchmark or production-readiness work was performed.
+
+
+A separate capped probe made three live model-only requests with no database writes.
+Existing-project and multi-project proposals matched expectations. The new-project
+proposal failed the conservative ID/confidence guards; explicit **Create and use
+project** confirmation is implemented and tested without weakening those guards.
+Billing was not measured. This is not a semantic accuracy benchmark.
+
+Remaining limits are explicit: semantic resolution can be mistaken; ambiguity is
+not guessed. Unsent drafts are browser-local. No automatic project merge/history
+move or bulk task rollback. Legacy project-origin USER memories without personal
+proof remain source-bound (no deletion); reassert real global preferences as needed.
+Update API, worker and UI together. Standing owner preference: push completed,
+verified changes automatically. Earlier UI/constraint increments through `f9467ad`
+are already published; this increment's publication is recorded in the task reply.
+
+---
+
 ## Constraint-update/recall follow-up — 2026-11-05
 
 **CONFIRMED DEFECT → FIXED within focused verification bounds.** At `6f8560d`,
@@ -34,7 +78,7 @@ Both recorded real-model English/French constraint proposals validate after the
 no-op correction; this was local replay of the same outputs, not a new live
 workflow run. No full suite, full ingestion E2E, benchmark or production-readiness
 work. Previously rejected updates must be restated after upgrade; historical
-answers are not rewritten. This follow-up is local pending publication.
+answers are not rewritten. This follow-up was published as `f9467ad`.
 
 ---
 
@@ -44,8 +88,7 @@ This instruction supersedes the older frozen-console/UI exclusions below for
 this increment only. Implement the first four conversation/UI improvements;
 **do not implement usefulness/benchmark or production-readiness work.** Baseline
 `4e56b06` was already pushed and passed GitHub CI. The workspace increment below
-was subsequently published as `6f8560d`; the newer defect correction above remains
-local pending publication.
+was subsequently published as `6f8560d`; the later constraint correction was published as `f9467ad`.
 
 | Requested improvement | Inspected implementation and decision | Verified result |
 |---|---|---|

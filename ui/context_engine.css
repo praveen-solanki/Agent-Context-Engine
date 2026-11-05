@@ -6,6 +6,10 @@
   --ace-paper: #f7f7f4;
 }
 .stApp { background: var(--ace-paper); color: var(--ace-ink); font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; }
+/* Streamlit retains the previous frame while a rerun loads. Never display that
+   stale content under a newly selected project or conversation. */
+[data-testid='stAppViewContainer'] [data-stale='true'],
+[data-testid='stAppViewContainer'] [data-stale='true'] * { visibility: hidden !important; pointer-events: none !important; }
 [data-testid='stHeader'] { background: #f7f7f4ed; }
 [data-testid='stAppDeployButton'] { display: none; }
 .stMainBlockContainer { max-width: 1420px; padding: 2.5rem 2.4rem 4rem; }

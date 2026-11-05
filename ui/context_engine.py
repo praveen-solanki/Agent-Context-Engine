@@ -15,6 +15,7 @@ from agent_context.contracts import EventKind, Permission
 from agent_context.demo import ResearchAssistant
 from agent_context.events import EventConflict
 from agent_context.governance import RevocationInput
+from agent_context.navigation import ProjectEdit
 from agent_context.search import (
     BraveSearch,
     SearchError,
@@ -41,6 +42,18 @@ st.set_page_config(
 )
 apply_style()
 
+if st.session_state.pop("ace_reset_scope_widgets", False):
+    for scope_key in (
+        "ace_conversation_title",
+        "ace_search_query",
+        "ace_use_web",
+        "ace_route_project",
+        "ace_route_rephrase",
+        "ace_new_project_name",
+    ):
+        st.session_state.pop(scope_key, None)
+    st.session_state.ace_source_mode = "Project memory"
+
 
 def clear_view() -> None:
     for key in (
@@ -55,6 +68,11 @@ def clear_view() -> None:
         "ace_web_results",
         "ace_search_query",
         "ace_use_web",
+        "ace_route_question",
+        "ace_route_candidates",
+        "ace_route_project",
+        "ace_route_rephrase",
+        "ace_new_project_name",
     ):
         st.session_state.pop(key, None)
     st.session_state.ace_source_mode = "Project memory"
@@ -74,6 +92,7 @@ def new_conversation(project_id: str) -> None:
 
 
 def choose_project() -> None:
+    st.session_state.ace_routing_mode = "Selected project"
     navigate(st.session_state.ace_project_picker)
 
 
@@ -104,22 +123,27 @@ def friendly_error(error: Exception) -> str:
             return "Project state changed. Refresh the context before retrying."
         if error.response.status_code == 413:
             return "This conversation or project has reached its storage limit. Start a new conversation or review the project state."
-    return "This request could not complete. Your recorded conversation is retained; retry or refresh the workspace."
+    return "This request could not complete. Recorded conversation is retained; unsent requests can be retried or cancelled."
 
 
 def load_snapshot() -> WorkspaceSnapshot:
     project = st.query_params.get("project")
     session = st.query_params.get("session")
     cached: WorkspaceSnapshot | None = st.session_state.get("ace_workspace")
-    if (
-        cached
-        and (project is None or project == cached.project_id)
-        and (session is None or session == cached.session_id)
-    ):
+    if cached and (project, session) == (cached.project_id, cached.session_id):
         return cached
     if cached is not None:
         clear_view()
     value = asyncio.run(service.load(project, session))
+    if (st.query_params.get("project"), st.query_params.get("session")) != (
+        project,
+        session,
+    ):
+        raise RuntimeError("workspace navigation changed while loading")
+    if (project is not None and value.project_id != project) or (
+        session is not None and value.session_id != session
+    ):
+        raise PermissionError("loaded workspace does not match the requested scope")
     save_snapshot(value)
     return value
 
@@ -220,7 +244,14 @@ def show_evidence() -> None:
 
 
 def queue(
-    message: str, snapshot: WorkspaceSnapshot, target: RevocationInput | None = None
+    message: str,
+    snapshot: WorkspaceSnapshot,
+    target: RevocationInput | None = None,
+    *,
+    manual: bool = False,
+    request_documents: dict[str, str] | None = None,
+    request_sources: tuple[SearchResult, ...] = (),
+    request_requires_sources: bool = False,
 ) -> None:
     sequence = len(snapshot.stream.events) + 1 if snapshot.stream else 1
     st.session_state.ace_pending = PendingTurn(
@@ -231,8 +262,48 @@ def queue(
         sequence=sequence,
         correction=target is not None,
         correction_target=target,
+        manual=manual
+        or target is not None
+        or st.session_state.get("ace_routing_mode", "Automatic") == "Selected project",
+        documents=request_documents,
+        source_snapshots=request_sources,
+        require_sources=request_requires_sources,
     )
     st.session_state.ace_process_pending = True
+
+
+def stage_prepared(value: service.PreparedTurn) -> None:
+    """Commit a routing decision before sending, preserving it across retries."""
+    if not value.clarification and not value.pending.routed:
+        raise ValueError("project routing did not produce a choice or a clarification")
+    current: WorkspaceSnapshot | None = st.session_state.get("ace_workspace")
+    if current and (current.project_id, current.session_id) != (
+        value.snapshot.project_id,
+        value.snapshot.session_id,
+    ):
+        # Source widgets already exist in this run. Reset them before widgets
+        # are instantiated on the next run, then send with the new scope only.
+        st.session_state.ace_reset_scope_widgets = True
+        for scope_key in (
+            "ace_live_turns",
+            "ace_evidence",
+            "ace_web_results",
+            "ace_needs_refresh",
+            "ace_notice",
+        ):
+            st.session_state.pop(scope_key, None)
+    save_snapshot(value.snapshot)
+    # save_snapshot clears a pending request from another scope. Install the
+    # prepared request afterwards, with the same turn ID and the new binding.
+    st.session_state.ace_pending = value.pending
+    if value.clarification:
+        st.session_state.ace_route_question = value.clarification
+        st.session_state.ace_route_candidates = value.candidates
+        st.session_state.pop("ace_process_pending", None)
+    else:
+        st.session_state.pop("ace_route_question", None)
+        st.session_state.pop("ace_route_candidates", None)
+        st.session_state.ace_process_pending = True
 
 
 try:
@@ -253,6 +324,12 @@ except Exception as error:  # noqa: BLE001 — UI boundary must not expose provi
 
 with st.sidebar:
     brand()
+    st.radio(
+        "Project routing",
+        ["Automatic", "Selected project"],
+        key="ace_routing_mode",
+        disabled=bool(st.session_state.get("ace_pending")),
+    )
     entries = snapshot.directory.projects
     ids = [entry.project_id for entry in entries]
     labels = {entry.project_id: entry.title for entry in entries}
@@ -263,7 +340,53 @@ with st.sidebar:
         format_func=lambda value: labels[value],
         key="ace_project_picker",
         on_change=choose_project,
+        disabled=bool(st.session_state.get("ace_pending")),
     )
+    active_project = next(
+        entry for entry in entries if entry.project_id == snapshot.project_id
+    )
+    if active_project.kind == "project":
+        with st.expander("Project name and aliases"):
+            with st.form(
+                "project-metadata-"
+                + active_project.project_id
+                + str(active_project.version)
+            ):
+                title = st.text_input(
+                    "Project name", value=active_project.title, max_chars=120
+                )
+                aliases = st.text_area(
+                    "Aliases (one per line)",
+                    value="\n".join(active_project.aliases),
+                    max_chars=1000,
+                )
+                if st.form_submit_button(
+                    "Update project",
+                    disabled=Permission.CORRECT not in snapshot.directory.permissions
+                    or bool(st.session_state.get("ace_pending")),
+                ):
+                    try:
+                        asyncio.run(
+                            service.edit_project(
+                                active_project.project_id,
+                                ProjectEdit(
+                                    title=title.strip(),
+                                    aliases=tuple(
+                                        value.strip()
+                                        for value in aliases.splitlines()
+                                        if value.strip()
+                                    ),
+                                    expected_version=active_project.version,
+                                ),
+                            )
+                        )
+                        st.session_state.pop("ace_workspace", None)
+                        st.session_state.ace_notice = "Project details updated. Its identity and recorded context are unchanged."
+                        st.rerun()
+                    except Exception:  # noqa: BLE001 — do not expose backend details.
+                        st.error(
+                            "Project details could not be updated. Refresh, check the name/aliases are distinct and within the eight-alias limit, then retry."
+                        )
     st.button(
         "New conversation",
         icon=":material/add:",
@@ -330,6 +453,22 @@ with st.sidebar:
         st.code(snapshot.session_id)
 
 show_context = header(labels[snapshot.project_id])
+if st.session_state.ace_routing_mode == "Selected project":
+    st.caption(
+        "Using: " + plain_label(labels[snapshot.project_id]) + " · selected by you"
+    )
+elif snapshot.stream:
+    st.caption(
+        "Using: "
+        + plain_label(labels[snapshot.project_id])
+        + " · automatic project matching"
+    )
+else:
+    st.caption(
+        "Viewing: "
+        + plain_label(labels[snapshot.project_id])
+        + " · your next message will be matched to a project before saving"
+    )
 if st.session_state.get("ace_notice"):
     st.info(st.session_state.ace_notice)
 if st.session_state.get("ace_needs_refresh"):
@@ -421,7 +560,7 @@ if action:
                 ),
             )
         elif action.kind == "suggestion":
-            queue(action.text, snapshot)
+            queue(action.text, snapshot, manual=True)
         st.rerun()
     except Exception as error:  # noqa: BLE001 — UI boundary must not expose provider details.
         st.error(friendly_error(error))
@@ -449,19 +588,116 @@ st.caption(
     "Useful context and verified progress save automatically. No manual progress save is required."
 )
 if starter or message:
-    queue(starter or message or "", snapshot)
+    queue(
+        starter or message or "",
+        snapshot,
+        request_documents=documents,
+        request_sources=selected_sources,
+        request_requires_sources=require_sources,
+    )
     st.session_state.ace_process_pending = True
     st.rerun()
 if pending:
     with st.chat_message("user", avatar=":material/person:"):
         st.text(pending.message)
-    retry = st.button("Retry saved request", key="retry-pending")
-    if st.session_state.pop("ace_process_pending", False) or retry:
+    process = st.session_state.pop("ace_process_pending", False)
+    question: str | None = st.session_state.get("ace_route_question")
+    if not pending.routed and question:
+        st.info(question)
+        candidates = st.session_state.get("ace_route_candidates", ())
+        names = {entry.project_id: entry.title for entry in candidates}
+        if names:
+            chosen = st.selectbox(
+                "Choose the intended project",
+                list(names),
+                format_func=lambda identifier: names[identifier],
+                key="ace_route_project",
+            )
+            if st.button("Use selected project", key="route-use-project"):
+                try:
+                    stage_prepared(
+                        asyncio.run(
+                            service.prepare(
+                                snapshot, pending, selected_project_id=chosen
+                            )
+                        )
+                    )
+                    st.rerun()
+                except Exception as error:  # noqa: BLE001 — UI boundary must not expose provider details.
+                    st.error(friendly_error(error))
+            with st.form("confirm-new-project"):
+                new_name = st.text_input(
+                    "New project name (copy from your message)",
+                    max_chars=120,
+                    key="ace_new_project_name",
+                )
+                if st.form_submit_button("Create and use project"):
+                    try:
+                        stage_prepared(
+                            asyncio.run(
+                                service.prepare(
+                                    snapshot, pending, new_project_name=new_name
+                                )
+                            )
+                        )
+                        st.rerun()
+                    except Exception:  # noqa: BLE001 — keep backend/source details private.
+                        st.error(
+                            "Use an exact name from your message that is not already taken. Refresh the project list if it changed."
+                        )
+        st.caption(
+            "To create a different project, rephrase with a distinct name and goal. Nothing from this request has been saved as conversation or memory yet."
+        )
+        with st.form("rephrase-routing-request"):
+            revised = st.text_area(
+                "Rephrase the unsent request",
+                value=pending.message,
+                max_chars=4000,
+                key="ace_route_rephrase",
+            )
+            if st.form_submit_button("Try revised request"):
+                if revised.strip():
+                    st.session_state.ace_pending = pending.model_copy(
+                        update={
+                            "message": revised.strip(),
+                            "turn_id": "ui-" + uuid4().hex,
+                            "documents": documents,
+                            "source_snapshots": selected_sources,
+                            "require_sources": require_sources,
+                        }
+                    )
+                    st.session_state.pop("ace_route_question", None)
+                    st.session_state.pop("ace_route_candidates", None)
+                    st.session_state.ace_process_pending = True
+                    st.rerun()
+                st.error("Enter the revised request first.")
+    retry = (
+        False
+        if question and not pending.routed
+        else st.button("Retry saved request", key="retry-pending")
+    )
+    if (process or retry) and not pending.routed:
+        try:
+            with st.spinner("Finding the right project…"):
+                stage_prepared(asyncio.run(service.prepare(snapshot, pending)))
+            st.rerun()
+        except Exception:  # noqa: BLE001 — UI boundary must not expose provider details.
+            st.session_state.ace_route_question = "Automatic project selection could not complete. Choose an authorized project explicitly, retry with a revised message, or cancel. No conversation or memory was recorded from this request."
+            st.session_state.ace_route_candidates = snapshot.directory.projects
+            st.rerun()
+    elif (process or retry) and pending.routed:
         try:
             with st.spinner("Updating memory and preparing your answer…"):
                 outcome: WorkspaceTurn = asyncio.run(
                     service.send(
-                        snapshot, pending, documents, require_sources=require_sources
+                        snapshot,
+                        pending,
+                        pending.documents
+                        if pending.documents is not None
+                        else documents,
+                        require_sources=pending.require_sources
+                        if pending.documents is not None
+                        else require_sources,
                     )
                 )
             identifier = ResearchAssistant.event_identifier(
@@ -470,7 +706,9 @@ if pending:
             live[identifier] = ConversationTurn(
                 pending.message,
                 outcome.result,
-                selected_sources,
+                pending.source_snapshots
+                if pending.documents is not None
+                else selected_sources,
                 outcome.result.cached,
                 identifier,
             )
@@ -486,6 +724,20 @@ if pending:
             st.rerun()
         except Exception as error:  # noqa: BLE001 — UI boundary must not expose provider details.
             st.error(friendly_error(error))
+    if not pending.routed and st.button(
+        "Cancel unsent request", key="cancel-routing-request"
+    ):
+        for key in (
+            "ace_pending",
+            "ace_process_pending",
+            "ace_route_question",
+            "ace_route_candidates",
+            "ace_route_project",
+            "ace_route_rephrase",
+            "ace_new_project_name",
+        ):
+            st.session_state.pop(key, None)
+        st.rerun()
     if st.button("Open another conversation", key="leave-pending"):
         new_conversation(snapshot.project_id)
         st.rerun()

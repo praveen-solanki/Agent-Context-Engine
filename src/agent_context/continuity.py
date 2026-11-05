@@ -16,6 +16,7 @@ from pydantic import Field
 from agent_context.assembly import ContextBundle
 from agent_context.client import AgentContextClient
 from agent_context.contracts import (
+    PROJECT_TASK_ID,
     Contract,
     EventInput,
     EventKind,
@@ -34,7 +35,6 @@ from agent_context.handoff import CompletedAction, ReportedProgress, WorkState
 from agent_context.task_state import TaskState, TaskUpdate
 from context_graph.providers.base import LLMProvider
 
-PROJECT_TASK_ID = "project-work"
 Quote = Annotated[str, Field(min_length=1, max_length=4000)]
 
 
@@ -255,8 +255,10 @@ class WorkspaceAssistant:
         project_id: str,
         documents: Mapping[str, str],
         require_sources: bool = False,
+        track_task: bool = True,
     ) -> None:
         self.user, self.host, self.llm, self.project_id = user, host, llm, project_id
+        self.track_task = track_task
         self.assistant = ResearchAssistant(
             user_client=user,
             host_client=host,
@@ -270,6 +272,8 @@ class WorkspaceAssistant:
         )
 
     async def current(self) -> TaskState | None:
+        if not self.track_task:
+            return None
         try:
             return await self.user.current_task(self.project_id, PROJECT_TASK_ID)
         except httpx.HTTPStatusError as error:
@@ -373,8 +377,10 @@ class WorkspaceAssistant:
             raise EventConflict(
                 "project plan changed after this request; restate it in a new conversation"
             )
-        if answer is None and (
-            task is None or task.content.source_event_id != event_id
+        if (
+            self.track_task
+            and answer is None
+            and (task is None or task.content.source_event_id != event_id)
         ):
             payload = json.dumps(
                 {

@@ -22,6 +22,9 @@ blueprint is **in progress**; this is not a production-readiness claim.
 The [conversational workspace](ui/README.md) saves useful memory and project
 updates as you talk, reopens server-backed conversations, and shows current plans,
 user-reported progress, verified tool outcomes and evidence in a collapsible panel.
+[Automatic project routing](docs/ace/project-routing.md) matches existing projects
+across chats and creates private owned projects for clear new work. Ambiguous
+messages wait for clarification; manual selection remains available.
 No manual Save progress step is required. Update the matching backend and UI with
 `./run.sh --skip-demo`.
 

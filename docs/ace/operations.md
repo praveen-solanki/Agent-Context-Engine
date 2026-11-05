@@ -114,6 +114,25 @@ details are available for newly generated answers. See the [workspace guide](../
 `ui/streamlit_app.py` remains a local legacy diagnostic view. Do not expose its raw
 user-selection/graph-planning interface as a multi-tenant authenticated product.
 
+## Automatic project routing
+
+After pulling, stop the old launcher and use `./run.sh --skip-demo` to update
+API, worker and UI together. No global graph migration is required.
+
+Automatic mode matches existing private projects across conversations, creates
+clear new owned projects, and asks before ambiguous/multi-project writes. Selecting
+an entry pins Selected project mode; choose Automatic to restore matching. General
+unbound conversation uses Personal; source-tagged personal preferences remain
+available across projects. Project name/aliases edits preserve existing IDs.
+
+For existing project-origin USER memories without proof of personal applicability,
+other projects no longer display them. They remain in their original project;
+explicitly reassert real global preferences when needed. Old false unknown values
+are not deleted automatically—inspect/correct/remove them with their evidence.
+Unsent ambiguous drafts and unread research selections are browser-local; recorded
+requests preserve their project binding. See the complete
+[failure handling and setup guide](project-routing.md).
+
 ## Updating project memory and session behavior
 
 After pulling the project-binding/grounding fix, restart using

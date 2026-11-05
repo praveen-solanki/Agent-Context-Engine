@@ -23,6 +23,7 @@ from agent_context.assembly import AssemblySettings, ContextAssembler
 from agent_context.bridge import EventWorker, scoped_id
 from agent_context.contracts import Identifier, Principal, Permission
 from agent_context.event_store import MongoEventStore
+from agent_context.project_store import ProjectStore
 from agent_context.handoff import HandoffService
 from agent_context.governance import GovernanceService
 from agent_context.outcomes import EventOutcomeVerifier
@@ -84,6 +85,7 @@ def application() -> FastAPI:
         auth=(settings.neo4j.user, settings.neo4j.password.get_secret_value()),
     )
     events = MongoEventStore(mongo, settings.mongo.database)
+    projects = ProjectStore(mongo, settings.mongo.database)
 
     artifacts = ArtifactStore(mongo, settings.mongo.database)
     governance = GovernanceService(
@@ -134,6 +136,7 @@ def application() -> FastAPI:
         artifacts=artifacts,
         governance=governance,
         tasks=tasks,
+        project_store=projects,
     )
 
     @asynccontextmanager
@@ -162,6 +165,7 @@ def application() -> FastAPI:
         task: asyncio.Task[None] | None = None
         try:
             await events.ensure_indexes()
+            await projects.ensure_indexes()
             await handoffs.ensure_indexes()
             await artifacts.ensure_indexes()
             await governance.ensure_indexes()

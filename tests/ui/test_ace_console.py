@@ -157,8 +157,31 @@ def offline(
         )
         return WorkspaceTurn(result=turn.result, task=previous.task)
 
+    async def prepare(
+        current: WorkspaceSnapshot,
+        pending: PendingTurn,
+        *,
+        selected_project_id: str | None = None,
+    ) -> service.PreparedTurn:
+        target = (
+            await load(selected_project_id, None) if selected_project_id else current
+        )
+        return service.PreparedTurn(
+            snapshot=target,
+            pending=pending.model_copy(
+                update={
+                    "project_id": target.project_id,
+                    "session_id": target.session_id,
+                    "routed": True,
+                }
+            ),
+            clarification=None,
+            candidates=(),
+        )
+
     monkeypatch.setattr(service, "load", load)
     monkeypatch.setattr(service, "send", send)
+    monkeypatch.setattr(service, "prepare", prepare)
     return saved
 
 
@@ -515,3 +538,451 @@ def test_active_goal_with_no_agreed_steps_is_not_labelled_complete(
         for caption in app.caption
     )
     assert any(text.value == "Write the report" for text in app.text)
+
+
+def test_project_switch_rejects_a_stale_snapshot_from_the_previous_project(
+    monkeypatch: pytest.MonkeyPatch,
+    offline: dict[tuple[str, str], WorkspaceSnapshot],
+) -> None:
+    alpha = offline[("p1", "s1")]
+    offline[("p1", "s1")] = replace(
+        alpha,
+        history=(ConversationTurn("Alpha request", result("Alpha private answer")),),
+    )
+    app = page()
+    assert any(text.value == "Alpha private answer" for text in app.text)
+
+    async def stale(
+        project_id: str | None = None, session_id: str | None = None
+    ) -> WorkspaceSnapshot:
+        return offline[("p1", "s1")]
+
+    monkeypatch.setattr(service, "load", stale)
+    app.selectbox(key="ace_project_picker").select("p2").run()
+    assert not app.exception
+    assert not any(text.value == "Alpha private answer" for text in app.text)
+    assert not any(title.value == "Research project" for title in app.title)
+    assert "ace_workspace" not in app.session_state
+    assert app.chat_input[0].disabled
+
+
+def test_navigation_changed_during_load_does_not_commit_the_obsolete_response(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    import streamlit as st
+
+    app = page()
+
+    async def superseded(
+        project_id: str | None = None, session_id: str | None = None
+    ) -> WorkspaceSnapshot:
+        st.query_params["project"] = "p1"
+        return snapshot("p2", "s2")
+
+    monkeypatch.setattr(service, "load", superseded)
+    app.selectbox(key="ace_project_picker").select("p2").run()
+    assert not app.exception
+    assert app.query_params["project"] == ["p1"]
+    assert not any(title.value == "Second project" for title in app.title)
+    assert "ace_workspace" not in app.session_state
+    assert app.chat_input[0].disabled
+
+
+def test_automatic_routing_prepares_once_before_sending_and_keeps_choice_on_retry(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    prepared: list[PendingTurn] = []
+    attempts: list[PendingTurn] = []
+
+    async def prepare(
+        current: WorkspaceSnapshot,
+        pending: PendingTurn,
+        *,
+        selected_project_id: str | None = None,
+    ) -> service.PreparedTurn:
+        assert not pending.manual
+        prepared.append(pending)
+        return service.PreparedTurn(
+            snapshot=current,
+            pending=pending.model_copy(update={"routed": True}),
+            clarification=None,
+            candidates=(),
+        )
+
+    async def fail(
+        current: WorkspaceSnapshot,
+        pending: PendingTurn,
+        *args: object,
+        **kwargs: object,
+    ) -> WorkspaceTurn:
+        attempts.append(pending)
+        raise RuntimeError("provider unavailable")
+
+    monkeypatch.setattr(service, "prepare", prepare)
+    monkeypatch.setattr(service, "send", fail)
+    app = page()
+    assert app.radio(key="ace_routing_mode").value == "Automatic"
+    app.chat_input[0].set_value("Continue the archive project").run()
+    assert not app.exception and len(prepared) == 1 and len(attempts) == 1
+    assert attempts[0].routed and app.session_state["ace_pending"].routed
+    button(app, "Retry saved request").click().run()
+    assert not app.exception and len(prepared) == 1 and len(attempts) == 2
+    assert attempts[0].turn_id == attempts[1].turn_id
+
+
+def test_automatic_route_switches_scope_before_the_message_is_recorded(
+    monkeypatch: pytest.MonkeyPatch, offline: dict[tuple[str, str], WorkspaceSnapshot]
+) -> None:
+    old = offline[("p1", "s1")]
+    offline[("p1", "s1")] = replace(
+        old,
+        history=(
+            ConversationTurn("Old project question", result("Alpha private answer")),
+        ),
+    )
+
+    async def prepare(
+        current: WorkspaceSnapshot,
+        pending: PendingTurn,
+        *,
+        selected_project_id: str | None = None,
+    ) -> service.PreparedTurn:
+        target = offline[("p2", "s2")]
+        return service.PreparedTurn(
+            snapshot=target,
+            pending=pending.model_copy(
+                update={"project_id": "p2", "session_id": "s2", "routed": True}
+            ),
+            clarification=None,
+            candidates=(),
+        )
+
+    monkeypatch.setattr(service, "prepare", prepare)
+    app = page()
+    app.session_state["ace_evidence"] = [{"text": "Alpha evidence"}]
+    app.chat_input[0].set_value("Continue the second project").run()
+    assert not app.exception
+    assert app.query_params["project"] == ["p2"] and app.query_params["session"] == [
+        "s2"
+    ]
+    assert (
+        len(offline[("p1", "s1")].history) == 1
+        and len(offline[("p2", "s2")].history) == 1
+    )
+    assert any(
+        text.value == "Answer to: Continue the second project" for text in app.text
+    )
+    assert not any(
+        text.value in ("Alpha private answer", "Alpha evidence") for text in app.text
+    )
+
+
+def test_ambiguous_project_waits_for_an_explicit_choice_without_sending(
+    monkeypatch: pytest.MonkeyPatch, offline: dict[tuple[str, str], WorkspaceSnapshot]
+) -> None:
+    decisions: list[str | None] = []
+
+    async def prepare(
+        current: WorkspaceSnapshot,
+        pending: PendingTurn,
+        *,
+        selected_project_id: str | None = None,
+    ) -> service.PreparedTurn:
+        decisions.append(selected_project_id)
+        if selected_project_id:
+            target = offline[
+                (selected_project_id, "s2" if selected_project_id == "p2" else "s1")
+            ]
+            return service.PreparedTurn(
+                snapshot=target,
+                pending=pending.model_copy(
+                    update={
+                        "project_id": target.project_id,
+                        "session_id": target.session_id,
+                        "routed": True,
+                        "manual": True,
+                    }
+                ),
+                clarification=None,
+                candidates=(),
+            )
+        return service.PreparedTurn(
+            snapshot=current,
+            pending=pending,
+            clarification="Which project do you mean?",
+            candidates=current.directory.projects,
+        )
+
+    monkeypatch.setattr(service, "prepare", prepare)
+    app = page()
+    app.chat_input[0].set_value("Continue the project").run()
+    assert not app.exception and decisions == [None]
+    assert not offline[("p1", "s1")].history and not offline[("p2", "s2")].history
+    assert app.chat_input[0].disabled
+    app.selectbox(key="ace_route_project").select("p2").run()
+    button(app, "Use selected project").click().run()
+    assert not app.exception and decisions == [None, "p2"]
+    assert len(offline[("p2", "s2")].history) == 1 and not offline[("p1", "s1")].history
+
+
+def test_cancel_ambiguous_request_discards_only_the_unsent_message(
+    monkeypatch: pytest.MonkeyPatch, offline: dict[tuple[str, str], WorkspaceSnapshot]
+) -> None:
+    async def prepare(
+        current: WorkspaceSnapshot,
+        pending: PendingTurn,
+        *,
+        selected_project_id: str | None = None,
+    ) -> service.PreparedTurn:
+        return service.PreparedTurn(
+            snapshot=current,
+            pending=pending,
+            clarification="Please identify the project.",
+            candidates=(),
+        )
+
+    monkeypatch.setattr(service, "prepare", prepare)
+    app = page()
+    app.chat_input[0].set_value("Continue").run()
+    assert not app.exception and app.chat_input[0].disabled
+    button(app, "Cancel unsent request").click().run()
+    assert not app.exception and not app.chat_input[0].disabled
+    assert "ace_pending" not in app.session_state and not offline[("p1", "s1")].history
+
+
+def test_rephrased_routing_request_keeps_the_revised_text_and_gets_a_new_identity(
+    monkeypatch: pytest.MonkeyPatch, offline: dict[tuple[str, str], WorkspaceSnapshot]
+) -> None:
+    proposals: list[PendingTurn] = []
+
+    async def prepare(
+        current: WorkspaceSnapshot,
+        pending: PendingTurn,
+        *,
+        selected_project_id: str | None = None,
+    ) -> service.PreparedTurn:
+        proposals.append(pending)
+        if "archive" in pending.message:
+            return service.PreparedTurn(
+                snapshot=current,
+                pending=pending.model_copy(update={"routed": True}),
+                clarification=None,
+                candidates=(),
+            )
+        return service.PreparedTurn(
+            snapshot=current,
+            pending=pending,
+            clarification="Which project?",
+            candidates=(),
+        )
+
+    monkeypatch.setattr(service, "prepare", prepare)
+    app = page()
+    app.chat_input[0].set_value("Continue").run()
+    app.text_area(key="ace_route_rephrase").set_value("Continue the archive project")
+    button(app, "Try revised request").click().run()
+    assert not app.exception and len(proposals) == 2
+    assert proposals[0].turn_id != proposals[1].turn_id
+    assert offline[("p1", "s1")].history[0].message == "Continue the archive project"
+
+
+def test_project_picker_is_a_manual_override_until_automatic_is_selected(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    manual: list[bool] = []
+
+    async def prepare(
+        current: WorkspaceSnapshot,
+        pending: PendingTurn,
+        *,
+        selected_project_id: str | None = None,
+    ) -> service.PreparedTurn:
+        manual.append(pending.manual)
+        return service.PreparedTurn(
+            snapshot=current,
+            pending=pending.model_copy(update={"routed": True}),
+            clarification=None,
+            candidates=(),
+        )
+
+    monkeypatch.setattr(service, "prepare", prepare)
+    app = page()
+    app.selectbox(key="ace_project_picker").select("p2").run()
+    assert app.radio(key="ace_routing_mode").value == "Selected project"
+    app.chat_input[0].set_value("A selected-project message").run()
+    app.radio(key="ace_routing_mode").set_value("Automatic").run()
+    button(app, "New conversation").click().run()
+    app.chat_input[0].set_value("An automatic message").run()
+    assert not app.exception and manual == [True, False]
+
+
+def test_routing_provider_failure_keeps_unsent_text_and_allows_manual_choice(
+    monkeypatch: pytest.MonkeyPatch, offline: dict[tuple[str, str], WorkspaceSnapshot]
+) -> None:
+    calls: list[str | None] = []
+
+    async def prepare(
+        current: WorkspaceSnapshot,
+        pending: PendingTurn,
+        *,
+        selected_project_id: str | None = None,
+    ) -> service.PreparedTurn:
+        calls.append(selected_project_id)
+        if selected_project_id is None:
+            raise RuntimeError("provider details must stay private")
+        return service.PreparedTurn(
+            current, pending.model_copy(update={"routed": True, "manual": True})
+        )
+
+    monkeypatch.setattr(service, "prepare", prepare)
+    app = page()
+    app.chat_input[0].set_value("Continue my existing work").run()
+    assert not app.exception and not offline[("p1", "s1")].history
+    assert app.session_state["ace_pending"].message == "Continue my existing work"
+    assert any("selection could not complete" in info.value for info in app.info)
+    button(app, "Use selected project").click().run()
+    assert not app.exception and calls == [None, "p1"]
+    assert len(offline[("p1", "s1")].history) == 1
+
+
+def test_project_alias_edit_keeps_the_same_identity(
+    monkeypatch: pytest.MonkeyPatch, offline: dict[tuple[str, str], WorkspaceSnapshot]
+) -> None:
+    from agent_context.navigation import ProjectEdit
+
+    current = offline[("p1", "s1")]
+    directory = current.directory.model_copy(
+        update={
+            "projects": tuple(
+                entry.model_copy(update={"managed": True})
+                if entry.project_id == "p1"
+                else entry
+                for entry in current.directory.projects
+            )
+        }
+    )
+    offline[("p1", "s1")] = replace(current, directory=directory)
+    edits: list[tuple[str, ProjectEdit]] = []
+
+    async def edit(identifier: str, request: ProjectEdit) -> ProjectEntry:
+        edits.append((identifier, request))
+        return ProjectEntry(
+            project_id=identifier,
+            title=request.title,
+            aliases=request.aliases or (),
+            managed=True,
+            version=2,
+        )
+
+    monkeypatch.setattr(service, "edit_project", edit)
+    app = page()
+    next(value for value in app.text_input if value.label == "Project name").set_value(
+        "Town archive"
+    )
+    next(
+        value for value in app.text_area if value.label.startswith("Aliases")
+    ).set_value("Local history\nArchives")
+    button(app, "Update project").click().run()
+    assert not app.exception and edits[0][0] == "p1"
+    assert edits[0][1].aliases == ("Local history", "Archives")
+    assert app.query_params["project"] == ["p1"]
+
+
+def test_explicit_sources_survive_automatic_scope_change_for_the_pending_request(
+    monkeypatch: pytest.MonkeyPatch, offline: dict[tuple[str, str], WorkspaceSnapshot]
+) -> None:
+    async def prepare(
+        current: WorkspaceSnapshot,
+        pending: PendingTurn,
+        *,
+        selected_project_id: str | None = None,
+    ) -> service.PreparedTurn:
+        return service.PreparedTurn(
+            offline[("p2", "s2")],
+            pending.model_copy(
+                update={"project_id": "p2", "session_id": "s2", "routed": True}
+            ),
+        )
+
+    captured: list[dict[str, str]] = []
+    original = service.send
+
+    async def send(
+        current: WorkspaceSnapshot,
+        pending: PendingTurn,
+        documents: dict[str, str],
+        *,
+        require_sources: bool = False,
+    ) -> WorkspaceTurn:
+        captured.append(documents)
+        return await original(
+            current, pending, documents, require_sources=require_sources
+        )
+
+    monkeypatch.setattr(service, "prepare", prepare)
+    monkeypatch.setattr(service, "send", send)
+    app = page()
+    app.radio(key="ace_source_mode").set_value("Sample brief").run()
+    app.chat_input[0].set_value("Use the brief for my second project").run()
+    assert not app.exception and "research-brief" in captured[0]
+    assert app.radio(key="ace_source_mode").value == "Project memory"
+
+
+def test_owned_project_titles_remain_literal_text_in_heading_and_scope_caption(
+    offline: dict[tuple[str, str], WorkspaceSnapshot],
+) -> None:
+    current = offline[("p1", "s1")]
+    payload = "![tracking](https://example.org/pixel.png)"
+    directory = current.directory.model_copy(
+        update={
+            "projects": tuple(
+                entry.model_copy(update={"title": payload, "managed": True})
+                if entry.project_id == "p1"
+                else entry
+                for entry in current.directory.projects
+            )
+        }
+    )
+    offline[("p1", "s1")] = replace(current, directory=directory)
+    app = page()
+    assert not app.exception and app.title[0].value.startswith("\\!\\[")
+    assert any("\\!\\[" in caption.value for caption in app.caption)
+    assert all("![tracking]" not in markdown.value for markdown in app.markdown)
+
+
+def test_uncertain_new_project_can_be_explicitly_confirmed_without_using_an_existing_one(
+    monkeypatch: pytest.MonkeyPatch, offline: dict[tuple[str, str], WorkspaceSnapshot]
+) -> None:
+    confirmations: list[str] = []
+
+    async def prepare(
+        current: WorkspaceSnapshot,
+        pending: PendingTurn,
+        *,
+        selected_project_id: str | None = None,
+        new_project_name: str | None = None,
+    ) -> service.PreparedTurn:
+        if new_project_name is None:
+            return service.PreparedTurn(
+                current, pending, "Confirm the project", current.directory.projects
+            )
+        confirmations.append(new_project_name)
+        return service.PreparedTurn(
+            offline[("p2", "s2")],
+            pending.model_copy(
+                update={
+                    "project_id": "p2",
+                    "session_id": "s2",
+                    "routed": True,
+                    "manual": True,
+                }
+            ),
+        )
+
+    monkeypatch.setattr(service, "prepare", prepare)
+    app = page()
+    app.chat_input[0].set_value("I am organizing Cedar Clay workshop").run()
+    app.text_input(key="ace_new_project_name").set_value("Cedar Clay")
+    button(app, "Create and use project").click().run()
+    assert not app.exception and confirmations == ["Cedar Clay"]
+    assert len(offline[("p2", "s2")].history) == 1 and not offline[("p1", "s1")].history

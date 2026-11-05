@@ -93,6 +93,7 @@ class ContextInstance(BaseModel):
     value: str | float | bool | dict[str, Any] | list[Any]
     cardinality: Cardinality = Cardinality.SINGLE
     condition: str | None = None
+    personal_scope: bool | None = None
     visibility: Visibility = Visibility.PRIVATE
     authority: Authority = Authority.USER_ASSERTED
     status: ContextStatus = ContextStatus.ACTIVE

@@ -1,0 +1,116 @@
+{
+  "date": "2026-11-05",
+  "baseline": "f9467ad",
+  "scope": "Automatic owned-project matching/creation plus requested UI/memory/assertion fixes.",
+  "checks": {
+    "distinct_focused_passes": 79,
+    "unit_new_and_affected": 38,
+    "integration_new_and_affected": 23,
+    "ui_new_and_affected": 18,
+    "type_check": "strict Pyright on changed code/tests, zero errors/warnings",
+    "providers": "mocked for automated tests; separate capped live proposal probe",
+    "full_suite_run": false,
+    "full_application_run": false,
+    "live_provider_request_cap": 3,
+    "billing_measured": false
+  },
+  "switch_browser_check": {
+    "kind": "focused local UI transition check",
+    "model_calls": 0,
+    "database_writes": 0,
+    "project_load_delay_seconds": 4,
+    "stale_heading_chat_and_goal_hidden_during_load": true,
+    "correct_second_project_after_load": true,
+    "app_test_checks_passed": 4,
+    "strict_pyright_errors": 0
+  },
+  "reproduced_before_fix": {
+    "stale_ui_unit_failures": 2,
+    "memory_scope_real_graph_failure": true,
+    "assertion_or_scope_unit_failures": 6
+  },
+  "implemented": [
+    "Owned directory CAS/idempotent creation and host delegation",
+    "Normalized collision checks and stable rename/alias identity",
+    "Semantic route proposal validation before any event/tool/task writes",
+    "Ambiguity/multi-project/provider-failure choices and explicit manual override",
+    "General Personal space without invented task, including empty-directory bootstrap",
+    "Frozen scope and explicit source snapshots across in-browser retries",
+    "New conversation retrieves current canonical task under reused project ID",
+    "Directory owner export/primary erasure and quarantine",
+    "Project-origin USER memory filtering before ranking/LIMIT",
+    "Personal-scope marker and strict asserted quote/role/question evidence guards",
+    "Stale UI frame suppression, response scope checks, literal project labels",
+    "Approved current goal hints for existing configured projects, with task privacy/expiry checks",
+    "Legacy display-name metadata overlay preserves configured IDs, bindings, existing host grants and canonical tasks",
+    "Explicit source-quoted new-project confirmation when conservative automatic creation guards reject a proposal"
+  ],
+  "limitations": [
+    "Model proposals/confidence are semantic heuristics; no live accuracy benchmark was run.",
+    "Unsent drafts are local to the browser until routing/recording, not crash-durable.",
+    "No automatic project merge, historical transcript move or bulk context/task rollback.",
+    "Legacy ambiguous project-origin personal preferences may need explicit reassertion; no records are deleted.",
+    "Directory 64 entries, eight aliases; existing configured grants and owner trust partition retained.",
+    "No production-readiness or comparative usefulness claim."
+  ],
+  "live_model_only_probe": {
+    "model": "nvidia/nemotron-3.5-bolt-e4b",
+    "request_cap": 3,
+    "max_output_tokens_per_request": 1400,
+    "database_writes": 0,
+    "rows": [
+      {
+        "expected": "new",
+        "message": "I am organizing a pottery workshop named Cedar Clay in Bristol. The budget is 650 units.",
+        "passed": false,
+        "proposal": {
+          "action": "new",
+          "project_ids": [
+            "new_project_id"
+          ],
+          "reference_quote": "I am organizing a pottery workshop named Cedar Clay in Bristol. The budget is 650 units.",
+          "name_quote": "Cedar Clay",
+          "description_quote": "I am organizing a pottery workshop named Cedar Clay in Bristol. The budget is 650 units.",
+          "undertaking": "active",
+          "confidence": 0.9,
+          "needs_context": false
+        }
+      },
+      {
+        "expected": "existing",
+        "message": "Continue the Harbor ceramics workshop. What was the budget?",
+        "passed": true,
+        "proposal": {
+          "action": "existing",
+          "project_ids": [
+            "alpha"
+          ],
+          "reference_quote": "Continue the Harbor ceramics workshop. What was the budget?",
+          "name_quote": "Harbor ceramics workshop",
+          "description_quote": "Continue the Harbor ceramics workshop. What was the budget?",
+          "undertaking": "active",
+          "confidence": 0.95,
+          "needs_context": false
+        }
+      },
+      {
+        "expected": "multiple",
+        "message": "For the Harbor ceramics workshop increase the budget to 700; for the Repair cafe change the day to Monday.",
+        "passed": true,
+        "proposal": {
+          "action": "multiple",
+          "project_ids": [
+            "alpha",
+            "beta"
+          ],
+          "reference_quote": "For the Harbor ceramics workshop increase the budget to 700; for the Repair cafe change the day to Monday.",
+          "name_quote": null,
+          "description_quote": "For the Harbor ceramics workshop increase the budget to 700; for the Repair cafe change the day to Monday.",
+          "undertaking": "active",
+          "confidence": 0.9,
+          "needs_context": false
+        }
+      }
+    ]
+  }
+}

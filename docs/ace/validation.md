@@ -1,6 +1,69 @@
 # Validation evidence — latest increment 2026-11-05
 
 
+## Automatic project routing and parallel UI/memory corrections — 2026-11-05
+
+Baseline `f9467ad`. Existing project grants, event streams, current task CAS,
+assembler, host, evidence and privacy paths were inspected and reused. Missing
+owned-project creation and pre-record matching are now wired through the actual
+API/SDK/UI. Owner-only normalized names/aliases, create idempotency, directory CAS,
+trusted host delegation and source-quoted creation preserve stable identity.
+Fresh conversations resolve existing projects before querying their actual current
+context. Existing configured projects expose approved, nonexpired/nonrevoked goal
+hints; display-name edits preserve their IDs with a private metadata overlay.
+Ambiguity/multi-project updates wait for explicit choice/rephrasing. Manual override,
+Personal space, zero-project bootstrap and source-preserving retries are integrated.
+
+Parallel reproductions confirmed two stale-UI failures, a real-Neo4j project-memory
+leak and six extraction/writer-boundary unit failures before fixes. Streamlit stale
+elements/descendants are hidden during load; mismatched/superseded responses are
+rejected. Project-origin USER facts no longer cross project boundaries merely
+because extraction chose USER scope. Explicit personal traits remain shared.
+Fresh ACE proposals require exact asserted source support; question/assistant-only
+support is rejected, with mixed assertions preserved. Real user pending/unknown
+statements remain valid, and unsupported episodes are removed from evidence IDs.
+No historical project data is deleted or silently migrated.
+
+**79 distinct focused checks passed across scoped runs:** 38 unit checks, 23
+real MongoDB/Neo4j API/store/scope checks, and 18 UI checks. Changed implementation
+and tests pass strict Pyright. A separate local Chromium check waited four seconds
+during project loading and confirmed old heading/chat/task content stayed hidden,
+then the correct next-project state appeared. It used zero models/database writes.
+See [verification record](results/automatic-project-routing-20261105.json) and
+[edge-case matrix/usage/limits](project-routing.md).
+
+No full suite, full application run or benchmark was run in this
+increment. Deterministic fixtures were updated only where the new assertion quote
+contract affects existing mocks; benchmark implementation/scoring is unchanged.
+Model semantic confidence is not an accuracy guarantee. Unsent ambiguous drafts
+remain browser-local; recorded requests keep their binding. There is no automatic
+bulk project merge, historical transcript move or rollback of verified tool history.
+Ambiguous legacy personal preferences may need reassertion in their source project.
+The prior usefulness/production-readiness exclusions remain unchanged.
+
+
+A separate capped probe made three live model-only requests with no database writes.
+Existing-project and multi-project proposals matched expectations. The new-project
+proposal failed the conservative ID/confidence guards; explicit **Create and use
+project** confirmation is implemented and tested without weakening those guards.
+Billing was not measured. This is not a semantic accuracy benchmark.
+
+Scoped reproduction commands (disposable local MongoDB and Neo4j only):
+
+```sh
+.venv/bin/pytest -q tests/unit/test_project_routing.py tests/unit/test_project_memory_boundaries.py \
+  tests/unit/test_extractor.py tests/unit/test_project_binding.py
+CG_INTEGRATION=1 .venv/bin/pytest -q tests/integration/test_ace_projects.py \
+  tests/integration/test_project_directory_governance.py \
+  tests/integration/test_ace_project_memory_boundaries.py \
+  tests/integration/test_ace_retrieval.py::test_private_query_scope_and_assembly_against_real_neo4j \
+  tests/integration/test_ace_retrieval.py::test_session_context_cannot_bypass_a_revoked_project_grant \
+  tests/integration/test_ace_events.py::test_real_outbox_drives_existing_pipeline_and_correction_without_manual_cli
+.venv/bin/pytest -q tests/ui/test_ace_console.py \
+  -k 'automatic or routing or project_switch or navigation_changed or ambiguous or rephrased or project_picker or failed_turn or pending_request or memory_evidence_correction or project_alias_edit or explicit_sources or owned_project_titles or uncertain_new_project'
+```
+
+
 ## Constraint-update and uncited-recall correction — 2026-11-05
 
 Baseline `6f8560d`. The reported failure is a defect, not a manual-save design.

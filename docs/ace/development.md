@@ -286,3 +286,47 @@ the UI. `AgentContextClient.revoke` calls the existing revocation endpoint.
 
 See [workspace behavior and focused tests](../../ui/README.md). This change does
 not implement the deferred usefulness or production-readiness work.
+
+
+## Automatic owned-project directory and routing
+
+The new `ProjectStore` uses one bounded `ace_projects_v1` document per authenticated
+tenant/user, with an atomic directory revision and idempotent create receipts.
+Runtime wires it into API authentication without changing the existing physical
+trust partition. VIEW/ASSERT permits a user to create their own private project;
+CORRECT permits metadata edits. Agents cannot create/edit projects. The API validates
+the requested delegate against configured VIEW/ASSERT agent principals for the same
+owner; unrelated agents and owners receive no membership. Configured grants remain.
+
+- `GET /v1/projects` / SDK `.projects()` includes authorized metadata, approved current goal hints and revision.
+- `POST /v1/projects` / `.create_project(ProjectCreate(...))` requires exact quoted
+  name/description, source text, expected directory revision and idempotency key.
+- `POST /v1/projects/personal` / `.personal_project()` bootstraps general conversation
+  without creating a task. Personal and its internal create key are reserved.
+- `POST /v1/projects/{id}/metadata` / `.edit_project(id, ProjectEdit(...))` preserves
+  identity, retains the old name as an alias, and checks version/name collisions.
+  Configured projects gain a private display-name overlay without rebinding IDs.
+
+`ProjectResolver` validates structured model proposals against only this owner's
+catalog before the UI records a user event. It cannot trust an invented ID, a
+hypothetical undertaking, weak confidence or an unsupported creation name. CAS
+conflicts refresh/re-resolve within a configured bound. Ambiguity yields authorized
+choices; multi-project updates require a one-project rephrase. Manual selection and
+already-recorded pending requests bypass re-resolution. Cross-project changes open
+new streams, preserving the immutable original. The existing assembler/current
+task service handles the selected project's actual context.
+
+`personal_scope` is additive on extraction/context records. Proven personal USER
+traits can cross projects; ambiguous project-origin USER memory stays source-bound.
+New ACE extraction requires an exact supporting quote and asserted evidence;
+question/assistant-only/inferred-absence support cannot assert a new fact. Explicit
+user pending/unknown statuses remain valid. Cached legacy results remain readable;
+no graph-wide migration or deletion is performed. Prompt/Writer policy versions
+advance to extraction-v5/writer-policy-v3. Two existing deterministic fixtures were
+updated to provide the new quote/personal applicability metadata, with no benchmark
+execution or scoring change.
+
+Directory data is included in existing owner export/primary erasure and denied
+under quarantine. See [failure matrix and limits](project-routing.md) and
+[verification](validation.md). This increment is not a new deployment, distributed
+consistency, semantic-accuracy or production-readiness claim.

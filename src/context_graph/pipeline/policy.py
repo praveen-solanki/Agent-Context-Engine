@@ -25,7 +25,8 @@ from context_graph.domain.extraction import ExtractedSignal
 from context_graph.domain.ids import slugify
 
 #: Bump when these rules change; stored in every Context's lineage.
-POLICY_VERSION = "writer-policy-v2"
+POLICY_VERSION = "writer-policy-v3"
+
 
 #: Ways a conversation refers to the speaking user.
 _SELF_REFERENCES = frozenset({"user", "me", "i", "myself", "my", "self", "the user"})
@@ -42,6 +43,7 @@ class ScopeAssignment(BaseModel):
     visibility: Visibility
     authority: Authority
     status: ContextStatus
+    personal_scope: bool = False
 
     @property
     def is_shared_candidate(self) -> bool:
@@ -95,15 +97,23 @@ class WriterPolicy:
             subject_user_id=SHARED_SUBJECT if scope_type.is_shared else session.user_id,
             scope_type=scope_type,
             scope_id=scope_id,
-            visibility=Visibility.SHARED if scope_type.is_shared else Visibility.PRIVATE,
+            visibility=Visibility.SHARED
+            if scope_type.is_shared
+            else Visibility.PRIVATE,
             authority=authority,
             # A normal conversation may contribute evidence to a shared scope,
             # but it can never publish there directly.
-            status=ContextStatus.CANDIDATE if scope_type.is_shared else ContextStatus.ACTIVE,
+            status=ContextStatus.CANDIDATE
+            if scope_type.is_shared
+            else ContextStatus.ACTIVE,
+            personal_scope=scope_type is ScopeType.USER
+            and signal.personal_scope is True,
         )
 
     @staticmethod
-    def _scope(signal: ExtractedSignal, session: SessionInput) -> tuple[ScopeType, str | None]:
+    def _scope(
+        signal: ExtractedSignal, session: SessionInput
+    ) -> tuple[ScopeType, str | None]:
         """Map the LLM's scope cue onto a concrete, resolvable scope."""
         cue = signal.scope_cue
         if cue is None:
@@ -112,6 +122,25 @@ class WriterPolicy:
             scope_type = ScopeType.USER if signal.durability_cue else ScopeType.SESSION
         else:
             scope_type = cue.scope_type
+
+        project = session.metadata.get("ace_project_id")
+        if (
+            session.metadata.get("ace_event_bridge") is True
+            and signal.personal_scope is False
+            and scope_type is ScopeType.USER
+            and not (isinstance(project, str) and project)
+        ):
+            return ScopeType.PROJECT, None
+        if (
+            session.metadata.get("ace_event_bridge") is True
+            and isinstance(project, str)
+            and project
+        ):
+            personal = signal.personal_scope is True
+            if (scope_type is ScopeType.USER and not personal) or (
+                cue is None and signal.personal_scope is False
+            ):
+                return ScopeType.PROJECT, project
 
         if scope_type is ScopeType.USER:
             return scope_type, session.user_id

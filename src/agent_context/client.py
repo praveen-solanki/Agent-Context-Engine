@@ -17,6 +17,9 @@ from agent_context.contracts import EventInput, EventStatus, ProcessingState, St
 from agent_context.handoff import HandoffArtifact, HandoffInput, ResumeResult
 from agent_context.task_state import TaskUpdate, TaskState
 from agent_context.navigation import (
+    ProjectCreate,
+    ProjectEdit,
+    ProjectEntry,
     ProjectDirectory,
     SessionEntry,
     SessionPage,
@@ -78,6 +81,23 @@ class AgentContextClient:
         response = await self.http.get("/v1/projects")
         response.raise_for_status()
         return ProjectDirectory.model_validate(response.json())
+
+    async def create_project(self, request: ProjectCreate) -> ProjectEntry:
+        return await self._post("/v1/projects", request, ProjectEntry)
+
+    async def edit_project(self, project_id: str, request: ProjectEdit) -> ProjectEntry:
+        from urllib.parse import quote
+
+        return await self._post(
+            f"/v1/projects/{quote(project_id, safe='')}/metadata", request, ProjectEntry
+        )
+
+    async def personal_project(self, agent_id: str = "research-agent") -> ProjectEntry:
+        response = await self.http.post(
+            "/v1/projects/personal", params={"delegate_agent_id": agent_id}
+        )
+        response.raise_for_status()
+        return ProjectEntry.model_validate(response.json())
 
     async def sessions(
         self, project_id: str, *, cursor: str | None = None, limit: int = 30

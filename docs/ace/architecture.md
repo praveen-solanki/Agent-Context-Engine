@@ -84,3 +84,19 @@ applied before candidate LIMIT, with consistent snake_case tokenization in
 assembly (`ace-assembly-v2`); no storage/schema migration is required. This does
 not close semantic/state/evidence-search/temporal parity or production gates.
 See REMAINING_WORK.md and validation.md for exact source revisions and commands.
+
+
+## Owned projects and pre-record routing
+
+Owner-authorized automatic project resolution adds a bounded Mongo owner directory,
+not a second graph or agent framework. Stable IDs, CAS revisions and create
+idempotency prevent destructive rebinding/lost updates. The application verifies
+same-owner configured delegates and augments membership only for the owner and
+that delegate. Static grants and physical trust partition remain unchanged.
+Semantic proposals precede event/tool/task writes; ambiguity does not guess a scope.
+A project switch starts a new immutable stream. Personal general chat skips task
+creation. Source-project provenance limits incorrectly USER-scoped legacy project
+facts before candidate ranking; explicit personal applicability preserves true
+cross-project preferences. Quote/role/question guards prevent unsupported new
+assertions. See [design/failure matrix](project-routing.md) for tested bounds,
+manual correction and remaining semantic/draft limitations.

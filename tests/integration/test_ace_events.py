@@ -129,7 +129,7 @@ async def test_real_outbox_drives_existing_pipeline_and_correction_without_manua
                     "concise",
                     episode_ids=tuple(episode_ids(session_a)),
                     durability_cue=True,
-                )
+                ).model_copy(update={"evidence_quote": event().text, "assertion_kind": "asserted"})
             )
         ]
     )
@@ -150,7 +150,7 @@ async def test_real_outbox_drives_existing_pipeline_and_correction_without_manua
                 "detailed",
                 episode_ids=(episode_ids(to_session(second))[1],),
                 durability_cue=True,
-            )
+            ).model_copy(update={"evidence_quote": "Actually always give detailed answers.", "assertion_kind": "asserted"})
         )
     )
     assert await worker.run_once()

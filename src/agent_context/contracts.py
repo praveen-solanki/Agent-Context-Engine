@@ -20,6 +20,7 @@ Identifier = Annotated[
     str, Field(min_length=1, max_length=128, pattern=r"^[A-Za-z0-9_.:-]+$")
 ]
 SuggestedStep = Annotated[str, Field(min_length=1, max_length=120)]
+PROJECT_TASK_ID = "project-work"
 
 
 def utcnow() -> datetime:

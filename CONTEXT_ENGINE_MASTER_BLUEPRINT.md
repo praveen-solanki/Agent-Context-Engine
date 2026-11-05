@@ -670,6 +670,32 @@ Do not claim measured token reduction, task-success gain, p95 latency, multi-ten
 
 ### Progress ledger (the next agent should maintain this)
 
+2026-11-05 owner-authorized automatic project identity and concurrent bug fixes:
+**CONFIRMED DONE within 79 focused checks; strict changed-code/test Pyright clean.**
+The actual conversational UI now resolves owner-authorized project names, aliases,
+descriptions and approved current goal hints before persistence, reuses stable IDs,
+and creates private owned projects for clear new undertakings. A bounded Mongo
+owner directory supplies CAS/idempotent metadata, trusted host delegation, stable
+rename/alias overlays (including legacy configured IDs), export and primary erasure.
+Ambiguity/multi-project messages wait; manual override and general Personal space
+remain available. Existing stream bindings, task CAS and actual context assembly
+are reused; cross-project switches preserve prior history in separate streams.
+
+Concurrent fixes prevent transient stale project UI, project-origin USER memory
+leakage and unsupported question/assistant-derived facts. Explicit personal scope,
+source quotes and role/question guards preserve true personal preferences and real
+user uncertainty. No graph-wide data migration/deletion, new database/framework,
+full suite/application run or benchmark was used. The explicit
+usefulness and production-readiness exclusions remain open. See
+[failure matrix and limits](docs/ace/project-routing.md),
+[verification](docs/ace/validation.md), and
+[record](docs/ace/results/automatic-project-routing-20261105.json). Semantic model
+accuracy is not established by mocked fixtures; three capped model-only probes
+passed existing/multiple routing but rejected uncertain new creation, whose explicit
+confirmation path is tested (no database writes from probes; billing unmeasured); unsent drafts are browser-local;
+there is no automatic bulk merge/history move/verified-outcome rollback.
+
+
 2026-11-05 focused constraint/recall defect correction at baseline `6f8560d`:
 **CONFIRMED DONE within scoped checks**. An unchanged approved goal echoed by the
 model no longer invalidates a valid new constraint. New claims still require

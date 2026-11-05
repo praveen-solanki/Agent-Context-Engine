@@ -92,6 +92,7 @@ class ContextWriter:
             value=signal.value,
             cardinality=cardinality,
             condition=signal.condition,
+            personal_scope=decision.personal_scope,
             visibility=decision.visibility,
             authority=decision.authority,
             status=decision.status,

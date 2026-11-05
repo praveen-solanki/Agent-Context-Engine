@@ -11,7 +11,12 @@ from typing import Any, LiteralString
 
 from neo4j import AsyncDriver, RoutingControl
 
-from agent_context.assembly import ContextQuery, ContextItem, SearchRequest, lexical_terms
+from agent_context.assembly import (
+    ContextQuery,
+    ContextItem,
+    SearchRequest,
+    lexical_terms,
+)
 from agent_context.bridge import scoped_id
 from agent_context.contracts import Permission, Principal, utcnow
 from agent_context.privacy import PrivacyControls
@@ -21,6 +26,8 @@ from context_graph.providers.base import EmbeddingProvider
 
 _QUERY: LiteralString = """
 MATCH (c:Context {subject_user_id: $user_id})
+OPTIONAL MATCH (origin_session:Session {session_id:c.source_session_id,user_id:$user_id})
+WITH c, origin_session
 WHERE (c.status = 'active' OR
        ($historical AND c.status = 'superseded' AND c.superseded_at > $now))
   AND (NOT $historical OR c.observed_at <= $now)
@@ -29,28 +36,38 @@ WHERE (c.status = 'active' OR
   AND (c.valid_until IS NULL OR c.valid_until > $now)
   AND NOT c.context_id IN $blocked_ids
   AND coalesce(c.user_revoked,false)=false
-  AND ((c.scope_type = 'USER' AND c.scope_id = $user_id)
+  AND ((c.scope_type = 'USER' AND c.scope_id = $user_id AND (
+         coalesce(c.personal_scope,false)
+         OR coalesce(origin_session.ace_scope_bound,false)=false
+         OR origin_session.ace_project_id IS NULL
+         OR origin_session.ace_project_id=$project_id))
        OR (c.scope_type = 'SESSION' AND c.scope_id = $session_id AND EXISTS {
           MATCH (s:Session {session_id:$session_id,user_id:$user_id})
           WHERE s.ace_scope_bound=true
             AND (s.ace_project_id IS NULL OR s.ace_project_id=$project_id) })
        OR (c.scope_type = 'PROJECT' AND c.scope_id = $project_id))
-WITH c, toLower(replace(coalesce(c.concept_key,''),'_',' ') + ' ' +
+WITH c, origin_session.ace_project_id AS origin_project,
+     coalesce(origin_session.ace_scope_bound,false) AS origin_bound,
+     coalesce(c.personal_scope,false) AS personal,
+     toLower(replace(coalesce(c.concept_key,''),'_',' ') + ' ' +
                 coalesce(toString(c.value),'')) AS searchable
-WITH c, reduce(relevance = 0.0, pattern IN $query_patterns |
+WITH c, origin_project, origin_bound, personal, reduce(relevance = 0.0, pattern IN $query_patterns |
                relevance + CASE WHEN searchable =~ pattern THEN 1.0 ELSE 0.0 END)
                / CASE WHEN size($query_patterns) = 0 THEN 1 ELSE size($query_patterns) END AS lexical,
      CASE WHEN $query_vector IS NOT NULL AND size(c.embedding) = size($query_vector)
                AND c.embedding_model = $embedding_model
           THEN vector.similarity.cosine(c.embedding, $query_vector) ELSE 0.0 END AS semantic
-WITH c, lexical, CASE WHEN semantic > 0.5 THEN 2.0 * semantic - 1.0 ELSE 0.0 END AS semantic
+WITH c, origin_project, origin_bound, personal, lexical, CASE WHEN semantic > 0.5 THEN 2.0 * semantic - 1.0 ELSE 0.0 END AS semantic
 ORDER BY CASE WHEN lexical > semantic THEN lexical ELSE semantic END DESC,
                 CASE WHEN c.context_type IN ['Constraint','Preference','WorkingStyle']
                     THEN 0 ELSE 1 END, c.observed_at DESC, c.context_id
 LIMIT $limit
 OPTIONAL MATCH (source_session:Session {session_id:c.scope_id,user_id:$user_id})
 WHERE c.scope_type='SESSION'
-RETURN properties(c) AS context, semantic, source_session.ace_project_id AS scope_project,
+RETURN properties(c) AS context, semantic,
+ CASE WHEN c.scope_type='SESSION' THEN source_session.ace_project_id
+      WHEN c.scope_type='PROJECT' THEN $project_id
+      WHEN c.scope_type='USER' AND origin_bound AND NOT personal THEN origin_project END AS scope_project,
 c.cardinality = 'single' AND EXISTS {
  MATCH (other:Context {subject_user_id:$user_id, scope_type:c.scope_type,
                        scope_id:c.scope_id, concept_key:c.concept_key})
@@ -63,6 +80,11 @@ c.cardinality = 'single' AND EXISTS {
    AND (other.valid_until IS NULL OR other.valid_until > $now)
    AND coalesce(other.user_revoked,false)=false
    AND NOT other.context_id IN $blocked_ids
+   AND (other.scope_type <> 'USER' OR coalesce(other.personal_scope,false)
+        OR NOT EXISTS {
+          MATCH (s:Session {session_id:other.source_session_id,user_id:$user_id})
+          WHERE s.ace_scope_bound=true AND s.ace_project_id IS NOT NULL
+            AND ($project_id IS NULL OR s.ace_project_id<>$project_id) })
    AND coalesce(other.value_key,toString(other.value)) <> coalesce(c.value_key,toString(c.value))
 } AS unresolved_conflict
 """
@@ -168,7 +190,9 @@ class Neo4jCandidateSource:
                     user_id=principal.user_id,
                     scope_type=context.scope_type,
                     scope_id=original_scope,
-                    project_id=request.project_id if record["scope_project"] is not None else None,
+                    project_id=request.project_id
+                    if record["scope_project"] is not None
+                    else None,
                     canonical_key=context.concept_key,
                     text=f"{context.concept_key}: {value}",
                     value=context.value
