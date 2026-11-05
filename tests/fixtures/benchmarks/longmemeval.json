@@ -1,0 +1,27 @@
+[
+  {
+    "question_id": "fixture-update",
+    "question_type": "knowledge-update",
+    "question": "What report language do I currently prefer?",
+    "answer": "Spanish",
+    "question_date": "2024/01/03 (Wed) 12:00",
+    "haystack_session_ids": ["new", "old"],
+    "haystack_dates": ["2024/01/02 (Tue) 12:00", "2024/01/01 (Mon) 12:00"],
+    "haystack_sessions": [
+      [{"role": "user", "content": "Correction: I always prefer Spanish for reports, instead of English.", "has_answer": true}, {"role": "assistant", "content": "I will use your updated preference."}],
+      [{"role": "user", "content": "I always prefer English for reports."}]
+    ],
+    "answer_session_ids": ["new"]
+  },
+  {
+    "question_id": "fixture-missing_abs",
+    "question_type": "single-session-user",
+    "question": "What is the unrevealed launch password?",
+    "answer": "The password was never provided.",
+    "question_date": "2024/01/03 (Wed) 12:00",
+    "haystack_session_ids": ["irrelevant"],
+    "haystack_dates": ["2024/01/01 (Mon) 12:00"],
+    "haystack_sessions": [[{"role": "user", "content": "I enjoy gardening on weekends."}]],
+    "answer_session_ids": []
+  }
+]

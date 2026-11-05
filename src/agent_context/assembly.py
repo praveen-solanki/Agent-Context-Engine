@@ -8,6 +8,7 @@ import hashlib
 import json
 import re
 from collections import Counter
+from collections.abc import Callable
 from datetime import datetime
 from typing import Protocol, Literal
 
@@ -253,9 +254,11 @@ class ContextAssembler:
         required_sources: tuple[CandidateSource, ...] = (),
         counter: TokenCounter | None = None,
         settings: AssemblySettings | None = None,
+        clock: Callable[[], datetime] = utcnow,
     ) -> None:
         self.source, self.optional = required_source, optional_sources
         self.required = required_sources
+        self.clock = clock
         self.counter, self.settings = (
             counter or UTF8UpperBound(),
             settings or AssemblySettings(),
@@ -269,7 +272,7 @@ class ContextAssembler:
         now: datetime | None = None,
     ) -> tuple[list[ContextItem], list[Exclusion], Counter[str], list[str], bool]:
         principal.require(Permission.VIEW, request.project_id)
-        clock = now or utcnow()
+        clock = now or self.clock()
         historical = isinstance(request, SearchRequest) and request.as_of is not None
         at = (
             request.as_of

@@ -1,5 +1,59 @@
 # Validation evidence — latest increment 2026-11-05
 
+## Reusable public benchmark pipeline — fixture-only verification
+
+**537 passed, two paid live-model checks skipped, one legacy live-model UI case
+deselected (22.22 s)**. Strict Pyright: zero errors/warnings. This includes the
+new staged benchmark workflow against real isolated MongoDB/Neo4j with all
+model/embedding responses mocked. No full public dataset or paid model evaluation
+was executed. The benchmark fixture graph was separate from both ordinary
+integration data and the user-facing application; its claims/data are cleaned
+after tests. The original Context-Graph repository remains unchanged.
+
+```sh
+CG_INTEGRATION=1 CG_NEO4J__URI=bolt://127.0.0.1:7690 \
+ACE_BENCHMARK_TEST_NEO4J_URI=bolt://127.0.0.1:7693 \
+CG_MONGO__DATABASE=ace_remaining_final .venv/bin/pytest \
+  -k 'not test_the_ui_runs_the_tool_and_shows_the_result' -q --tb=short
+.venv/bin/pyright
+```
+
+Before implementation, 39 existing evaluator/oracle/converter tests and 82
+writer/retriever/assembler tests passed and their components were preserved.
+The new native/normalized fixture suite exercises 24 scheduled mocked trials
+across four inputs and all six methods. A separate test runs acquisition,
+preparation, enabled execution, scoring/reporting and zero-provider-call resume
+through the actual CLI functions. Ground-truth labels stay outside generation.
+Tests also cover source checksum corruption, bounded/failed downloads, pagination,
+per-file acquisition recovery, sample-limit changes, malformed JSON/roles/time,
+premixed distractors, provider retries/request ceilings, missing/invalid usage,
+saved-judge input mismatch and retained incomplete-attempt costs.
+
+The broader regression caught four cache-identity failures while sampling changes
+were still incorrectly compared with full dataset settings. The corrected raw
+identity excludes sampling settings; the reproductions and final full suite pass.
+The existing meter now treats null/noninteger/negative/malformed usage as unknown
+rather than known zero. Optional replay clocks preserve original runtime defaults.
+
+`uv sync --frozen --offline` rebuilt/installed the new command successfully.
+The installed `agent-context-benchmark plan ... --dataset longmemeval-s --limit 3`
+reported zero model calls, and `schema` emitted valid configuration JSON Schema.
+`docker compose -p ace-benchmark -f compose.yaml -f benchmarks/compose.override.yaml
+config --quiet` passed without starting another app or printing secrets. CI is
+configured to run the fixture integration first on its fresh job graph; no remote
+CI result for this new local increment is claimed.
+
+Public reads were limited to upstream documentation/tree metadata, at most
+16 KiB of a ConvoMem premixed file and bounded LoCoMo prefixes (its native
+timestamp was found after 45056 bytes). That check reproduced an unsupported date
+syntax; the parser and fixture now use the actual upstream form. No full benchmark
+was acquired/run. LoCoMo's actual `README.MD`/`LICENSE.txt` paths and advertised
+CC-BY-NC-4.0 license are now verified; prior 404s used different filenames.
+See [pipeline verification record](results/benchmark-pipeline-verification-20261105.json)
+and [setup/execution guide](benchmarks.md). That record contains test evidence,
+not real dataset accuracy, latency, token savings, dollar totals or official
+leaderboard claims. Broader R08 and production-system R09/R10 gates remain open.
+
 ## Latest session-scope, compatibility and evaluation increment
 
 The final credential-free regression against disposable MongoDB/Neo4j passed
@@ -72,9 +126,11 @@ R09/R10 production quotas, TLS/identity, graph fencing, load/chaos and coordinat
 privacy-aware restore remain open. The original exposed credential's revocation
 is still unverified; the replacement working does not prove revocation.
 
-All new commits remain local pending fresh approval to push this later payload
-to the public repository. Automatic approval rejected publication under the old
-patch approval. No GitHub CI run for unpublished changes is claimed.
+Publication was initially rejected under approval for an older patch. After
+explicit user approval, the three audited increments were pushed through
+`cec34e8`; [their GitHub CI passed](https://github.com/praveen-solanki/Agent-Context-Engine/actions/runs/41969960178).
+The newer benchmark-pipeline work at the top of this file remains local; no
+remote CI result for that increment is claimed.
 
 ## Evidence-first completion audit
 

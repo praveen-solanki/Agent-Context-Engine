@@ -670,6 +670,39 @@ Do not claim measured token reduction, task-success gain, p95 latency, multi-ten
 
 ### Progress ledger (the next agent should maintain this)
 
+2026-11-05 reusable R08 benchmark pipeline: **CONFIRMED DONE within small-fixture
+verification bounds; public benchmark results remain UNMEASURED.** The audit
+confirmed/skipped 39 existing evaluation/oracle/converter checks and 82
+writer/retrieval/assembly checks. New `agent_context.benchmarks` composes the
+existing API/SDK, outbox/worker, ingestion, assembler, legacy retriever, providers,
+retry/metering, packing and cosine components. It adds pinned/local acquisition,
+streamed native LongMemEval/ConvoMem/LoCoMo and normalized QA adapters, declarative
+experiments, isolated scratch-store ownership, replay clocks, six fair methods,
+ground-truth scoring, bounded requests, resumable private artifacts and reproducible
+JSON/Markdown/hypothesis reports. Source labels never enter generation; optional
+judge results bind their exact inputs. Costs/latencies distinguish setup, query,
+judge, retries, missing usage and archived attempts; no fabricated zero dollar
+costs. Sampling-limit changes reuse immutable raw inputs. Normal runtime clocks,
+the UI, original converter and synthetic demo remain preserved.
+
+The user explicitly requested **no full or costly benchmark execution**. Tests
+therefore use small synthetic native-format/normalized fixtures, mocked providers
+and real isolated local databases, including the installed CLI/staged workflow
+and zero-call resume. See [benchmark guide](docs/ace/benchmarks.md),
+[validation](docs/ace/validation.md) and `REMAINING_WORK.md` for evidence and exact
+limits. LoCoMo's actual case-sensitive documentation/license paths are now
+verified, but no public scores were measured. LongMemEval oracle/s/m, ConvoMem
+raw/premixed and LoCoMo text/captions are supported inputs; interactive
+MemoryArena/StateMemBench/handoff environments and official evaluator equivalence
+are not claimed. Use normalized offline exports only where their reference/data
+license is supplied. Full-corpus quality, ablations, cross-provider proof and
+production-system R09/R10 gates remain open. The earlier three increments were
+pushed through `cec34e8` and passed GitHub CI; this new pipeline increment remains
+local until separately published.
+Final local verification: **537 tests passed, two paid live checks skipped, one
+legacy live-UI case deselected (22.22 s), Pyright clean**. The source-fingerprinted
+verification record is `docs/ace/results/benchmark-pipeline-verification-20261105.json`.
+
 2026-11-05 R08/R09 verification increment: **PARTIAL overall**. Existing core,
 R07 recommendation checks, task/CAS/mandatory packing and handoff verification
 were preserved. Reproduced gaps were fixed in the existing evaluator: obsolete
@@ -703,8 +736,9 @@ tests passed, two opt-in live tests skipped, one legacy live-UI case deselected
 (17.65 s), and clean Pyright**. Independent live upgrade evidence is recorded
 separately in validation.md. Whole-project completion, public benchmarks,
 cross-provider and production reliability/security/recovery gates remain open.
-New commits are local pending fresh approval for publication to the currently
-public repository; do not infer a push or a new GitHub CI run.
+These earlier increments were subsequently approved, pushed through `cec34e8`
+and passed GitHub CI. The newer benchmark-pipeline increment above is local and
+has not yet run on remote CI.
 
 2026-11-05 task-state increment passed end-to-end verification. Existing
 handoff/host/replay primitives passed 23 focused tests and were preserved.

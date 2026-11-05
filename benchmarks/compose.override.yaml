@@ -1,0 +1,9 @@
+# Reuse the repository's store definitions in a separate Compose project.
+# Run only neo4j and mongo; the benchmark owns its in-process API and worker.
+services:
+  neo4j:
+    ports:
+      - 127.0.0.1:${ACE_BENCHMARK_NEO4J_PORT:-7695}:7687
+  mongo:
+    ports:
+      - 127.0.0.1:${ACE_BENCHMARK_MONGO_PORT:-27019}:27017

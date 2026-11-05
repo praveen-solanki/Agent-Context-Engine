@@ -1,0 +1,115 @@
+{
+  "verification_type": "fixture_workflow_not_real_benchmark_scores",
+  "timestamp_utc": "2026-11-05T05:50:07.454990+00:00",
+  "baseline_preserved": {
+    "existing_evaluation_converter_checks_passed": 39,
+    "existing_writer_retrieval_assembly_checks_passed": 82
+  },
+  "full_regression": {
+    "command": "CG_INTEGRATION=1 CG_NEO4J__URI=bolt://127.0.0.1:7690 ACE_BENCHMARK_TEST_NEO4J_URI=bolt://127.0.0.1:7693 CG_MONGO__DATABASE=ace_remaining_final .venv/bin/pytest -k 'not test_the_ui_runs_the_tool_and_shows_the_result' -q --tb=short",
+    "passed": 537,
+    "skipped_paid_live_checks": 2,
+    "deselected_legacy_live_ui": 1,
+    "seconds": 22.22
+  },
+  "pyright": {
+    "errors": 0,
+    "warnings": 0
+  },
+  "integration": {
+    "stores": "real isolated Neo4j and MongoDB",
+    "model_and_embedding_responses": "fully mocked",
+    "native_or_normalized_inputs": [
+      "longmemeval",
+      "convomem",
+      "locomo",
+      "normalized"
+    ],
+    "methods_per_case": 6,
+    "scheduled_fixture_trials": 24,
+    "cli_prepare_run_score_report_resume": "passed",
+    "completed_case_resume_provider_calls": 0
+  },
+  "additional_checks": {
+    "frozen_offline_install": "passed",
+    "installed_cli_plan_and_schema": "passed",
+    "compose_override_config_quiet": "passed",
+    "sample_limit_expansion_reuses_raw_cache": "passed",
+    "remote_ci_current_increment": "not run"
+  },
+  "public_schema_license_reads": [
+    {
+      "url": "https://raw.githubusercontent.com/xiaowu0162/LongMemEval/main/README.md",
+      "observed_status": 200,
+      "sha256": "c4ff45676683d9e2f7cf7d9099d26426f14635ec110dbb1da818d1019a142573"
+    },
+    {
+      "url": "https://huggingface.co/datasets/Salesforce/ConvoMem/raw/e3e9b39115b02346824c70d349350de738f8be41/README.md",
+      "observed_status": 200,
+      "sha256": "fa03843012cf85a491c073008f853861d553ba99505ec8c5c013f978376102ba"
+    },
+    {
+      "url": "https://raw.githubusercontent.com/snap-research/locomo/3eb6f2c585f5e1699204e3c3bdf7adc5c28cb376/LICENSE.txt",
+      "observed_status": 200,
+      "sha256": "41003d4a74749c0220e33dd415042164b5a1093ed401f36277234f772d22d3d0"
+    },
+    {
+      "url": "https://raw.githubusercontent.com/snap-research/locomo/3eb6f2c585f5e1699204e3c3bdf7adc5c28cb376/README.MD",
+      "observed_status": 200,
+      "sha256": "9f8e6fd00a3400aa687109f40ed53715f0a2c028ee3f8c465bdfa96475640e8a"
+    }
+  ],
+  "convo_premixed_schema": {
+    "range_bytes_max": 16384,
+    "observed_keys": [
+      "evidenceItems",
+      "conversations",
+      "contextSize"
+    ],
+    "outer_distractors_preserved": true
+  },
+  "source_sha256": {
+    "src/agent_context/benchmarks/__init__.py": "e2ed443c2b25a3f8320b8ffaae9931b2ff400b59ee709a690e538e50b5112f42",
+    "src/agent_context/benchmarks/backend.py": "50bd0540a3ec2a57fcfe487ae2de2eee24652d4619f218a619b02737e05a05b0",
+    "src/agent_context/benchmarks/cli.py": "28426f7bcffc3267861de546c7f69642ce36a004261d17562a483aab7c6365ce",
+    "src/agent_context/benchmarks/datasets.py": "ac04aa1bbbe304c316efdcd45cf9f6449199538899ae8cfd107c90341af2795c",
+    "src/agent_context/benchmarks/models.py": "5fdf1bb9bef552daf1acb5ac05844b22555e0986068417be7d3fdebf1a0db0f6",
+    "src/agent_context/benchmarks/providers.py": "25ebdfe2793483adea55d7de19c563b2a10afb673ae1be4aec8c63678f7e1558",
+    "src/agent_context/benchmarks/reports.py": "a5a3b3437ab7362d22674c991f0d07359f849161a36416aa50455a1acd3050a1",
+    "src/agent_context/benchmarks/runner.py": "f7f8de0774d69676306591f0373a97636909ada6872a32aa85ab43ba460dbe4c",
+    "src/agent_context/benchmarks/scoring.py": "1938a8d6a69c134b11a08f5386a1b7c705ccbbd8780742de47f8e5dc7100d209",
+    "src/agent_context/benchmarks/storage.py": "f36f4cd675d8bac2749d7a987c344be7d4642115cdef947fe747e29ca4179353",
+    "src/agent_context/evaluation.py": "681dd638cb896a116ec2acff92468863e6e444fcc021cbfbe43e17c2712bb5d0",
+    "src/agent_context/assembly.py": "78412534d40e2f6892db118c32b074b103bd9c36b0ee26f72d0d53c0b3754696",
+    "src/agent_context/retrieval.py": "0b840cf15ce4834e16c0e4260ad26cacf9fab6ee15125ca4829f5e59af9c958e",
+    "src/context_graph/pipeline/writer.py": "233d9465eecbca8aa33cb2691f40996d93a15bde3b588f289a51f52538bbccca",
+    "src/context_graph/pipeline/promotion.py": "65215ce16887356381ed3e77bc94b60189e247a33233b03f5755fe3ca0bf72c0",
+    "src/context_graph/pipeline/orchestrator.py": "478c3821bedfbb91107f0c610bebcb3c4e099ed0f25bb82e89743eb5b1d81262",
+    "retrieval_tester/retrieval.py": "30c0b6440a4358e01611a18884e3eb86f32deebed8b0952cd396a83d6be54f39",
+    "tests/integration/test_benchmark_pipeline.py": "a76ba721c94ad8f589e035ecb40a59f59a150dd4fd0046bd078ecd3547efcf46",
+    "tests/unit/test_benchmark_datasets.py": "99bc1e881aa54e7574ea351170d7cdfe59c4d2c355a7b84d9354848d57f14bd1",
+    "tests/unit/test_benchmark_runner.py": "4d5da26e1025884d81fadb45df08736d77ea4aa604a3f87d8dd325ededd44ac5",
+    "tests/benchmark_support.py": "02b867eb8fda242bb5e1fe31c5d7bf702dab9b792b732754c837d45041e759b2",
+    ".github/workflows/ci.yml": "de6062a1ed37a348fe961fa8fe96e75ddc2734dbb2ecf03bdbc877c675248abe",
+    "benchmarks/configs/public.json": "5fba64f1cb51517aa2ebe27c79f3aca359ba52e138465fd6667d81370f4efbd5"
+  },
+  "limitations": [
+    "No full public dataset acquisition or evaluation was run.",
+    "No paid model/embedding benchmark calls were made.",
+    "Mocked workflow outcomes and usage are not public benchmark scores, model quality, actual token savings or real dollar billing.",
+    "Official scoring equivalence, native interactive MemoryArena/StateMemBench/handoff environments, full-corpus compatibility and production performance remain unmeasured."
+  ],
+  "fixture_sha256": {
+    "tests/fixtures/benchmarks/convomem.json": "e8a276f9b6dca3bb862b598b2d85060310205889b7c2e865146affdb053ce9dc",
+    "tests/fixtures/benchmarks/locomo.json": "aa9ff12725a06899b9bb37ff47b6394e5ad55ce9afc1fc4e69b380d6098f91b4",
+    "tests/fixtures/benchmarks/longmemeval.json": "5afb66076f6d2a3a7bf1506cf4093dd686a9ac05c463ce29d2c2afd3bc34f4f6",
+    "tests/fixtures/benchmarks/normalized.json": "594301f2c7ce1cb7a52fde1e2dfe06bbc284dca126ee2f137271b70af9442d30"
+  },
+  "locomo_prefix_validation": {
+    "bounded_read_max_bytes": 131072,
+    "actual_bytes_until_timestamp": 45056,
+    "native_timestamp_example": "1:56 pm on 8 May, 2023",
+    "failure_reproduced_before_fix": true,
+    "fixed_parser_and_native_format_fixture_passed": true
+  }
+}

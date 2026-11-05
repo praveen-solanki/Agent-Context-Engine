@@ -1,0 +1,12 @@
+{
+  "evidence_items": [{
+    "personId": "synthetic-person",
+    "question": "Which report language is my current preference?",
+    "answer": "Spanish",
+    "message_evidences": [{"speaker": "User", "text": "Correction: I always prefer Spanish for reports, instead of English."}],
+    "conversations": [
+      {"id": "old", "messages": [{"speaker": "User", "text": "I always prefer English for reports."}]},
+      {"id": "new", "messages": [{"speaker": "User", "text": "Correction: I always prefer Spanish for reports, instead of English."}, {"speaker": "Assistant", "text": "I will use your updated preference."}]}
+    ]
+  }]
+}

@@ -1,0 +1,88 @@
+{
+  "schema_version": 1,
+  "name": "public-memory",
+  "artifacts": "../../data/benchmarks/public-memory",
+  "datasets": [
+    {
+      "id": "longmemeval-oracle",
+      "format": "longmemeval",
+      "revision": "98d7416c24c778c2fee6e6f3006e7a073259d48f",
+      "split": "oracle",
+      "license": "MIT (upstream dataset card)",
+      "limit": 3,
+      "sources": [
+        {
+          "path": "longmemeval_oracle.json",
+          "url": "https://huggingface.co/datasets/xiaowu0162/longmemeval-cleaned/resolve/98d7416c24c778c2fee6e6f3006e7a073259d48f/longmemeval_oracle.json"
+        }
+      ]
+    },
+    {
+      "id": "longmemeval-s",
+      "format": "longmemeval",
+      "revision": "98d7416c24c778c2fee6e6f3006e7a073259d48f",
+      "split": "s",
+      "license": "MIT (upstream dataset card)",
+      "limit": 3,
+      "sources": [
+        {
+          "path": "longmemeval_s_cleaned.json",
+          "url": "https://huggingface.co/datasets/xiaowu0162/longmemeval-cleaned/resolve/98d7416c24c778c2fee6e6f3006e7a073259d48f/longmemeval_s_cleaned.json"
+        }
+      ]
+    },
+    {
+      "id": "longmemeval-m",
+      "format": "longmemeval",
+      "revision": "98d7416c24c778c2fee6e6f3006e7a073259d48f",
+      "split": "m",
+      "license": "MIT (upstream dataset card)",
+      "limit": 3,
+      "sources": [
+        {
+          "path": "longmemeval_m_cleaned.json",
+          "url": "https://huggingface.co/datasets/xiaowu0162/longmemeval-cleaned/resolve/98d7416c24c778c2fee6e6f3006e7a073259d48f/longmemeval_m_cleaned.json"
+        }
+      ]
+    },
+    {
+      "id": "convomem",
+      "format": "convomem",
+      "revision": "e3e9b39115b02346824c70d349350de738f8be41",
+      "split": "core-evidence",
+      "license": "CC-BY-NC-4.0",
+      "limit": 3,
+      "hub": {
+        "repository": "Salesforce/ConvoMem",
+        "pattern": "core_benchmark/evidence_questions/**/*.json"
+      }
+    },
+    {
+      "id": "locomo",
+      "format": "locomo",
+      "revision": "3eb6f2c585f5e1699204e3c3bdf7adc5c28cb376",
+      "split": "locomo10",
+      "license": "CC-BY-NC-4.0 (upstream LICENSE.txt)",
+      "limit": 3,
+      "sources": [
+        {
+          "path": "locomo10.json",
+          "url": "https://raw.githubusercontent.com/snap-research/locomo/3eb6f2c585f5e1699204e3c3bdf7adc5c28cb376/data/locomo10.json"
+        }
+      ]
+    }
+  ],
+  "methods": [
+    "full_history",
+    "last_n",
+    "rolling_summary",
+    "vector_top_k",
+    "existing_retriever",
+    "ace"
+  ],
+  "trials": 1,
+  "context_bytes": 4000,
+  "scoring": "lexical",
+  "max_provider_requests": 200,
+  "exclusive_scratch_stores": true
+}

@@ -12,7 +12,8 @@ import asyncio
 import hashlib
 import json
 from itertools import groupby
-from collections.abc import Iterable, Sequence
+from collections.abc import Callable, Iterable, Sequence
+from datetime import datetime
 from typing import Protocol, runtime_checkable
 
 from pydantic import BaseModel, ConfigDict, Field
@@ -113,6 +114,7 @@ class IngestionPipeline:
         llm: LLMProvider,
         embeddings: EmbeddingProvider,
         run_id: str,
+        clock: Callable[[], datetime] | None = None,
     ) -> None:
         self._settings = settings
         self._store = store
@@ -139,11 +141,12 @@ class IngestionPipeline:
             settings=settings.resolution,
             retry_settings=settings.retry,
         )
-        self._writer = ContextWriter(store)
+        self._writer = ContextWriter(store, clock=clock) if clock else ContextWriter(store)
         self._promotion = PromotionService(
             store=store,
             policy=self._policy,
             batch_size=settings.maintenance.candidate_batch_size,
+            clock=clock,
         )
         self._lineage = Lineage(
             run_id=run_id,

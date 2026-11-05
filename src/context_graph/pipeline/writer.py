@@ -8,7 +8,7 @@ ordinary contradiction (spec section 4 and 10).
 
 from __future__ import annotations
 
-from collections.abc import Mapping, Sequence
+from collections.abc import Callable, Mapping, Sequence
 from datetime import datetime
 
 from pydantic import BaseModel, ConfigDict
@@ -49,8 +49,9 @@ class ContextWriteResult(BaseModel):
 class ContextWriter:
     """Create or reuse canonical context and attach its evidence."""
 
-    def __init__(self, store: Neo4jGraphStore) -> None:
+    def __init__(self, store: Neo4jGraphStore, *, clock: Callable[[], datetime] = utcnow) -> None:
         self._store = store
+        self._clock = clock
 
     async def write(
         self,
@@ -71,7 +72,7 @@ class ContextWriter:
         if signal.operation is SignalOperation.REVOKE:
             return await self._revoke(signal, resolution, decision, primary)
 
-        recorded_at = utcnow()
+        recorded_at = self._clock()
         cardinality = signal.cardinality or concept.cardinality
         context = ContextInstance(
             context_id=new_id("ctx"),
@@ -173,7 +174,7 @@ class ContextWriter:
                 context_id=instance.context_id,
                 session_id=episode.session_id,
                 episode_id=episode.episode_id,
-                revoked_at=utcnow(),
+                revoked_at=self._clock(),
             )
             if result is not None:
                 revoked.append(result.context_id)

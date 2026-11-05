@@ -1,0 +1,16 @@
+[
+  {
+    "sample_id": "synthetic-conversation",
+    "conversation": {
+      "speaker_a": "Alex", "speaker_b": "Sam",
+      "session_1_date_time": "12:00 pm on 1 January, 2024",
+      "session_1": [
+        {"speaker": "Alex", "dia_id": "D1:1", "text": "I always prefer English for reports."},
+        {"speaker": "Sam", "dia_id": "D1:2", "text": "I enjoy gardening on weekends."}
+      ],
+      "session_2_date_time": "12:00 pm on 2 January, 2024",
+      "session_2": [{"speaker": "Alex", "dia_id": "D2:1", "text": "Correction: I always prefer Spanish for reports, instead of English."}]
+    },
+    "qa": [{"question": "Which report language does Alex currently prefer?", "answer": "Spanish", "category": 1, "evidence": ["D2:1"]}]
+  }
+]

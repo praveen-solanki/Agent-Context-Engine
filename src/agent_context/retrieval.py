@@ -5,6 +5,8 @@ from __future__ import annotations
 import json
 import math
 import re
+from collections.abc import Callable
+from datetime import datetime
 from typing import Any, LiteralString
 
 from neo4j import AsyncDriver, RoutingControl
@@ -83,10 +85,12 @@ class Neo4jCandidateSource:
         tenant_id: str,
         privacy: PrivacyControls | None = None,
         embeddings: EmbeddingProvider | None = None,
+        clock: Callable[[], datetime] = utcnow,
     ) -> None:
         self.driver, self.database, self.tenant_id = driver, database, tenant_id
         self.privacy = privacy
         self.embeddings = embeddings
+        self.clock = clock
 
     async def fetch(
         self, principal: Principal, request: ContextQuery, *, limit: int
@@ -105,9 +109,9 @@ class Neo4jCandidateSource:
         at = (
             request.as_of
             if isinstance(request, SearchRequest) and request.as_of
-            else utcnow()
+            else self.clock()
         )
-        if historical and at > utcnow():
+        if historical and at > self.clock():
             raise ValueError("historical search cannot request a future instant")
         vector: list[float] | None = None
         if self.embeddings is not None and request.query.strip():

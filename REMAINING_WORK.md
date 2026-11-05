@@ -36,9 +36,9 @@
 
 **Current code:** search is distinct from assembly; runtime wires native lexical/semantic retrieval plus the required current-task source. Historical memory is explicit. Canonical task versions and accepted requirements are reconciled before handoff continuation. Legacy snapshot-only clients retain their documented weaker semantics. Generic task controls are API/SDK operations; the frozen console was not expanded.
 
-**Latest local evidence:** **480 passing tests, two opt-in live tests skipped, one legacy live-UI test deselected (16.37s)**; Pyright clean. The two live tests passed separately against the isolated deployed API/worker: the two-model continuation in 55.00s and changed-artifact negative in 9.09s. These are separate runs, not an inflated combined suite count. Exposed-key revocation remains unverified pending owner confirmation. No production readiness or statistical performance gain is claimed.
+**Latest local evidence:** **537 passing tests, two paid live checks skipped, one legacy live-UI test deselected (22.22 s)**; Pyright clean. Benchmark integration uses real isolated stores and mocked providers. Earlier two-model continuation and changed-artifact live runs remain separate historical evidence; they were not rerun for this no-paid-benchmark request. Exposed-key revocation remains unverified pending owner confirmation. No production readiness or statistical performance gain is claimed.
 
-**Immediate next task:** Expand the now repeatable R08 comparison to public/multi-scenario tasks and ablations, then close the documented R09/R10 production gates. Preserve confirmed retrieval/task/assembly/handoff behavior. Cross-provider validation and exposed-key revocation remain explicit external verification gaps. The 2026-11-05 benchmark and session-authorization increment below records the latest local evidence; publication is not yet approved for these new changes.
+**Immediate next task:** The reusable R08 dataset pipeline is implemented and fixture-verified; do not rebuild it or run costly/full benchmarks without a new request. Use `docs/ace/benchmarks.md` for actual experiment commands. Full public results, ablations and real-cost/quality conclusions remain unmeasured. R09/R10, cross-provider validation and exposed-key revocation remain separate open gates. The earlier three commits through `cec34e8` were pushed with explicit approval and their GitHub CI passed; the newer benchmark-pipeline work is local pending publication.
 
 ---
 
@@ -102,6 +102,78 @@ Never automatically treat this document's **initial** assessment as final. It is
 A passing GitHub Actions workflow proves the tests in that workflow passed; it does **not** prove all blueprint outcomes. A successful demo run may still have a faulty success criterion. Keep evidence categories separate.
 
 ---
+
+## 2026-11-05 — Reusable public-dataset benchmark pipeline
+
+**CONFIRMED DONE — SKIP (fixture-verified implementation):**
+
+- Before edits, 39 existing evaluator/oracle/converter checks and 82 existing
+  writer/retriever/assembler checks passed. Existing ingestion, SDK/API, outbox,
+  scoring oracle, packing, cosine, provider/retry and legacy retrieval components
+  were reused. The original synthetic evaluator and ingestion-only ConvoMem
+  converter are preserved; they were not replaced with parallel implementations.
+- `agent-context-benchmark` provides `plan`, `schema`, `acquire`, `prepare`,
+  explicitly enabled `run`, `score`, `report` and owner-checked scratch `clean`.
+  Dataset/method selection, budgets, sampling, seeds, trials, models and prices
+  are configuration, not hardcoded research answers.
+- Native LongMemEval oracle/s/m, ConvoMem raw/premixed and LoCoMo adapters retain
+  QA references, categories, original source evidence and dates. ConvoMem's
+  premixed outer distractors remain in history. Normalized JSON/JSONL supports
+  supplied offline QA/next-action datasets. Unknown schemas, duplicate IDs,
+  future history and malformed data fail before model calls.
+- Pinned acquisition supports explicit SHA-256s, paginated Hugging Face file
+  discovery, local files/directories, per-file checkpoints and bounded streaming
+  JSON. Regression tests reproduced/fixed sampling settings incorrectly
+  invalidating raw-cache identity. Limits can now expand without downloading
+  unchanged data again; mismatched source identities/checksums are rejected.
+- Real authenticated HTTP/SDK → outbox → worker → existing ingestion → assembly
+  and legacy retrieval run against exclusive empty scratch stores. Subject/history
+  isolation avoids the global resolver's shared-state contamination. Store reset
+  requires matching ownership in both stores and an `ace_benchmark_` Mongo name;
+  populated unclaimed stores are refused. Replay clocks are injected into
+  existing effective-write/promotion/retrieval/assembly paths; default runtime
+  clocks and UI behavior remain unchanged.
+- All six methods use the same answer model/prompt/schema, question/date, context
+  allowance and output budget. Summaries are rolling and bounded, passage/query
+  embeddings are distinct, summary/vector caches are checksum verified, and
+  identical subject/history ingestion can be reused. No ground-truth labels are
+  sent to ingestion/preparation/generation; only the optional judge receives them.
+- Deterministic EM/F1 and abstention diagnostics, optional category-aware judge,
+  source recall where mapped, category metrics, subject/conversation-clustered
+  intervals and sample-limited latency percentiles are automated. Saved judge
+  results bind exact inputs/version; a changed answer cannot reuse an old verdict.
+- Stage-level chat/embedding attempts, failures, reported tokens, latencies and
+  configured USD rates are retained. Missing/invalid/null usage is unknown rather
+  than zero. Shared work is charged once globally, with separate per-method setup
+  attribution. Archived incomplete attempts remain in all-attempt cost totals.
+  A hard request ceiling also covers retries/repairs; `run` without `--execute`
+  makes no provider calls. Resume skips completed cases and preserves failures.
+- Private per-case/run JSON, Markdown summaries and LongMemEval-compatible
+  hypothesis exports retain configuration, source/model/prompt/code fingerprints
+  and dependency versions. No official semantic-score equivalence is asserted.
+
+**Evidence and setup:** [benchmark guide](docs/ace/benchmarks.md),
+`tests/unit/test_benchmark_datasets.py`, `test_benchmark_runner.py`,
+`tests/integration/test_benchmark_pipeline.py` and the validation ledger. The
+integration suite uses tiny native/normalized fixtures, real isolated stores and
+fully mocked model/embedding responses, including the CLI's complete staged path
+and zero-call resume. CI is configured to run these fixtures first on its empty
+graph. The current changes have not yet run on remote CI.
+Final regression: **537 passed, two paid live-model checks skipped, one legacy
+live-UI case deselected (22.22 s)**; Pyright zero errors/warnings. The installed
+CLI and documented Compose override validate. See
+`docs/ace/results/benchmark-pipeline-verification-20261105.json` for the exact
+commands and source fingerprints.
+
+**R08 remains PARTIAL for measured results:** per the user's explicit instruction,
+no full dataset evaluation or paid model experiment ran. Native full-corpus
+compatibility, actual benchmark quality, real dollar costs, official evaluator
+parity and large-run performance remain unmeasured. LoCoMo's actual
+`README.MD`/`LICENSE.txt` were found and its CC-BY-NC-4.0 metadata verified;
+older differently cased URL 404s are historical. MemoryArena/StateMemBench/handoff
+assets still lack a verified native integration; normalized offline exports are
+supported, not their interactive environments. R09/R10 production-system gates
+are unchanged. See `docs/ace/validation.md` for final executed test counts.
 
 ## 2026-11-05 — R08 measurement and R09 session-scope increment
 
@@ -201,10 +273,10 @@ independent samples for confidence/tail latency, cross-provider validation,
 exposed-key revocation confirmation, production distributed graph fencing,
 quotas/identity/TLS/load/chaos and privacy-aware backup/restore. No UI change,
 shared-database multi-tenancy, production SLO or exactly-once external transaction
-claim is introduced. New changes are local: automatic approval rejected pushing
-the later code payload to the public repository because the earlier approval
-covered a different prepared patch. Fresh publication approval is pending;
-no latest-commit GitHub CI run is claimed.
+claim is introduced. Publication was initially rejected under approval for an
+older patch. The user subsequently approved these three increments; they were
+pushed through `cec34e8` and passed GitHub CI. The newer benchmark-pipeline
+increment above remains local; its remote CI has not run.
 
 ## 1. What is already present — VERIFY ONCE, PRESERVE AND SKIP WHEN CONFIRMED
 
@@ -696,7 +768,7 @@ documented API/SDK.
 | R05 Scope/temporal parity | CONFIRMED DONE for private memory/current operational TASK; broader shared scope PARTIAL | Real current/as-of/supersession/revocation tests; bound task/project and negative tenant/user/project checks | Preserve chosen physical partition/fail-closed shared scopes; no legacy graph-TASK migration claimed |
 | R06 Independent agent integration | CONFIRMED DONE (SDK/HTTP-only host and two NVIDIA models); cross-provider UNVERIFIED | `test_ace_continuation_live.py`, `continuation-c404a96f34ed.json`; failed alternate Mistral result retained | Do not add adapters; prove a real second provider when configured |
 | R07 Real outcome evaluation | CONFIRMED DONE (existing bounded research task) | Source checkpoint 9ad2d52; live-demo-verified-20261104.json passes all per-session typed/quote/source checks; recommendation-oracle-negative-v2-20261104.json rejects the exact preserved refusal; unit negative matrix passes | SKIP rebuilding oracle; same-model-judge limits and broader R08 benchmark gates remain explicit |
-| R08 Comparative benchmarks | PARTIAL | Repeated six-baseline comparison, strict source gate, equal source rubric, retry/usage accounting and 500/4000-byte budget runs; see 2026-11-05 increment below | Public/multi-scenario evaluation, ablations, full ingestion/embedding/dollar costs remain open |
+| R08 Comparative benchmarks | Pipeline CONFIRMED DONE within fixture-tested bounds; measured results PARTIAL | Reusable pinned acquisition/adapters, real ACE/legacy integration, six methods, controlled experiments, checkpointing, scoring and stage accounting; see benchmark guide and latest validation | Full public runs, official scoring, ablations and real quality/cost/scale conclusions remain unmeasured; do not run them without authorization |
 | R09 Production security/privacy | PARTIAL | To fill | Rotation/isolation/negative gates |
 | R10 Production ops/chaos/recovery | PARTIAL | To fill | Verify failures/restore/load |
 | R11 Documentation consistency | PARTIAL | To fill | Correct after code verification |

@@ -24,6 +24,12 @@ source links, bounded search snippets and recorded citations. Set
 `BRAVE_SEARCH_API_KEY` securely to enable it; the sample demo works without a key.
 See [web-search setup](docs/ace/operations.md#optional-web-search).
 
+For reusable LongMemEval, ConvoMem and LoCoMo experiments, see the
+[benchmark pipeline guide](docs/ace/benchmarks.md). It includes acquisition,
+configuration, isolated ACE ingestion, six baselines, scoring and reproducible
+reports. Validation used small fixtures and mocked providers; full public
+benchmark results are not claimed.
+
 See [one-command development setup and recovery](docs/ace/operations.md),
 [current validation evidence](docs/ace/validation.md), and
 [service configuration](docs/ace/development.md) and

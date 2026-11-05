@@ -281,6 +281,18 @@ def verified_source(
     return source
 
 
+def reported_tokens(usage: object, field: str) -> int | None:
+    """Provider usage is known only for actual nonnegative integer counts."""
+    if not isinstance(usage, dict):
+        return None
+    value = usage.get(field)
+    return (
+        value
+        if isinstance(value, int) and not isinstance(value, bool) and value >= 0
+        else None
+    )
+
+
 class MeteredTransport(ChatTransport):
     def __init__(self, settings: Settings) -> None:
         super().__init__(settings.chat, retry=settings.retry)
@@ -307,10 +319,12 @@ class MeteredTransport(ChatTransport):
         body = await super().post(path, payload, label)
         self.calls += 1
         usage = body.get("usage") or {}
-        if "prompt_tokens" not in usage or "completion_tokens" not in usage:
+        prompt = reported_tokens(usage, "prompt_tokens")
+        completion = reported_tokens(usage, "completion_tokens")
+        if prompt is None or completion is None:
             self.missing_usage_responses += 1
-        self.prompt_tokens += int(usage.get("prompt_tokens") or 0)
-        self.completion_tokens += int(usage.get("completion_tokens") or 0)
+        self.prompt_tokens += prompt or 0
+        self.completion_tokens += completion or 0
         return body
 
 

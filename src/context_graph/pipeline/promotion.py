@@ -7,6 +7,9 @@ shared context (spec section 4, A.13).
 
 from __future__ import annotations
 
+from collections.abc import Callable
+from datetime import datetime
+
 from context_graph.domain.enums import ContextStatus
 from context_graph.graph.neo4j_store import Neo4jGraphStore
 from context_graph.ledger.models import utcnow
@@ -19,10 +22,11 @@ _logger = get_logger("pipeline.promotion")
 class PromotionService:
     """Evaluate shared-scope candidates against the promotion policy."""
 
-    def __init__(self, *, store: Neo4jGraphStore, policy: WriterPolicy, batch_size: int) -> None:
+    def __init__(self, *, store: Neo4jGraphStore, policy: WriterPolicy, batch_size: int, clock: Callable[[], datetime] | None = None) -> None:
         self._store = store
         self._policy = policy
         self._batch_size = batch_size
+        self._clock = clock or utcnow
 
     async def run(self) -> list[str]:
         """Promote every candidate whose evidence satisfies its scope's rule."""
@@ -36,7 +40,7 @@ class PromotionService:
             evidence = support.get(candidate.context_id)
             if evidence is None or not self._policy.may_promote(candidate, evidence):
                 continue
-            await self._store.set_status(candidate.context_id, ContextStatus.ACTIVE, utcnow())
+            await self._store.set_status(candidate.context_id, ContextStatus.ACTIVE, self._clock())
             promoted.append(candidate.context_id)
             log_event(
                 _logger,

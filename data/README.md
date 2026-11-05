@@ -1,5 +1,10 @@
 # Data
 
+The reusable QA benchmark pipeline stores ignored raw/prepared/run artifacts under
+`data/benchmarks/` by default. It retains ground truth separately from generation
+inputs; see [benchmark acquisition and commands](../docs/ace/benchmarks.md).
+The older session-only ConvoMem conversion described below remains unchanged.
+
 Input files for the Context Graph pipeline. Everything here is read by a command; nothing in this folder is code. Git tracks this README, `org_structure.json`, and `convomem_demo/`. The raw benchmark in `convomem/` stays local, because it is about 830 MB and the demo set is built from it.
 
 Audit on 2026-11-05: the raw corpus is absent in this checkout. The converted

@@ -13,6 +13,7 @@ it was stated in and is never carried into a new one (spec A.9).
 from __future__ import annotations
 
 import asyncio
+from collections.abc import Callable
 from datetime import datetime
 from time import perf_counter
 from types import TracebackType
@@ -153,9 +154,11 @@ class Neo4jContextRetriever:
         driver: AsyncDriver | None = None,
         max_items: int | None = None,
         include_shared_scopes: bool | None = None,
+        clock: Callable[[], datetime] = utcnow,
     ) -> None:
         base = agent_settings or AgentSettings()
         self._settings = settings
+        self._clock = clock
         self._agent = base.model_copy(
             update={
                 key: value
@@ -196,7 +199,7 @@ class Neo4jContextRetriever:
 
     async def retrieve(self, user_id: str, query: str | None = None) -> RetrievalResult:
         """Select what applies to ``user_id`` and explain the choice."""
-        now = utcnow()
+        now = self._clock()
         started = perf_counter()
         agent = self._agent
 

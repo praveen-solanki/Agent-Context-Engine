@@ -19,6 +19,7 @@ agent-context-api = "agent_context.runtime:api_main"
 agent-context-worker = "agent_context.runtime:worker_main"
 agent-context-demo = "agent_context.demo_cli:main"
 agent-context-evaluate = "agent_context.evaluation:main"
+agent-context-benchmark = "agent_context.benchmarks.cli:main"
 agent-context-init = "agent_context.init_dev:main"
 
 [dependency-groups]

@@ -1,5 +1,10 @@
 # Development and recovery runbook
 
+For configurable LongMemEval/ConvoMem/LoCoMo acquisition, isolated ingestion,
+comparisons, scoring, reports and benchmark recovery, use the dedicated
+[benchmark pipeline guide](benchmarks.md). Its scratch stores are separate from
+the application below; full benchmarks are not part of normal app startup.
+
 ## One-command local launcher
 
 In a local clone of the Agent-Context-Engine repository, run:

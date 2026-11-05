@@ -37,6 +37,12 @@ jobs:
       - run: uv sync --frozen
       - run: bash -n run.sh
       - run: uv run --frozen pyright
+      - name: Benchmark pipeline fixtures (mocked providers)
+        env:
+          CG_INTEGRATION: '1'
+          ACE_BENCHMARK_TEST_NEO4J_URI: bolt://127.0.0.1:7690
+        # This runs first while the job's graph is empty, then releases it.
+        run: uv run --frozen pytest tests/integration/test_benchmark_pipeline.py -q
       - name: Unit, end-to-end, UI and database integration
         env:
           CG_INTEGRATION: '1'
