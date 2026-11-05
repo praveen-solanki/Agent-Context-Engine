@@ -670,6 +670,36 @@ Do not claim measured token reduction, task-success gain, p95 latency, multi-ten
 
 ### Progress ledger (the next agent should maintain this)
 
+2026-11-05 owner-authorized conversational workspace: the first four UI/continuity
+improvements are **CONFIRMED DONE within the focused verification bounds**.
+Existing ingestion, task CAS, mandatory assembly, tool receipts and governance
+were inspected/reused. The page now automatically records quoted conversational
+task changes, distinguishes sourced user reports from verified tool execution,
+restores owner/project-scoped conversations, binds new answers to current task
+revisions, and exposes real evidence/correction/removal actions. New title/list
+metadata lives on the existing event streams; no extra database/framework/demo
+was added. The UI is neutral/teal, chat-centred, with project/conversation navigation
+and an optional context inspector. Manual progress forms are removed; historical
+handoff API/SDK support is preserved.
+
+Evidence: 28 unit/UI + ten new real-Mongo API/SDK + ten affected host-grounding
++ three compatibility checks pass (51 distinct focused checks across scoped
+runs); changed-code/tests strict Pyright clean. New integration tests use mocked
+providers and explicitly advanced worker watermarks; they are not live extraction
+or universal task-success proof. Tests cover retry after a recorded tool result,
+concurrent plan changes, original-quote validation, cross-scope navigation,
+legacy hash replay and interrupted exact-target correction. Existing quotas and
+configured project grants remain. Historic answers expose original references but
+do not invent their old selected bundles. See [workspace guide](ui/README.md),
+[verification](docs/ace/validation.md), and the current increment at the top of
+[remaining work](REMAINING_WORK.md).
+
+The owner explicitly excluded usefulness/benchmark work and production-readiness
+work from this increment. Those gates remain unchanged; no full suite, full
+benchmark, paid model run or new production infrastructure was executed/added.
+This scoped UI request overrides older console-freeze notes only for this work.
+
+
 2026-11-05 reusable R08 benchmark pipeline: **CONFIRMED DONE within small-fixture
 verification bounds; public benchmark results remain UNMEASURED.** The audit
 confirmed/skipped 39 existing evaluation/oracle/converter checks and 82

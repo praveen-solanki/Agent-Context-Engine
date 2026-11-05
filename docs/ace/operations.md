@@ -108,8 +108,9 @@ uv run --frozen agent-context-evaluate data/ace_demo/<run-id>.json
 uv run --frozen python -m streamlit run ui/context_engine.py --server.headless=true
 ```
 
-The new console displays actual research answers, selected context, token counts,
-evidence, exclusion reasons, verified tool work and handoff revisions. The original
+The workspace displays recorded conversations and current project/task context.
+Sources and activity exposes answer evidence and verified tool work; selection
+details are available for newly generated answers. See the [workspace guide](../../ui/README.md). The original
 `ui/streamlit_app.py` remains a local legacy diagnostic view. Do not expose its raw
 user-selection/graph-planning interface as a multi-tenant authenticated product.
 
@@ -130,9 +131,13 @@ validate source identity/provenance, not automatic semantic proof of every
 sentence. A cached answer whose cited memory is no longer selected cannot be
 reused; start a new turn. Web-required mode still requires document evidence.
 
-**New session** clears previous input, result/context and web-search selections.
-An explicit saved handoff remains available for continuation; durable memory is
-not erased by starting a new session.
+**New conversation** starts a clean chat and clears source selections while
+keeping the project plan and durable memory. Saved conversations appear in the
+sidebar and can be reopened or renamed; browser URLs restore the selected project
+and conversation. Task progress saves through normal conversation. User reports,
+verified tool outcomes and assistant suggestions are labelled separately. The
+Context panel offers evidence, memory correction and removal. Existing handoff
+API/SDK operations remain available; the UI needs no manual progress save.
 
 ## Upgrading existing session project bindings
 
@@ -219,10 +224,10 @@ After pulling this change, rebuild/restart the API and worker with
 `docker compose up --build -d` so their additive event schema accepts stored
 answer citations. Existing events remain readable.
 
-In the console, expand **Web search (optional)**, enter a **Web search query** and
-click **Search web**. Enable **Use these web results for the next answer**, then
-ask your question in **Message**. The research host must read at least one selected
-source before answering. **Cited web source** buttons open only the validated URLs
+In the sidebar, expand **Sources**, select **Web search**, enter a **Search query**
+and click **Search web**. Enable **Use these sources**, then ask your question in
+the message composer. The research host must read at least one selected
+source before answering. Cited source buttons open only the validated URLs
 corresponding to the sources actually cited by that answer.
 
 Only the explicit search query is sent to Brave; the app does not automatically
@@ -232,7 +237,8 @@ page reads. Redirects are not followed and arbitrary result URLs are never fetch
 by the server. Private/local/credential-bearing URLs are excluded. Source
 snapshots, citations and authenticated read outcomes are preserved through the
 same event path as sample documents; changed sources cannot silently reuse a
-cached answer.
+cached answer for fresh execution. Reopened workspace conversations display
+recorded answers as history, with current memory shown separately.
 
 `ACE_SEARCH_RESULT_COUNT` (1–5) and `ACE_SEARCH_TIMEOUT_SECONDS` configure the
 optional adapter. Provider authentication/rate-limit failures and empty results

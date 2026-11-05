@@ -11,6 +11,43 @@
 
 ---
 
+## Current UI increment — 2026-11-05 (owner-authorized scope)
+
+This instruction supersedes the older frozen-console/UI exclusions below for
+this increment only. Implement the first four conversation/UI improvements;
+**do not implement usefulness/benchmark or production-readiness work.** Baseline
+`4e56b06` was already pushed and passed GitHub CI. This workspace increment is
+local and has not been pushed.
+
+| Requested improvement | Inspected implementation and decision | Verified result |
+|---|---|---|
+| 1. Automatic conversation-to-project continuity | Existing event ingestion, canonical task CAS and receipts: **CONFIRMED DONE, SKIP rebuilding**. Manual UI handoff controls were partial wiring. Added source-validated TaskIntent orchestration over the same SDK/task service. | **CONFIRMED DONE within tested bounds**: quoted goals/requirements/plans, sourced user progress, cancellations/blockers/dependencies; ordinary questions do not create tasks, ambiguous changes ask for clarification. |
+| 2. Persistent project/conversation navigation | Existing streams and project grants: **CONFIRMED DONE, SKIP new storage/auth**. Listing and durable titles were missing. Added metadata/index and owner/project-filtered API/SDK navigation. | **CONFIRMED DONE**: reopening/browser refresh, renaming, pagination, old streams, project/user/tenant isolation and erasure fence. |
+| 3. Current-state continuation and honest progress | Current-task assembly and tool verification already exist: **CONFIRMED DONE, SKIP assembler rewrite**. Connected the actual chat host and context panel. | **CONFIRMED DONE within existing bounded tasks/host**: new sessions assemble current task revisions; reports remain unverified; suggestions stay unapproved; receipts survive interrupted answers without duplicate reads; concurrent plan changes produce a warning. |
+| 4. Evidence inspection and memory correction/removal | Existing evidence/revocation services: **CONFIRMED DONE, SKIP governance rewrite**. Added real UI actions and durable correction target references. | **CONFIRMED DONE for new wiring**: original statements/tool results, exact memory target/fingerprint, interrupted correction recovery, plain-text evidence, correction/removal controls and pending-request protection. Existing ingestion/governance semantics are reused. |
+
+The UI now has saved projects/conversations on the left, normal conversation in
+the centre and a collapsible current-context inspector on the right. No manual
+Save progress or Continue your work form is required. This is the actual page,
+not a separate demo implementation. See [workspace guide](ui/README.md).
+
+Focused verification: **28 unit/UI checks and ten new real-Mongo API/SDK checks
+pass**. Ten directly affected host-grounding checks and three existing compatibility
+checks (legacy handoff hash, agent authority/receipts, duplicate intake) also pass:
+**51 distinct focused checks total**, accumulated across scoped runs. Strict
+Pyright on changed code/tests: zero errors/warnings. No full suite, paid provider
+run, full ingestion E2E or benchmark was run. See [validation evidence](docs/ace/validation.md).
+
+Limits remain explicit: configured project grants, one workspace plan per
+user/project, existing event/revision/entry/token quotas, source-grounding versus
+semantic correctness, and no arbitrary external executor. Source extraction still
+uses the existing configured provider/worker. Historic answers are labelled and
+do not claim retained original selections. New tests use mocked planners/answers
+and explicit worker watermarks, so they do not establish live model reliability.
+The two deferred areas remain untouched and open.
+
+---
+
 ## Current status and next execution — verified 2026-11-05
 
 **Latest inspected baseline:** `6c76b13`; retrieval increment committed at `8ed65b8`, followed by the verified task-state increment described in Section 7. This supplements the older baseline at the top; **re-verify at HEAD before coding**.
@@ -34,11 +71,11 @@
 | 6 | **R09 + R10 — production gates** | Tenant-isolation/deployment decision; verify rotation/revocation of historically exposed credential; security and poisoning tests; distributed worker/write fencing; rates/quotas; secure TLS/identity; observability; load/chaos; privacy-aware backup restore and retention. | Target deployment's security, recovery and reliability supported by actual tests/runbooks, not local Docker alone. |
 | 7 | **R11 — documentation reconciliation** | Keep README, master blueprint, validation and this file consistent with proven functionality. | Code, tests, documentation and status table agree. |
 
-**Current code:** search is distinct from assembly; runtime wires native lexical/semantic retrieval plus the required current-task source. Historical memory is explicit. Canonical task versions and accepted requirements are reconciled before handoff continuation. Legacy snapshot-only clients retain their documented weaker semantics. Generic task controls are API/SDK operations; the frozen console was not expanded.
+**Current code:** search is distinct from assembly; runtime wires native lexical/semantic retrieval plus the required current-task source. Historical memory is explicit. Canonical task versions and accepted requirements are reconciled before handoff continuation. Legacy snapshot-only clients retain their documented weaker semantics. Generic task controls remain API/SDK operations; the owner-authorized workspace increment above now connects its current project plan to conversational UI updates.
 
 **Latest local evidence:** **537 passing tests, two paid live checks skipped, one legacy live-UI test deselected (22.22 s)**; Pyright clean. Benchmark integration uses real isolated stores and mocked providers. Earlier two-model continuation and changed-artifact live runs remain separate historical evidence; they were not rerun for this no-paid-benchmark request. Exposed-key revocation remains unverified pending owner confirmation. No production readiness or statistical performance gain is claimed.
 
-**Immediate next task:** The reusable R08 dataset pipeline is implemented and fixture-verified; do not rebuild it or run costly/full benchmarks without a new request. Use `docs/ace/benchmarks.md` for actual experiment commands. Full public results, ablations and real-cost/quality conclusions remain unmeasured. R09/R10, cross-provider validation and exposed-key revocation remain separate open gates. The earlier three commits through `cec34e8` were pushed with explicit approval and their GitHub CI passed; the newer benchmark-pipeline work is local pending publication.
+**Immediate next task:** The reusable R08 dataset pipeline is implemented and fixture-verified; do not rebuild it or run costly/full benchmarks without a new request. Use `docs/ace/benchmarks.md` for actual experiment commands. Full public results, ablations and real-cost/quality conclusions remain unmeasured. R09/R10, cross-provider validation and exposed-key revocation remain separate open gates. The earlier audit and benchmark pipeline through `4e56b06` were pushed with explicit approval and passed GitHub CI. The newer workspace increment above is local pending publication.
 
 ---
 

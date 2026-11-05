@@ -193,6 +193,7 @@ class TaskStateService:
                 "dependencies",
                 "status",
                 "expires_at",
+                "reported_completed",
             }
             if request.model_dump(include=protected) != existing.content.model_dump(
                 include=protected
@@ -242,6 +243,19 @@ class TaskStateService:
             ):
                 raise EventConflict(
                     "verified completed actions cannot be removed or rewritten"
+                )
+        previous_reports = (
+            set(existing.content.reported_completed) if existing else set()
+        )
+        for report in request.reported_completed:
+            if report not in previous_reports and (
+                principal.actor_kind != "user"
+                or report.source_session_id != request.source_session_id
+                or report.source_event_id != request.source_event_id
+                or report.quote not in source.event.text
+            ):
+                raise PermissionError(
+                    "reported progress requires the user's exact source quote"
                 )
         snapshot = await self.snapshots.prepare(
             principal,

@@ -32,6 +32,13 @@ from agent_context.contracts import (
     Stream,
 )
 from agent_context.event_store import MongoEventStore
+from agent_context.navigation import (
+    ProjectDirectory,
+    ProjectEntry,
+    SessionEntry,
+    SessionPage,
+    SessionTitle,
+)
 from agent_context.artifacts import ArtifactInput, ArtifactDocument, ArtifactStore
 from agent_context.governance import GovernanceService, RevocationInput
 from agent_context.events import CapacityExceeded, EventConflict
@@ -289,6 +296,35 @@ def create_app(
         if governance is None:
             raise RuntimeError("governance adapter unavailable")
         return await governance.erasure_status(actor)
+
+    @app.get("/v1/projects")
+    async def projects(actor: Principal = Depends(authenticate)) -> ProjectDirectory:
+        actor.require(Permission.VIEW)
+        return ProjectDirectory(
+            projects=tuple(
+                ProjectEntry(
+                    project_id=identifier,
+                    title=identifier.replace("-", " ").replace("_", " ").capitalize(),
+                )
+                for identifier in sorted(actor.projects)
+            ),
+            permissions=actor.permissions,
+        )
+
+    @app.get("/v1/sessions")
+    async def sessions(
+        project_id: str,
+        limit: int = 30,
+        cursor: str | None = None,
+        actor: Principal = Depends(authenticate),
+    ) -> SessionPage:
+        return await events.sessions(actor, project_id, limit=limit, cursor=cursor)
+
+    @app.post("/v1/sessions/{session_id}/title")
+    async def rename_session(
+        session_id: str, body: SessionTitle, actor: Principal = Depends(authenticate)
+    ) -> SessionEntry:
+        return await events.rename(actor, session_id, body)
 
     @app.get("/v1/sessions/{session_id}")
     async def inspect_session(

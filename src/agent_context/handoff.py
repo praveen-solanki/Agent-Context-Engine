@@ -35,6 +35,15 @@ class CompletedAction(Contract):
 TASK_STATE_PREFIX = "ace_task."
 
 
+class ReportedProgress(Contract):
+    """A user's sourced statement, explicitly distinct from verified execution."""
+
+    description: str = Field(min_length=1, max_length=4000)
+    quote: str = Field(min_length=1, max_length=4000)
+    source_session_id: Identifier
+    source_event_id: Identifier
+
+
 class WorkState(Contract):
     """The same bounded work contract for live state and historical handoffs."""
 
@@ -44,6 +53,7 @@ class WorkState(Contract):
     goal: str = Field(min_length=1, max_length=4000)
     requirements: tuple[str, ...] = Field(default=(), max_length=32)
     completed: tuple[CompletedAction, ...] = Field(default=(), max_length=32)
+    reported_completed: tuple[ReportedProgress, ...] = Field(default=(), max_length=32)
     pending: tuple[str, ...] = Field(default=(), max_length=32)
     blockers: tuple[str, ...] = Field(default=(), max_length=32)
     unresolved_operations: tuple[Identifier, ...] = Field(default=(), max_length=32)
@@ -130,6 +140,7 @@ class HandoffService:
         payload = request.model_dump(mode="json")
         # Preserve idempotency hashes written before additive task fields.
         defaults: dict[str, object] = {
+            "reported_completed": [],
             "status": "active", "cancelled": [], "dependencies": [],
             "source_event_id": None, "must_keep": [], "task_state_version": None,
         }

@@ -1,145 +1,277 @@
-"""Presentation components for the research console; no service mutations."""
+"""Presentation for the persistent workspace; service actions are returned to the page."""
 
 from __future__ import annotations
 
 from dataclasses import dataclass
 from pathlib import Path
+from typing import Literal
 
 import streamlit as st
 
-from agent_context.demo import MEMORY_SOURCE_PREFIX, ResearchTurn
-from agent_context.search import SearchResult
+from agent_context.assembly import ContextItem
+from agent_context.contracts import Permission
+from agent_context.demo import MEMORY_SOURCE_PREFIX
+from ui.workspace import ConversationTurn, WorkspaceSnapshot
 
 
 @dataclass(frozen=True)
-class ConversationTurn:
-    message: str
-    result: ResearchTurn
-    sources: tuple[SearchResult, ...] = ()
+class InspectorAction:
+    kind: Literal["evidence", "event", "correct", "remove", "suggestion"]
+    item: ContextItem | None = None
+    text: str = ""
+    identifier: str = ""
+    session_id: str = ""
+
+
+def plain_label(value: str) -> str:
+    """Widget labels support Markdown; keep untrusted titles as literal text."""
+    return "".join(
+        "\\" + char if char in "\\`*_{}[]()#+.!<>|~=-" else char for char in value
+    )
 
 
 def apply_style() -> None:
-    # Static, repository-owned styles only. Model/user text never enters HTML.
     css = Path(__file__).with_name("context_engine.css").read_text()
     st.markdown(f"<style>{css}</style>", unsafe_allow_html=True)
 
 
 def brand() -> None:
     st.markdown(
-        '<div class="ace-brand"><div class="ace-monogram">AC</div>'
-        '<div><div class="ace-brand-name">Context Engine</div>'
-        '<div class="ace-brand-subtitle">Research workspace</div></div></div>',
+        '<div class="ace-brand">Context Engine</div><div class="ace-brand-subtitle">Your project workspace</div>',
         unsafe_allow_html=True,
     )
 
 
-def header() -> None:
-    st.markdown('<div class="ace-eyebrow">RESEARCH WORKSPACE</div>', unsafe_allow_html=True)
-    st.title("Agent Context Engine")
-    st.caption("Research with memory and evidence.")
+def header(title: str) -> bool:
+    main, toggle = st.columns([4, 1], vertical_alignment="center")
+    with main:
+        st.title(title)
+        st.caption("Conversation, memory and progress in one place.")
+    with toggle:
+        show = st.toggle("Context", value=True, key="ace_show_context")
+    if show:
+        st.markdown('<span class="ace-with-context"></span>', unsafe_allow_html=True)
     st.divider()
+    return show
 
 
-def welcome(*, with_web: bool = False) -> str | None:
+def welcome() -> str | None:
     st.markdown(
-        '<div class="ace-empty"><h2>Start with a question.</h2>'
-        '<p>Compare the sample brief, share a preference, or continue previous work. '
-        'Each answer includes its sources and relevant memory.</p></div>',
+        '<div class="ace-empty"><h2>What are you working on?</h2><p>Describe a goal, share a change, or continue a project. Useful memory and task updates are saved as you talk.</p></div>',
         unsafe_allow_html=True,
     )
-    st.caption("TRY A REQUEST")
-    left, right = st.columns(2)
-    with left:
-        compare = st.button(
-            "Summarize selected sources" if with_web else "Compare the sample options",
-            icon=":material/compare_arrows:", width="stretch",
-        )
-    with right:
-        remember = st.button("Remember a report preference", icon=":material/bookmark_add:", width="stretch")
-    if with_web:
-        st.caption("The next answer will use your selected search-result snippets.")
-    else:
-        st.markdown(
-            '<div class="ace-brief">The sample brief includes two options: '
-            'A costs 10 units and works offline. B costs 20 units and needs a network.</div>',
-            unsafe_allow_html=True,
-        )
-    if compare:
-        if with_web:
-            return "Summarize the selected web results and cite the sources you use."
-        return "Read research-brief and recommend the cheapest option that works offline. Cite the document."
-    if remember:
-        return "Remember that I prefer concise research summaries in English."
+    if st.button("What do you remember about this project?", icon=":material/history:"):
+        return "What do you remember about this project, and what work remains?"
     return None
 
 
-def render_details(turn: ConversationTurn, turn_index: int) -> None:
-    result = turn.result
-    cited_memory = [
-        item for item in result.bundle.items
-        if MEMORY_SOURCE_PREFIX + item.item_id in result.citations
-    ]
-    with st.expander("Sources, memory and activity"):
-        sources, memory, activity = st.tabs(["Sources", "Memory used", "Activity"])
-        with sources:
-            web_ids = {source.document_id for source in turn.sources}
-            for index, source in enumerate(turn.sources, 1):
-                if source.document_id in result.citations:
-                    st.text(source.title)
-                    st.link_button(f"Open cited source {index}", str(source.url),
-                                   key=f"cited_source_{turn_index}_{index}")
-            for citation in result.citations:
-                if citation not in web_ids and not citation.startswith(MEMORY_SOURCE_PREFIX):
-                    st.caption("Document")
-                    st.text(citation)
-            for item in cited_memory:
-                st.caption("Cited memory")
-                st.text(item.text)
-                st.caption("Memory evidence: " + ", ".join(item.evidence_ids))
-            if not result.citations:
-                st.caption("No sources were cited in this answer.")
-        with memory:
-            if result.bundle.items:
-                st.caption("Stored context selected for this answer.")
-                for item in result.bundle.items:
-                    st.text(item.text)
-                    st.caption("Evidence: " + ", ".join(item.evidence_ids))
-            else:
-                st.caption("No stored memory was selected for this answer.")
-        with activity:
-            if result.completed:
-                for action in result.completed:
-                    st.text(action.description)
-                    st.caption("Recorded outcome: " + action.result_event_id)
-            else:
-                st.caption("No document reads were needed for this answer.")
-            if result.cached:
-                st.caption("Recovered a recorded answer. The model and tools were not run again.")
-        with st.expander("Technical details"):
-            st.caption(f"Context size: {result.bundle.token_count} tokens (conservative upper bound)")
-            st.json({
-                "bundle_id": result.bundle.bundle_id,
-                "excluded": result.bundle.excluded_counts,
-                "reasons": [entry.model_dump() for entry in result.bundle.exclusions],
-                "warnings": result.bundle.warnings,
-                "model_calls": result.model_calls,
-            })
-
-
-def render_turn(turn: ConversationTurn, index: int) -> None:
+def render_turn(turn: ConversationTurn, index: int) -> InspectorAction | None:
     with st.chat_message("user", avatar=":material/person:"):
         st.caption("YOU")
         st.text(turn.message)
     with st.chat_message("assistant", avatar=":material/notes:"):
-        st.caption("ASSISTANT")
-        # Keep untrusted content plain text: no HTML or remote image rendering.
+        st.caption("CONTEXT ENGINE")
         st.text(turn.result.answer)
-        memories = len(turn.result.bundle.items)
-        reads = len(turn.result.completed)
-        memory_label = "memory item" if memories == 1 else "memory items"
-        read_label = "document read" if reads == 1 else "document reads"
+        with st.expander("Sources and activity"):
+            if turn.recorded:
+                st.caption(
+                    "Recorded conversation. The original context selection is not retained here; the panel shows current project memory."
+                )
+            elif turn.result.bundle.items:
+                st.caption(
+                    f"{len(turn.result.bundle.items)} context items used for this answer."
+                )
+            sources = {source.document_id: source for source in turn.sources}
+            memory = {item.item_id: item for item in turn.result.bundle.items}
+            for citation in turn.result.citations:
+                if citation.startswith(MEMORY_SOURCE_PREFIX):
+                    identifier = citation.removeprefix(MEMORY_SOURCE_PREFIX)
+                    if identifier in memory:
+                        st.text(memory[identifier].text)
+                    if st.button(
+                        "View memory evidence", key=f"citation-{index}-{identifier}"
+                    ):
+                        return InspectorAction("evidence", identifier=identifier)
+                elif citation in sources:
+                    source = sources[citation]
+                    st.link_button(
+                        plain_label(source.title),
+                        str(source.url),
+                        key=f"cited-{index}-{citation}",
+                    )
+                else:
+                    st.caption("Recorded source: " + citation)
+            for action in turn.result.completed:
+                st.text(action.description)
+                if st.button(
+                    "View recorded result", key=f"action-{index}-{action.action_id}"
+                ):
+                    return InspectorAction(
+                        "event",
+                        identifier=action.result_event_id,
+                        session_id=action.source_session_id,
+                    )
+            if turn.result.task_context:
+                st.caption(
+                    f"Answered with project revision {turn.result.task_context.version}."
+                )
+            if not turn.result.citations and not turn.result.completed:
+                st.caption(
+                    "No source references or tool outcomes recorded for this answer."
+                )
+            if not turn.recorded:
+                with st.expander("Selection details"):
+                    st.json(
+                        {
+                            "bundle_id": turn.result.bundle.bundle_id,
+                            "excluded": turn.result.bundle.excluded_counts,
+                            "warnings": turn.result.bundle.warnings,
+                            "model_calls": turn.result.model_calls,
+                        }
+                    )
+    return None
+
+
+def render_context(
+    snapshot: WorkspaceSnapshot,
+    suggestions: tuple[str, ...],
+    *,
+    allow_submit: bool = True,
+) -> InspectorAction | None:
+    st.subheader("Project context")
+    task = snapshot.task
+    if task:
+        st.caption(f"Project revision {task.version} · saved automatically")
+        if not task.source_available:
+            st.info(
+                "The latest task update is still processing. Refresh before continuing."
+            )
+        if task.warnings:
+            st.warning("Some project evidence needs to be checked again.")
+        st.markdown("**Goal**")
+        st.text(task.content.goal)
+        if task.content.requirements:
+            with st.expander("Requirements"):
+                for requirement in task.content.requirements:
+                    st.text("• " + requirement)
+        if st.button("Latest plan update", key="task-source"):
+            return InspectorAction(
+                "event",
+                identifier=task.content.source_event_id or "",
+                session_id=task.content.source_session_id,
+            )
+        st.divider()
+        st.markdown("**Progress**")
+        if task.content.completed:
+            st.caption(
+                "Verified tool outcomes"
+                if "completed_action_no_longer_verifiable" not in task.warnings
+                else "Recorded outcomes — evidence needs rechecking"
+            )
+            for index, action in enumerate(task.content.completed):
+                st.text("✓ " + action.description)
+                if st.button("Evidence", key=f"completed-{index}-{action.action_id}"):
+                    return InspectorAction(
+                        "event",
+                        identifier=action.result_event_id,
+                        session_id=action.source_session_id,
+                    )
+        if task.content.reported_completed:
+            st.caption("Reported by you · not independently verified")
+            for index, report in enumerate(task.content.reported_completed):
+                st.text(report.description)
+                if st.button("Original statement", key=f"reported-{index}"):
+                    return InspectorAction(
+                        "event",
+                        identifier=report.source_event_id,
+                        session_id=report.source_session_id,
+                    )
+        if not task.content.completed and not task.content.reported_completed:
+            st.caption("No completed work recorded yet.")
+        if task.content.blockers:
+            st.markdown("**Blockers**")
+            for blocker in task.content.blockers:
+                st.text("• " + blocker)
+        if task.content.unresolved_operations:
+            st.warning(
+                "An operation has an unknown outcome. Reconcile it before repeating work."
+            )
+        if task.content.pending:
+            st.markdown("**Next planned step**")
+            st.text(task.content.pending[0])
+            if (
+                task.content.blockers
+                or task.content.dependencies
+                or task.content.unresolved_operations
+            ):
+                st.caption(
+                    "This is a planned step, not confirmation that its prerequisites are satisfied."
+                )
+            if task.content.reported_completed:
+                st.caption(
+                    "Some earlier progress is user-reported; check its evidence before relying on it."
+                )
+            with st.expander("Remaining plan"):
+                for step in task.content.pending:
+                    st.text("• " + step)
+        if task.content.dependencies:
+            with st.expander("Dependencies"):
+                for dependency in task.content.dependencies:
+                    st.text(dependency)
+        if task.content.cancelled:
+            with st.expander("Cancelled steps"):
+                for step in task.content.cancelled:
+                    st.text(step)
+    else:
         st.caption(
-            f"{memories} {memory_label} selected · {reads} {read_label}"
+            "No task agreed yet. Describe your goal in the conversation; ordinary memory still saves automatically."
         )
-        with st.container(key=f"answer_details_{index}"):
-            render_details(turn, index)
+    if suggestions:
+        with st.expander("Suggested next steps"):
+            st.caption(
+                "Assistant suggestions, not approved work or proof of completion."
+            )
+            for index, step in enumerate(suggestions):
+                st.text(step)
+                if task and st.button(
+                    "Add to plan", key=f"accept-step-{index}", disabled=not allow_submit
+                ):
+                    return InspectorAction(
+                        "suggestion", text="Add this step to the plan: " + step
+                    )
+    st.divider()
+    st.markdown("**Memory**")
+    st.caption(
+        "Current project and personal context. Corrections and removal affect memory, not recorded conversation text."
+    )
+    if not snapshot.memory.items:
+        st.caption("No memory available in this context yet.")
+    can_correct = Permission.CORRECT in snapshot.directory.permissions
+    for item in snapshot.memory.items:
+        with st.expander(plain_label(item.text[:70] or item.canonical_key)):
+            st.text(item.text)
+            st.caption(item.scope_type.value.capitalize() + " memory")
+            if st.button("View evidence", key="memory-evidence-" + item.item_id):
+                return InspectorAction("evidence", item=item, identifier=item.item_id)
+            with st.form("memory-correction-" + item.item_id):
+                value = st.text_area(
+                    "Correct this memory",
+                    key="correction-" + item.item_id,
+                    max_chars=1000,
+                )
+                if st.form_submit_button(
+                    "Apply correction",
+                    disabled=not can_correct
+                    or not item.fingerprint
+                    or not allow_submit,
+                ):
+                    if value.strip():
+                        return InspectorAction("correct", item=item, text=value.strip())
+                    st.error("Enter the corrected memory first.")
+            if st.button(
+                "Remove from memory",
+                key="remove-" + item.item_id,
+                disabled=not can_correct or not item.fingerprint,
+            ):
+                return InspectorAction("remove", item=item)
+    return None

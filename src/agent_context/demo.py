@@ -16,7 +16,15 @@ from typing_extensions import Self
 
 from agent_context.assembly import AssembleRequest, ContextBundle, TokenBudget
 from agent_context.client import AgentContextClient
-from agent_context.contracts import Contract, EventInput, EventKind, Identifier, utcnow
+from agent_context.contracts import (
+    Contract,
+    EventInput,
+    EventKind,
+    Identifier,
+    TaskReference,
+    SuggestedStep,
+    utcnow,
+)
 from agent_context.handoff import CompletedAction
 from context_graph.providers.base import LLMProvider
 
@@ -75,6 +83,14 @@ class ResearchRead(BaseModel):
     read_document_id: str = Field(min_length=1, max_length=128)
 
 
+class WorkspaceAnswer(ResearchAnswer):
+    suggested_next_steps: tuple[SuggestedStep, ...] = Field(default=(), max_length=4)
+
+
+class WorkspaceDecision(ResearchDecision):
+    suggested_next_steps: tuple[SuggestedStep, ...] = Field(default=(), max_length=4)
+
+
 class DemoSettings(Contract):
     agent_id: Identifier = "research-agent"
     project_id: Identifier = "research-project"
@@ -85,6 +101,7 @@ class DemoSettings(Contract):
     event_timeout_seconds: float = Field(default=180, gt=0, le=600)
     answer_repair_attempts: int = Field(default=2, ge=0, le=3)
     require_sources: bool = False
+    workspace_mode: bool = False
     language_context_keys: tuple[str, ...] = (
         "personalization:report_language",
         "personalization:report_summary_language",
@@ -99,9 +116,20 @@ class ResearchTurn(Contract):
     cached: bool = False
     model_calls: int = 0
     citations: tuple[str, ...] = ()
+    suggested_next_steps: tuple[str, ...] = ()
+    task_context: TaskReference | None = None
 
 
 class ResearchAssistant:
+    @staticmethod
+    def event_identifier(session_id: str, turn_id: str) -> str:
+        return (
+            "turn-"
+            + hashlib.sha256(
+                f"{len(session_id)}:{session_id}{turn_id}".encode()
+            ).hexdigest()
+        )
+
     def __init__(
         self,
         *,
@@ -138,13 +166,10 @@ class ResearchAssistant:
         correction: bool = False,
         handoff_id: str | None = None,
         handoff_version: int = 1,
+        task_id: str | None = None,
+        task_version: int | None = None,
     ) -> ResearchTurn:
-        event_id = (
-            "turn-"
-            + hashlib.sha256(
-                f"{len(session_id)}:{session_id}{turn_id}".encode()
-            ).hexdigest()
-        )
+        event_id = self.event_identifier(session_id, turn_id)
         answer_id = event_id + "-answer"
         existing = None
         try:
@@ -187,6 +212,8 @@ class ResearchAssistant:
             session_id=session_id,
             project_id=self.settings.project_id,
             query=message,
+            task_id=task_id,
+            task_version=task_version,
             budget=TokenBudget(
                 model_context_tokens=self.settings.model_context_tokens,
                 reserved_instructions_tokens=len(SYSTEM.encode()),
@@ -224,7 +251,9 @@ class ResearchAssistant:
                     and citation not in memory_sources
                     for citation in answer.event.citations
                 ):
-                    raise ValueError("cited memory is no longer current; start a new turn")
+                    raise ValueError(
+                        "cited memory is no longer current; start a new turn"
+                    )
                 for record in existing.events:
                     old = record.event
                     if (
@@ -246,6 +275,8 @@ class ResearchAssistant:
                     next_sequence=len(existing.events) + 1,
                     cached=True,
                     citations=answer.event.citations,
+                    suggested_next_steps=answer.event.suggested_next_steps,
+                    task_context=answer.event.task_context,
                 )
         current = await self.user.session(session_id)
         next_sequence = len(current.events) + 1
@@ -268,6 +299,8 @@ class ResearchAssistant:
             if len(language_values) == 1
             else ""
         )
+        if self.settings.workspace_mode:
+            system += "\nProject progress reported by the user is unverified; only completed action receipts establish tool execution. Suggested next steps are proposals, not accepted requirements or completed work. Respect blockers, unresolved operations and dependencies; ask when the next action is ambiguous. Return up to four short suggested_next_steps only when useful; never invent tool access or claim external work ran."
         for record in current.events:
             old = record.event
             if old.kind == EventKind.TOOL_RESULT and old.causation_id == event_id:
@@ -299,7 +332,8 @@ class ResearchAssistant:
                         {
                             "id": (
                                 MEMORY_SOURCE_PREFIX + item.item_id
-                                if item.evidence_ids else item.item_id
+                                if item.evidence_ids
+                                else item.item_id
                             ),
                             "text": item.text,
                             "evidence": item.evidence_ids,
@@ -334,27 +368,41 @@ class ResearchAssistant:
                 final = await self.llm.structured(
                     system=system,
                     user=payload,
-                    schema=ResearchAnswer,
+                    schema=WorkspaceAnswer
+                    if self.settings.workspace_mode
+                    else ResearchAnswer,
                     max_output_tokens=self.settings.response_tokens,
                 )
-                result = ResearchDecision(
-                    answer=final.answer, citations=final.citations
+                decision_type = (
+                    WorkspaceDecision
+                    if self.settings.workspace_mode
+                    else ResearchDecision
                 )
+                result = decision_type(**final.model_dump())
             else:
                 result = await self.llm.structured(
                     system=system,
                     user=payload,
-                    schema=ResearchDecision,
+                    schema=WorkspaceDecision
+                    if self.settings.workspace_mode
+                    else ResearchDecision,
                     max_output_tokens=self.settings.response_tokens,
                 )
             if result.answer:
                 for repair in range(self.settings.answer_repair_attempts + 1):
                     allowed_citations = set(evidence) | set(memory_sources)
-                    invalid = any(
-                        citation not in allowed_citations for citation in result.citations
-                    ) or bool(allowed_citations and not result.citations) or (
-                        self.settings.require_sources
-                        and not any(citation in evidence for citation in result.citations)
+                    invalid = (
+                        any(
+                            citation not in allowed_citations
+                            for citation in result.citations
+                        )
+                        or bool(allowed_citations and not result.citations)
+                        or (
+                            self.settings.require_sources
+                            and not any(
+                                citation in evidence for citation in result.citations
+                            )
+                        )
                     )
                     if not invalid:
                         break
@@ -383,13 +431,18 @@ class ResearchAssistant:
                     corrected = await self.llm.structured(
                         system=system,
                         user=feedback,
-                        schema=ResearchAnswer,
+                        schema=WorkspaceAnswer
+                        if self.settings.workspace_mode
+                        else ResearchAnswer,
                         max_output_tokens=self.settings.response_tokens,
                     )
                     repair_calls += 1
-                    result = ResearchDecision(
-                        answer=corrected.answer, citations=corrected.citations
+                    decision_type = (
+                        WorkspaceDecision
+                        if self.settings.workspace_mode
+                        else ResearchDecision
                     )
+                    result = decision_type(**corrected.model_dump())
                 if result.answer is None:
                     raise ValueError("model did not provide a final answer")
                 answer_text = result.answer + (
@@ -408,6 +461,15 @@ class ResearchAssistant:
                         kind=EventKind.ASSISTANT_MESSAGE,
                         text=answer_text,
                         citations=result.citations,
+                        suggested_next_steps=result.suggested_next_steps
+                        if isinstance(result, WorkspaceDecision)
+                        else (),
+                        task_context=TaskReference(
+                            task_id=task_id, version=task_version
+                        )
+                        if task_id is not None and task_version is not None
+                        else None,
+                        causation_id=event_id if self.settings.workspace_mode else None,
                         project_id=self.settings.project_id,
                     )
                 )
@@ -421,6 +483,12 @@ class ResearchAssistant:
                     next_sequence=next_sequence + 1,
                     model_calls=call_index + 1 + repair_calls,
                     citations=result.citations,
+                    suggested_next_steps=result.suggested_next_steps
+                    if isinstance(result, WorkspaceDecision)
+                    else (),
+                    task_context=TaskReference(task_id=task_id, version=task_version)
+                    if task_id is not None and task_version is not None
+                    else None,
                 )
             if call_index == self.settings.max_tool_reads:
                 raise ValueError("agent exceeded its read-tool budget")

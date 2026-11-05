@@ -7,11 +7,10 @@ from collections.abc import AsyncIterator
 from typing import Any, LiteralString
 
 from neo4j import AsyncDriver, RoutingControl, READ_ACCESS
-from pydantic import Field
 from pymongo import AsyncMongoClient
 
 from agent_context.bridge import scoped_id
-from agent_context.contracts import Contract, Permission, Principal, utcnow
+from agent_context.contracts import Permission, Principal, RevocationInput, utcnow
 from agent_context.events import EventConflict
 from agent_context.privacy import PrivacyControls
 from context_graph.domain.conversation import SourceSpan
@@ -65,11 +64,6 @@ SET c.status='revoked',c.user_revoked=true,c.revoked_at=coalesce(c.revoked_at,$n
 RETURN c.context_id AS item_id
 """
 )
-
-
-class RevocationInput(Contract):
-    item_id: str = Field(min_length=1, max_length=256)
-    expected_fingerprint: str = Field(min_length=1, max_length=256)
 
 
 class GovernanceService:

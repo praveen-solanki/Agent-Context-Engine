@@ -256,3 +256,33 @@ provider credentials. It is not validated by database-only tests or mocked
 providers. No full model-quality, latency/cost or benchmark result is claimed.
 
 Current live validation and remaining production gates are recorded in [validation.md](validation.md). For initialization, Compose, privacy controls and recovery, follow [operations.md](operations.md).
+
+
+## Workspace navigation and conversational task updates
+
+`GET /v1/projects` returns only the authenticated principal's project grants and
+permissions. `GET /v1/sessions?project_id=...&limit=30&cursor=...` lists only that
+user's project conversations in descending last-append order. Cursors are scoped
+to tenant/user/project, metadata pages omit event text, and pre-existing streams
+without navigation metadata remain readable. `POST /v1/sessions/{session_id}/title`
+accepts `{"title":"Research notes"}` for an owned project conversation. Renaming
+changes display metadata, preserving immutable stream content and activity order.
+The SDK exposes `projects`, `sessions` and `rename_session`.
+
+`WorkspaceAssistant` composes the existing SDK and ResearchAssistant. Its quoted
+TaskIntent deltas update the canonical `project-work` task through the existing
+CAS contract. It adds no workflow executor. WorkState's `reported_completed`
+contains exact user quotes and source session/event IDs, distinct from `completed`
+receipts. The service rejects new reports without the authenticated user's actual
+source quote; agents cannot approve user reports. Empty new work fields preserve
+legacy handoff idempotency hashes.
+
+Additive EventInput fields are `suggested_next_steps` and `task_context`
+(assistant answers only), and `correction_target` (correction events only, containing
+the existing RevocationInput contract). The latter allows interrupted corrections
+to recover the original scoped item/fingerprint. Existing defaults and old host
+schemas remain intact; workspace schemas are opt-in. Upgrade API and worker with
+the UI. `AgentContextClient.revoke` calls the existing revocation endpoint.
+
+See [workspace behavior and focused tests](../../ui/README.md). This change does
+not implement the deferred usefulness or production-readiness work.

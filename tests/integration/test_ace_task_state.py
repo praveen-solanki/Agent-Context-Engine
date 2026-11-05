@@ -300,6 +300,7 @@ async def test_additive_work_fields_preserve_existing_handoff_idempotency_hashes
     snapshots, _, _ = handoffs
     original = content()
     new_fields = {
+        "reported_completed",
         "status",
         "cancelled",
         "dependencies",

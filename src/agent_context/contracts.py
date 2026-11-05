@@ -19,6 +19,7 @@ from typing_extensions import Self
 Identifier = Annotated[
     str, Field(min_length=1, max_length=128, pattern=r"^[A-Za-z0-9_.:-]+$")
 ]
+SuggestedStep = Annotated[str, Field(min_length=1, max_length=120)]
 
 
 def utcnow() -> datetime:
@@ -63,6 +64,16 @@ class EventKind(StrEnum):
     SESSION_CLOSE = "session_close"
 
 
+class TaskReference(Contract):
+    task_id: Identifier
+    version: int = Field(ge=1)
+
+
+class RevocationInput(Contract):
+    item_id: str = Field(min_length=1, max_length=256)
+    expected_fingerprint: str = Field(min_length=1, max_length=256)
+
+
 class EventInput(Contract):
     schema_version: Literal[1] = 1
     event_id: Identifier
@@ -80,9 +91,23 @@ class EventInput(Contract):
     tool_succeeded: StrictBool | None = None
     derive_context: StrictBool | None = None
     citations: tuple[Identifier, ...] = Field(default=(), max_length=64)
+    suggested_next_steps: tuple[SuggestedStep, ...] = Field(default=(), max_length=4)
+    task_context: TaskReference | None = None
+    correction_target: RevocationInput | None = None
 
     @model_validator(mode="after")
     def bounded_payload(self) -> Self:
+        if self.correction_target is not None and self.kind != EventKind.CORRECTION:
+            raise ValueError("a memory replacement requires an explicit correction")
+        if self.suggested_next_steps and self.kind != EventKind.ASSISTANT_MESSAGE:
+            raise ValueError("only assistant messages can carry unapproved suggestions")
+        if self.task_context is not None and self.kind != EventKind.ASSISTANT_MESSAGE:
+            raise ValueError("task context references belong to assistant answers")
+        if any(
+            not step.strip() or len(step.encode()) > 500
+            for step in self.suggested_next_steps
+        ):
+            raise ValueError("suggestions must be nonempty and bounded")
         if len(self.text.encode("utf-8")) > 16000:
             raise ValueError("event text exceeds UTF-8 byte limit")
         if self.kind != EventKind.SESSION_CLOSE and not self.text.strip():

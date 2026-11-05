@@ -1,5 +1,72 @@
 # Validation evidence — latest increment 2026-11-05
 
+
+## Conversational workspace — focused verification only
+
+Baseline `4e56b06`. Verified the existing host-grounding and initial console
+before editing (11 checks), then reused ingestion, task CAS/assembly and governance.
+Implemented only the owner-authorized first four conversation/UI improvements;
+usefulness/benchmark execution and production-readiness work are deferred.
+
+Final distinct focused checks, accumulated across scoped runs:
+
+| Checks | Result and evidence |
+|---|---|
+| Source-validated task deltas, durable history and UI interaction | **28 passed**: `tests/unit/test_workspace_continuity.py`, `tests/ui/test_ace_console.py` |
+| Actual navigation/task API and Python host over disposable MongoDB | **10 passed**: `tests/integration/test_ace_workspace.py` |
+| Directly affected existing answer grounding | **10 passed**: `tests/unit/test_memory_grounding.py` |
+| Existing hash compatibility, agent authority/tool receipts and duplicate intake | **3 passed**: selected tests listed below |
+| Strict Pyright on changed implementation and tests | **0 errors, 0 warnings** |
+
+No full suite or paid model run was used for this increment. Integration uses
+real API/SDK/event/task persistence with mocked planners/answers and explicit
+worker watermark advancement. Existing graph extraction, live-provider behavior,
+billing, benchmarks and production gates are not claimed newly validated.
+
+The new tests verify current task state across sessions, exact user quotes,
+unplanned user reports, blocker/dependency changes, ambiguous intent, unapproved
+suggestions, task-version references, scope-bound history/pagination/renaming,
+legacy metadata, erasure fences, retry after partial recording without duplicate
+document reads, concurrent plan warnings, stale-request refusal after another conversation changes
+the plan, and interrupted exact-target corrections.
+Streamlit AppTest covers real page controls with replaced service I/O: server
+history/browser URL restoration, project switching, automatic submission, retry
+IDs, no manual save, plain text, optional search, evidence/correction/removal,
+context collapse and protection against replacing an unfinished request.
+
+Reproduce the scoped verification (local disposable MongoDB on port 27017):
+
+```sh
+.venv/bin/pytest -q tests/unit/test_workspace_continuity.py tests/ui/test_ace_console.py tests/unit/test_memory_grounding.py
+CG_INTEGRATION=1 .venv/bin/pytest -q tests/integration/test_ace_workspace.py \
+  tests/integration/test_ace_task_state.py::test_additive_work_fields_preserve_existing_handoff_idempotency_hashes \
+  tests/integration/test_ace_task_state.py::test_agents_can_report_proven_progress_but_cannot_approve_requirements \
+  tests/integration/test_ace_events.py::test_concurrent_duplicate_intake_has_one_durable_event
+.venv/bin/pyright src/agent_context/api.py src/agent_context/client.py \
+  src/agent_context/contracts.py src/agent_context/continuity.py \
+  src/agent_context/demo.py src/agent_context/event_store.py \
+  src/agent_context/governance.py src/agent_context/handoff.py \
+  src/agent_context/navigation.py src/agent_context/task_state.py \
+  ui/context_engine.py ui/context_engine_view.py ui/workspace.py \
+  tests/unit/test_workspace_continuity.py tests/ui/test_ace_console.py \
+  tests/integration/test_ace_workspace.py tests/integration/test_ace_task_state.py
+```
+
+Existing limits remain: configured projects, one workspace plan per user/project,
+128 events/session by default, bounded task revisions/entries/context budgets,
+and a document-read-only bundled host. User reports are not external execution
+proof. Historical selections are not persisted and are labelled accordingly.
+Update API/worker together with UI (`./run.sh --skip-demo`).
+
+Headless Chromium inspected the actual page with a temporary mocked workspace
+fixture at 1440×1050 and 390×844. Both viewport checks had matching inner/document
+width (no horizontal overflow). The final layout was visually inspected; desktop
+context scrolls independently and the Context toggle is available on mobile.
+This was a layout check, not a live-model product demonstration.
+
+The older broad-suite and live-model results below are historical evidence;
+they were not rerun or used as a new completion claim for this UI increment.
+
 ## Reusable public benchmark pipeline — fixture-only verification
 
 **537 passed, two paid live-model checks skipped, one legacy live-model UI case
