@@ -1,0 +1,105 @@
+{
+  "timestamp": "2026-11-05T00:49:29.520602+00:00",
+  "metadata": [
+    {
+      "url": "https://huggingface.co/api/datasets?search=ConvoMem&limit=5",
+      "status": 200,
+      "sha256": "b05fa4bf7375983adc9c9381e141f84483c2e8f7051ad0f6af49ce9b24c5ca6d",
+      "datasets": [
+        {
+          "id": "Salesforce/ConvoMem",
+          "sha": "e3e9b39115b02346824c70d349350de738f8be41",
+          "license_tags": [
+            "license:cc-by-nc-4.0"
+          ]
+        },
+        {
+          "id": "mteb/ConvoMem",
+          "sha": "ae79aabf8da23508a1ba2e982c2552ea14b14a1c",
+          "license_tags": [
+            "license:cc-by-nc-4.0"
+          ]
+        }
+      ]
+    },
+    {
+      "url": "https://raw.githubusercontent.com/xiaowu0162/LongMemEval/main/README.md",
+      "status": 200,
+      "sha256": "c4ff45676683d9e2f7cf7d9099d26426f14635ec110dbb1da818d1019a142573",
+      "relevant_lines": [
+        "  <a href=\"https://huggingface.co/datasets/xiaowu0162/longmemeval-cleaned\" ><img src=\"https://img.shields.io/badge/\ud83e\udd17-Data-green\" height=\"23\"></a>",
+        "* [2025/09] We have further cleaned up the history sessions to prevent interference on answer correctness. The updated benchmark can be found [here](https://huggingface.co/datasets/xiaowu0162/longmemeval-cleaned/) and the change logs can be found [here](https://docs.google.com/spreadsheets/d/16cHPu2B4XhgC-VvolIoWNs8wwm0Zkbpgu8H9x-qhxWg/edit?usp=sharing). You may also access the file at this google drive [link](https://drive.google.com/file/d/1zo5C2sKsN3-2TUZt7kiRd2wsZLmyd-4y/view?usp=sharing).",
+        "The LongMemEval dataset is officially released at [huggingface](https://huggingface.co/datasets/xiaowu0162/longmemeval-cleaned). Please download and uncompress the data to the `data/` folder. ",
+        "wget https://huggingface.co/datasets/xiaowu0162/longmemeval-cleaned/resolve/main/longmemeval_oracle.json",
+        "wget https://huggingface.co/datasets/xiaowu0162/longmemeval-cleaned/resolve/main/longmemeval_s_cleaned.json",
+        "wget https://huggingface.co/datasets/xiaowu0162/longmemeval-cleaned/resolve/main/longmemeval_m_cleaned.json",
+        "pip install torch==2.3.1 torchvision==0.18.1 torchaudio==2.3.1 --index-url https://download.pytorch.org/whl/cu121",
+        "## \ud83d\udcdc Dataset Format",
+        "### Downloading the Corpus",
+        "Please download the compressed data from [this link](https://drive.google.com/file/d/1loTKBdywbCfYL5h5zwfnVcqlh7QwnBQm/view?usp=sharing) and uncompress the data under `data/custom_history`. The released data contains three parts:",
+        "* `RETRIEVER`: `flat-bm25`, `flat-contriever`, `flat-stella` (Stella V5 1.5B), or `flat-gte` (gte-Qwen2-7B-instruct). For `flat-stella`, our code requires downloading the model manually from [the original repository](https://huggingface.co/dunzhang/stella_en_1.5B_v5).",
+        "To run the experiments with key expansion, download the released key expansion outputs in this [link](https://drive.google.com/file/d/1Y6vImnr_WQZXv4bKzpqPdHMbyoat8b_P/view?usp=sharing) and place the data under the directory `LongMemEval/index_expansion_logs/`. Then, you may run the following command",
+        "We provide the implementation for pruning out the search space by extracting timestamped events from the sessions, inferring time rage from the query, and using the range to narrow down the search space. First, download the extracted timestamped events [here](https://drive.google.com/file/d/1ekTMgHPffoaBQV3ZOuv-qV9fW6wJj4eW/view?usp=sharing) and unzip the data under `LongMemEval/index_expansion_logs/`. Next, run the command",
+        "* `TIMESTAMP_EVENT_FILE` is the extracted timestamped events file you downloaded."
+      ]
+    },
+    {
+      "url": "https://raw.githubusercontent.com/xiaowu0162/LongMemEval/main/LICENSE",
+      "status": 200,
+      "sha256": "d3c4b9aa54759df6ded337978a6f3b55b75615e5e4525c3b82d7e2627d4b9732",
+      "license_excerpt": "MIT License\n\nCopyright (c) 2024 Di Wu\n\nPermission is hereby granted, free of charge, to any person obtaining a copy\nof this software and associated documentation files (the \"Software\"), to deal\nin the Software without restriction, including without limitation the rights\nto use, copy, modify, merge, publish, distribute, sublicense, and/or sell\ncopies of the Software, and to permit persons to whom the Software is\nfurnished to do so, subject to the following conditions:\n\nThe above copyright notice and this permission notice shall be included in all\ncopies or substantial portions of the Software.\n\nTHE SOFTWARE IS PROVIDED \"AS IS\", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR\nIMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,\nFITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE\nAUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER\nLIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,\nOUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE\nSOFTWARE.\n"
+    },
+    {
+      "url": "https://raw.githubusercontent.com/snap-research/locomo/main/README.md",
+      "status": 404,
+      "sha256": "d5558cd419c8d46bdc958064cb97f963d1ea793866414c025906ec15033512ed"
+    },
+    {
+      "url": "https://raw.githubusercontent.com/snap-research/locomo/main/LICENSE",
+      "status": 404,
+      "sha256": "d5558cd419c8d46bdc958064cb97f963d1ea793866414c025906ec15033512ed"
+    },
+    {
+      "url": "https://huggingface.co/api/datasets/xiaowu0162/longmemeval-cleaned",
+      "status": 200,
+      "id": "xiaowu0162/longmemeval-cleaned",
+      "sha": "98d7416c24c778c2fee6e6f3006e7a073259d48f",
+      "license": "mit"
+    },
+    {
+      "url": "https://huggingface.co/api/datasets/xiaowu0162/longmemeval-cleaned/tree/main",
+      "status": 200,
+      "files": [
+        {
+          "path": ".gitattributes",
+          "size": 2647
+        },
+        {
+          "path": "README.md",
+          "size": 626
+        },
+        {
+          "path": "longmemeval_m_cleaned.json",
+          "size": 2737100077
+        },
+        {
+          "path": "longmemeval_oracle.json",
+          "size": 15388478
+        },
+        {
+          "path": "longmemeval_s_cleaned.json",
+          "size": 277383467
+        }
+      ]
+    },
+    {
+      "url": "https://raw.githubusercontent.com/snap-research/locomo/master/README.md",
+      "status": 404
+    },
+    {
+      "url": "https://raw.githubusercontent.com/snap-research/locomo/master/LICENSE",
+      "status": 404
+    }
+  ],
+  "local_convoMem_raw_present": false
+}

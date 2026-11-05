@@ -1,4 +1,80 @@
-# Validation evidence — 2026-11-04
+# Validation evidence — latest increment 2026-11-05
+
+## Latest session-scope, compatibility and evaluation increment
+
+The final credential-free regression against disposable MongoDB/Neo4j passed
+**506 tests, two explicitly opt-in live tests skipped, one legacy live-model UI
+case deselected in 17.65 s**. Strict Pyright reports zero errors/warnings.
+The focused real-store HTTP/governance/migration/SDK subset passed nine tests.
+The older numbers below are historical checkpoints, not the latest total.
+
+```sh
+CG_INTEGRATION=1 CG_NEO4J__URI=bolt://127.0.0.1:7690 \
+CG_MONGO__DATABASE=ace_remaining_final .venv/bin/pytest \
+  -k 'not test_the_ui_runs_the_tool_and_shows_the_result' -q --tb=short
+.venv/bin/pyright
+```
+
+The authorization regression first reproduced a known SESSION ID bypassing
+removed project access. The fixed real-store API path verifies successful access
+before grant removal, then empty assembly/search/trace and inaccessible evidence,
+including evidence for USER facts sourced in that private project. Project
+metadata comes from the authenticated outbox, not extraction text. Real-store
+dry-run/apply/retry/rollback tests verify old unknown bindings remain withheld
+and immutable bindings cannot be moved between projects. The isolated benchmark
+database actually backfilled three existing Sessions using version-one plans.
+The user-facing database was not changed. See the operations migration runbook.
+The final binding comparison acquires the Neo4j node write lock before reading
+the immutable/CAS fields. Eight competing-initial-binding races each accepted
+one project and rejected the other. The temporary lock property was absent
+afterward. This is a Session metadata invariant, not distributed fencing of all
+graph writes. After the final image rebuild, [worker upgrade smoke](results/session-binding-upgrade-20261105.json)
+passed all six checks: real intake/availability, trusted owner/project/version,
+temporary lock removal and zero remaining backfill changes for that fixture.
+
+A read-only SDK basic-assembly call to the unchanged API on port 18000 returned
+422 before serialization omitted new unused defaults and 200 afterward. Tests
+also preserve explicit failed-tool `False` and required expected-version zero.
+New task/search capabilities require the new backend; old basic calls remain
+compatible. No UI code was changed by this increment.
+
+After rebuilding/recreating only the isolated audit API/worker, the independent
+HTTP/SDK continuation check passed again: [current runtime proof](results/continuation-9b926a4a4c3a.json),
+all seven checks, Bolt E4B + Lightning 30B, pytest **57.23 s**. The changed-artifact
+check also passed: [artifact proof](results/artifact-check-067cc2d19fbe.json).
+An initial invocation used the wrong alternate-model environment variable and
+stopped with `KeyError: ACE_ALTERNATE_MODEL`; [failed invocation](results/continuation-44589a8d6af3.json)
+is retained with `completed=false`. Its preliminary checks are not a successful
+two-model run. The corrected invocation passed without a product-code change.
+These runs verify a deployment upgrade and recorded-outcome workflow, not a
+cross-provider result or distributed crash/backup recovery.
+
+The existing six-baseline evaluator's source gate, citation rubric, query
+embeddings, repeated-trial recording and summary budget handling are fixed and
+unit-tested. Actual fresh [source run](results/research-source-2d65493471cf.json)
+passes the current seven-check gate. Protocol v5 reports for
+[4000 bytes](results/2d65493471cf-4000b-5edcfaa970dc.json) and
+[500 bytes](results/2d65493471cf-500b-4d786c737183.json) contain 18 answer trials
+each: all six methods pass all three trials at both budgets. This is a tie, not
+evidence that ACE improves task success. Answer prompt tokens for ACE were lower
+than full history, higher than rolling summary; ACE answers were slower here.
+Preparation and [worker ingestion usage](results/ace-source-ingestion-2d65493471cf.json)
+are separate. Embedding/server usage and prices remain unknown, so no total-cost
+or statistical superiority claim is made. Earlier v2/v3/v4 reports retain the
+rubric failures and over-budget summary failure rather than rewriting history.
+
+[Dataset audit](results/ace-dataset-audit.json) records actual fetched metadata:
+ConvoMem's current noncommercial license/revision, available MIT-advertised
+LongMemEval cleaned data, and failed inspected LoCoMo links. No dataset score is
+claimed: LongMemEval is available but **NOT YET RUN**, not inaccessible. R08 still
+needs broader tasks, public benchmarks, ablations and full cost accounting.
+R09/R10 production quotas, TLS/identity, graph fencing, load/chaos and coordinated
+privacy-aware restore remain open. The original exposed credential's revocation
+is still unverified; the replacement working does not prove revocation.
+
+All new commits remain local pending fresh approval to push this later payload
+to the public repository. Automatic approval rejected publication under the old
+patch approval. No GitHub CI run for unpublished changes is claimed.
 
 ## Evidence-first completion audit
 

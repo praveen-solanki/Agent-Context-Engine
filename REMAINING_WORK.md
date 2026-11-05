@@ -38,7 +38,7 @@
 
 **Latest local evidence:** **480 passing tests, two opt-in live tests skipped, one legacy live-UI test deselected (16.37s)**; Pyright clean. The two live tests passed separately against the isolated deployed API/worker: the two-model continuation in 55.00s and changed-artifact negative in 9.09s. These are separate runs, not an inflated combined suite count. Exposed-key revocation remains unverified pending owner confirmation. No production readiness or statistical performance gain is claimed.
 
-**Immediate next task:** Verify the remaining R08 evaluation gaps, then R09/R10 production gates, preserving the confirmed retrieval/task/assembly/handoff behavior. Cross-provider validation remains an explicit external verification gap. Update both ledgers after each verified increment.
+**Immediate next task:** Expand the now repeatable R08 comparison to public/multi-scenario tasks and ablations, then close the documented R09/R10 production gates. Preserve confirmed retrieval/task/assembly/handoff behavior. Cross-provider validation and exposed-key revocation remain explicit external verification gaps. The 2026-11-05 benchmark and session-authorization increment below records the latest local evidence; publication is not yet approved for these new changes.
 
 ---
 
@@ -102,6 +102,109 @@ Never automatically treat this document's **initial** assessment as final. It is
 A passing GitHub Actions workflow proves the tests in that workflow passed; it does **not** prove all blueprint outcomes. A successful demo run may still have a faulty success criterion. Keep evidence categories separate.
 
 ---
+
+## 2026-11-05 — R08 measurement and R09 session-scope increment
+
+**Status: PARTIAL overall.** This is an evidence update, not completion of the
+public-benchmark or production-readiness gates. Existing ingestion, recommendation
+oracle, assembly, task/CAS, handoff and privacy primitives were inspected and
+preserved. The only changes address reproduced missing/incorrect behavior.
+
+**CONFIRMED DONE — SKIP, within these bounds:**
+
+- `evaluation.py` now rejects the obsolete six-flag source report before creating
+  clients. It reuses the existing typed R07 recommendation oracle and recomputes
+  all saved A/B/C outcome checks, verifier version, document hash and replay gate.
+  Red/negative tests demonstrate the earlier gate could accept invalid evidence.
+- The existing six baselines now repeat with recorded seeds and shuffled order,
+  equal model/prompt/schema/document access/context allowance, immutable source
+  snapshots and unique reports. The existing retriever receives embeddings;
+  vector queries use the correct query input mode. Failed trials/retries and
+  missing usage are retained. No parallel evaluation framework was introduced.
+- Citation scoring accepts authoritative memory/episode/event IDs and the
+  supplied document, or a hash-bound prepared-context view. IDs embedded in
+  untrusted text do not become registry entries. All methods receive the same
+  bounded schema-repair policy. The summary baseline is compressed/validated
+  against its actual UTF-8 byte allowance rather than silently dropped when
+  over budget. These are measurement fixes, not an ACE-specific scoring bonus.
+- A real Neo4j regression reproduced a session/project access bypass: graph
+  Session metadata discarded the trusted event project binding, so omitting
+  `project_id` could retrieve a known private session after its project grant was
+  removed. `persist_session` now retains immutable trusted owner/project metadata;
+  retrieval, defensive assembly and exact evidence recheck it. Unknown legacy
+  bindings fail closed. A real-store HTTP test verifies authorized access first,
+  then 403 for an explicit removed project, empty assembly/search/trace without
+  that project, and 404 for evidence. It covers source-project privacy even for
+  a USER-scoped fact. No conversation text or model-produced ID grants access.
+- `session_bindings.py` provides a bounded version-one metadata migration from
+  authoritative outbox streams. Dry-run, compare-and-set apply/retry and guarded
+  rollback are tested against real MongoDB/Neo4j. Worker reaffirmation prevents
+  an old plan rolling back a newer trusted write. No context/value/text rewrite
+  or re-ingestion/model call occurs. Three existing sessions in the isolated
+  benchmark database were actually backfilled. See the operations runbook before
+  applying to an existing installation; no migration ran on the user-facing DB.
+  Binding comparisons hold the Neo4j node lock before reading current fields;
+  eight real concurrent initial-binding races each accept one project and reject
+  the other. The final rebuilt worker passes all six checks in
+  [`session-binding-upgrade-20261105.json`](docs/ace/results/session-binding-upgrade-20261105.json),
+  including correct trusted metadata and no outstanding fixture backfill.
+- New SDK defaults initially broke basic calls to the old running API (422).
+  Omitting unset/default fields preserves old basic requests, while retaining
+  explicit `False` and required version zero. Unit checks passed, and a read-only
+  basic assemble call to the unchanged API on port 18000 then returned 200.
+  New search/task functionality still requires the matching updated API.
+
+**Actual R08 result, no superiority claim:** fresh source
+[`research-source-2d65493471cf.json`](docs/ace/results/research-source-2d65493471cf.json)
+passes the current seven-check recommendation/replay gate. Final protocol v5 ran
+three trials for each of six methods at each of two budgets: **36 answer trials,
+all passed, no failed trials**. All methods tied on this bounded task.
+
+| Context allowance | Full-history reported prompt tokens | ACE reported prompt tokens | Rolling-summary reported prompt tokens |
+| --- | ---: | ---: | ---: |
+| 4000 UTF-8 bytes, three trials | 5682 | 1986 | 1326 |
+| 500 UTF-8 bytes, three trials | 2010 | 1986 | 1224 |
+
+These are answer prompt-token totals, not end-to-end costs. Summary preparation
+and other stage usage are separate. ACE was slower in these saved answer trials;
+no latency advantage is claimed. See final
+[`4000-byte report`](docs/ace/results/2d65493471cf-4000b-5edcfaa970dc.json) and
+[`500-byte report`](docs/ace/results/2d65493471cf-500b-4d786c737183.json).
+Earlier v2/v3/v4 reports are retained alongside them, including source-ID rubric
+failures and the oversized-summary failure; they are not final product scores.
+The separate worker record reports 19 successful ingestion chat responses,
+14392 prompt / 1172 completion tokens; embedding/server usage and dollar costs
+remain unknown. Do not amortize repeated trials as independent production tasks.
+
+**Public-data audit:**
+[`ace-dataset-audit.json`](docs/ace/results/ace-dataset-audit.json) records fetched
+metadata and hashes. Salesforce/ConvoMem revision
+`e3e9b39115b02346824c70d349350de738f8be41` advertises CC-BY-NC-4.0; the local raw
+corpus is absent, and the tracked converted subset lacks QA ground truth and an
+exact upstream revision. LongMemEval cleaned revision
+`98d7416c24c778c2fee6e6f3006e7a073259d48f` advertises MIT and provides usable data;
+it is **AVAILABLE, NOT YET RUN**, not blocked/unavailable. The inspected LoCoMo
+primary URLs returned 404; upstream version/license remains unverified. None of
+these metadata checks constitutes a public-dataset benchmark score.
+
+**Regression proof:** real disposable-store full suite **506 passed, two opt-in
+live checks skipped, one legacy live-model UI case deselected (17.65 s)**;
+Pyright zero errors/warnings. Focused HTTP/privacy/migration/SDK checks: nine
+passed. New evaluation tests cover a failed provider trial in the actual
+comparison loop, source tampering, retry/missing-usage accounting, registry
+forgery and multibyte summary budgets. The deployment upgrade is separately
+exercised in the isolated audit stack; see `docs/ace/validation.md` for live runs.
+
+**Still open, do not mark done:** public/multi-scenario/state/security comparative
+evaluation, ablations, total embedding/ingestion/provider costs, sufficient
+independent samples for confidence/tail latency, cross-provider validation,
+exposed-key revocation confirmation, production distributed graph fencing,
+quotas/identity/TLS/load/chaos and privacy-aware backup/restore. No UI change,
+shared-database multi-tenancy, production SLO or exactly-once external transaction
+claim is introduced. New changes are local: automatic approval rejected pushing
+the later code payload to the public repository because the earlier approval
+covered a different prepared patch. Fresh publication approval is pending;
+no latest-commit GitHub CI run is claimed.
 
 ## 1. What is already present — VERIFY ONCE, PRESERVE AND SKIP WHEN CONFIRMED
 
@@ -593,7 +696,7 @@ documented API/SDK.
 | R05 Scope/temporal parity | CONFIRMED DONE for private memory/current operational TASK; broader shared scope PARTIAL | Real current/as-of/supersession/revocation tests; bound task/project and negative tenant/user/project checks | Preserve chosen physical partition/fail-closed shared scopes; no legacy graph-TASK migration claimed |
 | R06 Independent agent integration | CONFIRMED DONE (SDK/HTTP-only host and two NVIDIA models); cross-provider UNVERIFIED | `test_ace_continuation_live.py`, `continuation-c404a96f34ed.json`; failed alternate Mistral result retained | Do not add adapters; prove a real second provider when configured |
 | R07 Real outcome evaluation | CONFIRMED DONE (existing bounded research task) | Source checkpoint 9ad2d52; live-demo-verified-20261104.json passes all per-session typed/quote/source checks; recommendation-oracle-negative-v2-20261104.json rejects the exact preserved refusal; unit negative matrix passes | SKIP rebuilding oracle; same-model-judge limits and broader R08 benchmark gates remain explicit |
-| R08 Comparative benchmarks | PARTIAL | To fill | Multi-scenario, repeated trials/cost |
+| R08 Comparative benchmarks | PARTIAL | Repeated six-baseline comparison, strict source gate, equal source rubric, retry/usage accounting and 500/4000-byte budget runs; see 2026-11-05 increment below | Public/multi-scenario evaluation, ablations, full ingestion/embedding/dollar costs remain open |
 | R09 Production security/privacy | PARTIAL | To fill | Rotation/isolation/negative gates |
 | R10 Production ops/chaos/recovery | PARTIAL | To fill | Verify failures/restore/load |
 | R11 Documentation consistency | PARTIAL | To fill | Correct after code verification |

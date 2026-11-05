@@ -2,6 +2,16 @@
 
 Input files for the Context Graph pipeline. Everything here is read by a command; nothing in this folder is code. Git tracks this README, `org_structure.json`, and `convomem_demo/`. The raw benchmark in `convomem/` stays local, because it is about 830 MB and the demo set is built from it.
 
+Audit on 2026-11-05: the raw corpus is absent in this checkout. The converted
+60-session subset does not preserve benchmark questions/gold answers or an exact
+upstream revision, so ingestion of it is not a public QA score. Current upstream
+`Salesforce/ConvoMem` revision `e3e9b39115b02346824c70d349350de738f8be41`
+advertises CC-BY-NC-4.0; that metadata does not establish the provenance/license
+of the older subset. See `docs/ace/results/ace-dataset-audit.json` before obtaining
+or redistributing benchmark inputs. LongMemEval cleaned data is available but
+has not been run through the current evaluator. No public-benchmark completion
+is claimed.
+
 | Path | What it is | Used by |
 | --- | --- | --- |
 | `convomem/` | The raw ConvoMem benchmark, about 830 MB | `convomem_benchmark_converter` only |

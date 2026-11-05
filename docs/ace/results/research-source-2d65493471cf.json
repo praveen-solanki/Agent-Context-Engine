@@ -1,0 +1,149 @@
+{
+  "run_id": "2d65493471cf",
+  "model": "nvidia/nemotron-3.5-bolt-e4b",
+  "sessions": [
+    {
+      "session": "A",
+      "answer": "Option A is the cheapest option that works offline, costing 10 units, while Option B costs 20 units and requires a network.\n\nSources: [research-brief], [memory:ctx_01ed51affd1b46628bda6eaf6da82429]",
+      "context": [
+        "personalization:report_language: English",
+        "personalization:recommendation_criteria: cheapest option that works offline"
+      ],
+      "context_tokens_upper_bound": 362,
+      "model_calls": 3,
+      "verified_reads": 1,
+      "citations": [
+        "research-brief",
+        "memory:ctx_01ed51affd1b46628bda6eaf6da82429"
+      ],
+      "assessment": {
+        "status": "completed",
+        "selected_option": "A",
+        "recommendation_quote": "Option A is the cheapest option that works offline, costing 10 units, while Option B costs 20 units and requires a network.",
+        "evidence_quote": "Option A costs 10 units and supports offline operation. Option B costs 20 units and requires a network.",
+        "report_language": "English"
+      },
+      "outcome_checks": {
+        "recommendation_delivered": true,
+        "correct_option": true,
+        "current_language": true,
+        "recommendation_quote_from_answer": true,
+        "evidence_quote_from_document": true,
+        "option_present_in_answer_quote": true,
+        "option_present_in_evidence_quote": true,
+        "required_document_facts_supported": true,
+        "document_cited": true
+      }
+    },
+    {
+      "session": "B",
+      "answer": "La opción más barata que funciona sin conexión es la Opción A, que cuesta 10 unidades.\n\nSources: [research-brief], [memory:ctx_01ed51affd1b46628bda6eaf6da82429], [memory:ctx_de89a52d554542eaa47e9b168d4424fc]",
+      "context": [
+        "personalization:report_language: Spanish",
+        "personalization:recommendation_criteria: cheapest option that works offline"
+      ],
+      "context_tokens_upper_bound": 362,
+      "model_calls": 3,
+      "verified_reads": 1,
+      "citations": [
+        "research-brief",
+        "memory:ctx_01ed51affd1b46628bda6eaf6da82429",
+        "memory:ctx_de89a52d554542eaa47e9b168d4424fc"
+      ],
+      "assessment": {
+        "status": "completed",
+        "selected_option": "A",
+        "recommendation_quote": "La opción más barata que funciona sin conexión es la Opción A, que cuesta 10 unidades.",
+        "evidence_quote": "Option A costs 10 units and supports offline operation. Option B costs 20 units and requires a network.",
+        "report_language": "Spanish"
+      },
+      "outcome_checks": {
+        "recommendation_delivered": true,
+        "correct_option": true,
+        "current_language": true,
+        "recommendation_quote_from_answer": true,
+        "evidence_quote_from_document": true,
+        "option_present_in_answer_quote": true,
+        "option_present_in_evidence_quote": true,
+        "required_document_facts_supported": true,
+        "document_cited": true
+      }
+    },
+    {
+      "session": "C",
+      "answer": "La recomendación final es la Opción A, ya que es la opción más barata (10 unidades) y soporta operación sin conexión, cumpliendo con el criterio de ser la opción más barata que funciona sin conexión.\n\nSources: [memory:ctx_01ed51affd1b46628bda6eaf6da82429], [memory:ctx_de89a52d554542eaa47e9b168d4424fc], [research-brief]",
+      "context": [
+        "personalization:report_language: Spanish",
+        "personalization:recommendation_criteria: cheapest option that works offline"
+      ],
+      "context_tokens_upper_bound": 362,
+      "model_calls": 3,
+      "verified_reads": 1,
+      "citations": [
+        "memory:ctx_01ed51affd1b46628bda6eaf6da82429",
+        "memory:ctx_de89a52d554542eaa47e9b168d4424fc",
+        "research-brief"
+      ],
+      "assessment": {
+        "status": "completed",
+        "selected_option": "A",
+        "recommendation_quote": "La recomendación final es la Opción A, ya que es la opción más barata (10 unidades) y soporta operación sin conexión, cumpliendo con el criterio de ser la opción más barata que funciona sin conexión.",
+        "evidence_quote": "Option A costs 10 units and supports offline operation. Option B costs 20 units and requires a network.",
+        "report_language": "Spanish"
+      },
+      "outcome_checks": {
+        "recommendation_delivered": true,
+        "correct_option": true,
+        "current_language": true,
+        "recommendation_quote_from_answer": true,
+        "evidence_quote_from_document": true,
+        "option_present_in_answer_quote": true,
+        "option_present_in_evidence_quote": true,
+        "required_document_facts_supported": true,
+        "document_cited": true
+      }
+    }
+  ],
+  "replay_cached": true,
+  "checks": {
+    "read_each_session": true,
+    "citations_each_session": true,
+    "current_language_in_C": true,
+    "no_superseded_english_in_C": true,
+    "spanish_answer_in_C": true,
+    "recommendations_each_session": true,
+    "replay_cached": true
+  },
+  "elapsed_seconds": 51.056,
+  "verification": {
+    "version": "research-recommendation-v2",
+    "judge_model": "nvidia/nemotron-3.5-bolt-e4b",
+    "timestamp": "2026-11-05T00:52:13.886851+00:00",
+    "source_revision": "9f5da6ea401fd95027f9dde557fb247bcb61355e",
+    "demo_source_sha256": "dca5445198cbe541444ee1345e6148aa0ece15f3d0dd8efb45376c74585c1aec",
+    "host_prompt_sha256": "c1d6eb8d20b7bb3adc423c00fda3489783ee13e793cbc29d19653dd3f0ed0353",
+    "verifier_source_sha256": "236513ea0e7fb80c49e5c848eb8b856f26cb43246e7a83f24444122c4cdf1ca0",
+    "extraction_prompt_version": "extraction-v4",
+    "document_sha256": "04e09b0c2c95c5277cd807e3c28eee4b41735724a6937eeb8a6c5a8fe4e8d5ca"
+  },
+  "provider_usage": {
+    "host_chat": {
+      "calls": 9,
+      "prompt_tokens": 10246,
+      "completion_tokens": 700
+    },
+    "verification_chat": {
+      "calls": 6,
+      "prompt_tokens": 2108,
+      "completion_tokens": 394
+    },
+    "worker_ingestion_usage": null
+  },
+  "limitations": [
+    "Synthetic bounded document scenario",
+    "No cross-provider switch in this run",
+    "End-to-end timing includes live ingestion and provider calls; no per-token price estimate",
+    "Completion classification uses the same model as generation; exact quotes, choice, language and cited document are independently checked, but this is not universal semantic proof",
+    "Host and verifier provider usage are separate; worker ingestion usage is not included, so total billed cost is unknown"
+  ]
+}

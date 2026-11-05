@@ -1,0 +1,159 @@
+{
+  "completed": false,
+  "run_id": "continuation-44589a8d6af3",
+  "timestamp": "2026-11-05T04:34:09.330460+00:00",
+  "checks": {
+    "old_handoff_blocked": true,
+    "latest_requirements_and_cancelled_step": true,
+    "reconciled_resume_is_safe": true
+  },
+  "models": [],
+  "host_tool_executions": {
+    "read": 1,
+    "draft": 1,
+    "audit": 0
+  },
+  "limitations": [
+    "One synthetic continuation workflow; not a benchmark or production certification.",
+    "Second-model validation uses NVIDIA; successful models are listed, and cross-provider portability remains unverified.",
+    "Host chat usage is metered; worker/query embedding usage and dollar cost are unknown."
+  ],
+  "source_sha256": {
+    "src/agent_context/task_state.py": "e7cc99cbaa539e04fe07a43286f6a8656ec24ee64407b2f7a85d6e704b819a52",
+    "src/agent_context/handoff.py": "00771856b8ab1f44867343cae8d0f9667e300f713367b133bf650a544acd2703",
+    "src/agent_context/assembly.py": "1b31807c11e6702b0cffbc675b2fde3357d7e99206c2c48d36b66b46b288e89e"
+  },
+  "source_hash_origin": "runtime build tree",
+  "test_driver_sha256": "5a1ee453b9c86a57b3e360e7b5bb95117a19e0b919a6988b7fe334fc729e28b3",
+  "bundle": {
+    "bundle_id": "e4e11d124fb3b8d6d433e7cea842562f56325d22b1227c72aaea71d8dcdc0b73",
+    "policy_version": "ace-assembly-v4",
+    "tokenizer_version": "utf8-byte-bound-v1",
+    "items": [
+      {
+        "item_id": "ace_task.ace_835a72edb1e3983f6bab1487345727d6bfe78d0b2921ff7dda8521831d7709f5:2",
+        "tenant_id": "ace-live",
+        "user_id": "research-user",
+        "scope_type": "TASK",
+        "scope_id": "continuation-44589a8d6af3",
+        "canonical_key": "task_state:continuation-44589a8d6af3",
+        "text": "{\"version\":2,\"updated_at\":\"2026-11-05T04:34:33.489264Z\",\"content\":{\"project_id\":\"research-project\",\"task_id\":\"continuation-44589a8d6af3\",\"source_session_id\":\"continuation-44589a8d6af3-B\",\"goal\":\"Complete and audit the research report\",\"requirements\":[\"Use Spanish reports\"],\"completed\":[{\"action_id\":\"continuation-44589a8d6af3-read\",\"project_id\":\"research-project\",\"description\":\"Read evidence\",\"source_session_id\":\"continuation-44589a8d6af3-A\",\"result_event_id\":\"continuation-44589a8d6af3-A-2\"},{\"action_id\":\"continuation-44589a8d6af3-draft\",\"project_id\":\"research-project\",\"description\":\"Draft report\",\"source_session_id\":\"continuation-44589a8d6af3-B\",\"result_event_id\":\"continuation-44589a8d6af3-B-2\"}],\"pending\":[\"Audit report\"],\"blockers\":[],\"unresolved_operations\":[],\"artifacts\":[{\"artifact_id\":\"continuation-44589a8d6af3-report\",\"project_id\":\"research-project\",\"sha256\":\"8c22b291a92c21cf19f618091b132b49ee2fde7774aba1fcf6164fae2a2b6526\"}],\"expires_at\":null,\"status\":\"active\",\"cancelled\":[\"Publish obsolete version\"],\"dependencies\":[],\"source_event_id\":\"continuation-44589a8d6af3-B-1\",\"must_keep\":[\"Use Spanish reports\"]}}",
+        "value": null,
+        "fingerprint": "a5510989d5cf59ae123f1c33bd271dcb42259f55170cb6682f367689e4d2cc36",
+        "evidence_ids": [
+          "event:continuation-44589a8d6af3-B-1"
+        ],
+        "status": "active",
+        "valid_from": null,
+        "valid_until": null,
+        "observed_at": "2026-11-05T04:34:33.489264Z",
+        "single_valued": true,
+        "required": true,
+        "trusted_policy": false,
+        "priority": 1.0,
+        "semantic_score": 0.0,
+        "superseded_at": null,
+        "unresolved_conflict": false,
+        "approved_task_state": true,
+        "project_id": "research-project",
+        "source_warnings": []
+      },
+      {
+        "item_id": "ctx_de89a52d554542eaa47e9b168d4424fc",
+        "tenant_id": "ace-live",
+        "user_id": "research-user",
+        "scope_type": "USER",
+        "scope_id": "research-user",
+        "canonical_key": "personalization:report_language",
+        "text": "personalization:report_language: Spanish",
+        "value": "Spanish",
+        "fingerprint": "fp_f58282795499d0dd90206733",
+        "evidence_ids": [
+          "ep_2ae9b80ff593b9797cae0415"
+        ],
+        "status": "active",
+        "valid_from": "2026-11-05T00:51:41.849282Z",
+        "valid_until": null,
+        "observed_at": "2026-11-05T00:51:41.849282Z",
+        "single_valued": true,
+        "required": false,
+        "trusted_policy": false,
+        "priority": 1.0,
+        "semantic_score": 0.0,
+        "superseded_at": null,
+        "unresolved_conflict": false,
+        "approved_task_state": false,
+        "project_id": null,
+        "source_warnings": []
+      },
+      {
+        "item_id": "ctx_01ed51affd1b46628bda6eaf6da82429",
+        "tenant_id": "ace-live",
+        "user_id": "research-user",
+        "scope_type": "USER",
+        "scope_id": "research-user",
+        "canonical_key": "personalization:recommendation_criteria",
+        "text": "personalization:recommendation_criteria: cheapest option that works offline",
+        "value": "cheapest option that works offline",
+        "fingerprint": "fp_15d02d2d9153ebe48132578f",
+        "evidence_ids": [
+          "ep_7926a6c4f5878ca632347f2d"
+        ],
+        "status": "active",
+        "valid_from": "2026-11-05T00:51:22.850199Z",
+        "valid_until": null,
+        "observed_at": "2026-11-05T00:51:22.850199Z",
+        "single_valued": true,
+        "required": false,
+        "trusted_policy": false,
+        "priority": 0.0,
+        "semantic_score": 0.0,
+        "superseded_at": null,
+        "unresolved_conflict": false,
+        "approved_task_state": false,
+        "project_id": null,
+        "source_warnings": []
+      }
+    ],
+    "rendered": "[{\"kind\":\"current_task_state\",\"id\":\"ace_task.ace_835a72edb1e3983f6bab1487345727d6bfe78d0b2921ff7dda8521831d7709f5:2\",\"text\":\"{\\\"version\\\":2,\\\"updated_at\\\":\\\"2026-11-05T04:34:33.489264Z\\\",\\\"content\\\":{\\\"project_id\\\":\\\"research-project\\\",\\\"task_id\\\":\\\"continuation-44589a8d6af3\\\",\\\"source_session_id\\\":\\\"continuation-44589a8d6af3-B\\\",\\\"goal\\\":\\\"Complete and audit the research report\\\",\\\"requirements\\\":[\\\"Use Spanish reports\\\"],\\\"completed\\\":[{\\\"action_id\\\":\\\"continuation-44589a8d6af3-read\\\",\\\"project_id\\\":\\\"research-project\\\",\\\"description\\\":\\\"Read evidence\\\",\\\"source_session_id\\\":\\\"continuation-44589a8d6af3-A\\\",\\\"result_event_id\\\":\\\"continuation-44589a8d6af3-A-2\\\"},{\\\"action_id\\\":\\\"continuation-44589a8d6af3-draft\\\",\\\"project_id\\\":\\\"research-project\\\",\\\"description\\\":\\\"Draft report\\\",\\\"source_session_id\\\":\\\"continuation-44589a8d6af3-B\\\",\\\"result_event_id\\\":\\\"continuation-44589a8d6af3-B-2\\\"}],\\\"pending\\\":[\\\"Audit report\\\"],\\\"blockers\\\":[],\\\"unresolved_operations\\\":[],\\\"artifacts\\\":[{\\\"artifact_id\\\":\\\"continuation-44589a8d6af3-report\\\",\\\"project_id\\\":\\\"research-project\\\",\\\"sha256\\\":\\\"8c22b291a92c21cf19f618091b132b49ee2fde7774aba1fcf6164fae2a2b6526\\\"}],\\\"expires_at\\\":null,\\\"status\\\":\\\"active\\\",\\\"cancelled\\\":[\\\"Publish obsolete version\\\"],\\\"dependencies\\\":[],\\\"source_event_id\\\":\\\"continuation-44589a8d6af3-B-1\\\",\\\"must_keep\\\":[\\\"Use Spanish reports\\\"]}}\",\"evidence\":[\"event:continuation-44589a8d6af3-B-1\"]},{\"kind\":\"retrieved_data\",\"id\":\"ctx_de89a52d554542eaa47e9b168d4424fc\",\"text\":\"personalization:report_language: Spanish\",\"evidence\":[\"ep_2ae9b80ff593b9797cae0415\"]},{\"kind\":\"retrieved_data\",\"id\":\"ctx_01ed51affd1b46628bda6eaf6da82429\",\"text\":\"personalization:recommendation_criteria: cheapest option that works offline\",\"evidence\":[\"ep_7926a6c4f5878ca632347f2d\"]}]",
+    "token_count": 1781,
+    "exclusions": [],
+    "excluded_counts": {},
+    "warnings": [],
+    "selections": [
+      {
+        "item_id": "ace_task.ace_835a72edb1e3983f6bab1487345727d6bfe78d0b2921ff7dda8521831d7709f5:2",
+        "reasons": [
+          "valid_recent_context",
+          "current_task_state",
+          "standing_priority"
+        ]
+      },
+      {
+        "item_id": "ctx_de89a52d554542eaa47e9b168d4424fc",
+        "reasons": [
+          "valid_recent_context",
+          "standing_priority"
+        ]
+      },
+      {
+        "item_id": "ctx_01ed51affd1b46628bda6eaf6da82429",
+        "reasons": [
+          "valid_recent_context"
+        ]
+      }
+    ],
+    "scope": {
+      "tenant_id": "ace-live",
+      "user_id": "research-user",
+      "actor_id": "research-user",
+      "session_id": "continuation-44589a8d6af3-C",
+      "project_id": "research-project",
+      "task_id": "continuation-44589a8d6af3"
+    },
+    "consistency_sequence": 1
+  },
+  "failure_type": "KeyError",
+  "elapsed_seconds": 31.845131946000038,
+  "invocation_failure": "KeyError: ACE_ALTERNATE_MODEL; the driver used the wrong alternate-model environment-variable name. No second-model assertion ran."
+}

@@ -85,8 +85,10 @@ docker compose up --build -d
 
 API readiness is checked internally by Compose. API is bound only to loopback,
 port 18000 by default; databases have no published ports in this stack. The image
-excludes `.env`, Git metadata, datasets, logs and tests. Only the worker receives
-the NVIDIA credential; raw console tokens are not copied into service environments.
+excludes `.env`, Git metadata, datasets, logs and tests. The worker receives the
+chat credential; semantic API retrieval receives an embedding credential (local
+Compose falls back to the NVIDIA key). Raw console tokens are not copied into
+service environments.
 CA trust is mounted read-only through `ACE_CA_BUNDLE`, defaulting to the host's
 system bundle. Do not disable TLS verification. Local database authentication and
 networking are development settings, not a secure production deployment template.
@@ -126,6 +128,82 @@ reused; start a new turn. Web-required mode still requires document evidence.
 **New session** clears previous input, result/context and web-search selections.
 An explicit saved handoff remains available for continuation; durable memory is
 not erased by starting a new session.
+
+## Upgrading existing session project bindings
+
+The 2026-11-05 session-scope fix requires trusted owner/project metadata on graph
+Sessions. New worker projections write it automatically. Existing sessions whose
+binding is unknown are withheld from SESSION retrieval and source evidence until
+backfilled; USER/PROJECT fact semantics are not rewritten. Apply this metadata
+migration to an existing isolated tenant/user deployment after upgrading its API
+and worker. Take the normal coordinated store checkpoint first. The local stack
+is a development deployment, not a verified disaster-recovery system.
+
+Quiesce the worker during planning/apply. Use the existing configured API container
+so tenant/user, database names and credentials match the actual deployment. The
+default local Compose Mongo database is `agent_context`; merely changing a host
+environment variable does not change that Compose setting.
+
+```sh
+docker compose stop worker
+docker compose exec -T api python -m agent_context.session_bindings plan --plan-file /tmp/ace-session-bindings-v1.json
+mkdir -p .ace
+chmod 700 .ace
+docker compose cp api:/tmp/ace-session-bindings-v1.json .ace/session-bindings-v1.json
+chmod 600 .ace/session-bindings-v1.json
+# Inspect the private plan's identities, hashes and before-state before applying.
+docker compose exec -T api python -m agent_context.session_bindings apply --plan-file /tmp/ace-session-bindings-v1.json
+docker compose start worker
+```
+
+Planning makes no changes. A plan is bounded to 4096 trusted streams and contains
+identities/hashes, not conversation text. Retain it securely outside the container
+for recovery. Apply checks the authoritative outbox and active privacy fence,
+then compares all binding fields before updating only Session metadata. It is
+safe to retry after partial progress. Conflicting owner/project/source identities
+fail rather than overwrite data; investigate and re-plan, never edit the plan to
+force a different project. Legacy sessions without a trusted ACE stream are not
+assigned a guessed binding; they remain withheld.
+
+If rollback is needed, stop the worker and restore the retained plan into the
+current API container before invoking it:
+
+```sh
+docker compose stop worker
+docker compose cp .ace/session-bindings-v1.json api:/tmp/ace-session-bindings-v1.json
+docker compose exec -T api python -m agent_context.session_bindings rollback --plan-file /tmp/ace-session-bindings-v1.json
+docker compose start worker
+```
+
+Rollback restores exact prior binding fields only while the migration still owns
+them. A later trusted worker reaffirmation clears the migration marker, so an old
+rollback refuses to overwrite it. An unbound rollback result is again withheld;
+it does not bypass authorization. Neither direction rewrites Context/Episode
+content, deletes records or calls a model. Real-store tests cover dry-run, apply,
+retry, rollback, immutable binding and rejection after worker reaffirmation.
+The isolated audit stack backfilled three sessions; the user-facing stack was
+not migrated or redeployed by that test.
+
+## Repeated bounded evaluation
+
+Use the existing evaluator against a fresh verified report in the same isolated
+fixture/database, not a copied report without its corresponding source events:
+
+```sh
+uv run --frozen agent-context-evaluate data/ace_demo/<run-id>.json --trials 3 --context-bytes 4000 --seed 0
+uv run --frozen agent-context-evaluate data/ace_demo/<run-id>.json --trials 3 --context-bytes 500 --seed 0
+```
+
+Reports use unique filenames under `data/ace_evaluation/` and retain input hashes,
+source snapshots, seeds, source registries, individual failures and reported chat
+usage. The original six-flag source report is rejected before network calls.
+Embedding/server usage and dollar prices are not inferred. This remains one
+synthetic scenario, not a public-dataset benchmark. The saved v5 runs tied on
+task success; compare preparation plus answer cost before making savings claims.
+
+Basic SDK requests omit unused new defaults and were checked against the old
+running API. Upgrade API/worker/SDK together to use new task/search fields;
+an old backend does not gain new functionality from a newer client.
 
 ## Optional web search
 

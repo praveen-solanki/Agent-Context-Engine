@@ -21,8 +21,9 @@ c.subject_user_id = $user_id AND (
  (c.scope_type='USER' AND c.scope_id=$user_id)
  OR (c.scope_type='PROJECT' AND c.scope_id IN $projects)
  OR (c.scope_type='SESSION' AND EXISTS {
-  MATCH (:User {user_id:$user_id})-[:PARTICIPATED_IN]->(s:Session)
-  WHERE s.session_id=c.scope_id }))
+  MATCH (:User {user_id:$user_id})-[:PARTICIPATED_IN]->(s:Session {user_id:$user_id})
+  WHERE s.session_id=c.scope_id AND s.ace_scope_bound=true
+   AND (s.ace_project_id IS NULL OR s.ace_project_id IN $projects) }))
 """
 _ITEM: LiteralString = (
     "MATCH (c:Context {context_id:$item_id}) WHERE "
@@ -35,7 +36,9 @@ _EVIDENCE: LiteralString = (
     + """
 MATCH (c)-[:SUPPORTED_BY]->(e:Episode)
 WHERE EXISTS {
- MATCH (:User {user_id:$user_id})-[:PARTICIPATED_IN]->(:Session)-[:CONTAINS]->(e)
+ MATCH (:User {user_id:$user_id})-[:PARTICIPATED_IN]->(s:Session {user_id:$user_id})-[:CONTAINS]->(e)
+ WHERE s.ace_scope_bound=true
+  AND (s.ace_project_id IS NULL OR s.ace_project_id IN $projects)
 }
 RETURN e.episode_id AS episode_id,left(e.text,4000) AS text,
  e.session_id AS session_id,e.timestamp AS observed_at,

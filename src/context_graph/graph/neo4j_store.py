@@ -39,18 +39,30 @@ from context_graph.observability import get_logger, log_event
 
 _logger = get_logger("graph.neo4j")
 
+# The temporary property locks the node before the immutable-binding comparison;
+# removing it keeps the projection clean while retaining the transaction lock.
 _PERSIST_SESSION: LiteralString = """
-MERGE (u:User {user_id: $user_id})
 MERGE (s:Session {session_id: $session_id})
-SET s.user_id = $user_id,
-    s.state = $state,
-    s.session_start_time = $session_start_time,
-    s.session_end_time = $session_end_time
-MERGE (u)-[:PARTICIPATED_IN]->(s)
+ON CREATE SET s.user_id = $user_id
+SET s.ace_scope_binding_lock = true
+REMOVE s.ace_scope_binding_lock
 WITH s
-UNWIND $agent_ids AS agent_id
-MERGE (a:Agent {agent_id: agent_id})
-MERGE (s)-[:INVOLVES_AGENT]->(a)
+WHERE s.user_id = $user_id AND (
+ NOT $scope_bound OR coalesce(s.ace_scope_bound,false)=false OR
+ (s.ace_project_id IS NULL AND $project_id IS NULL) OR s.ace_project_id=$project_id)
+SET s.state = $state,
+    s.session_start_time = $session_start_time,
+    s.session_end_time = $session_end_time,
+    s.ace_scope_bound = CASE WHEN $scope_bound THEN true ELSE s.ace_scope_bound END,
+    s.ace_project_id = CASE WHEN $scope_bound THEN $project_id ELSE s.ace_project_id END,
+    s.ace_scope_binding_version = CASE WHEN $scope_bound THEN 1 ELSE s.ace_scope_binding_version END,
+    s.ace_scope_binding_migration = CASE WHEN $scope_bound THEN null ELSE s.ace_scope_binding_migration END
+MERGE (u:User {user_id: $user_id})
+MERGE (u)-[:PARTICIPATED_IN]->(s)
+FOREACH (agent_id IN $agent_ids |
+ MERGE (a:Agent {agent_id: agent_id})
+ MERGE (s)-[:INVOLVES_AGENT]->(a))
+RETURN s.session_id AS session_id
 """
 
 _PERSIST_EPISODES: LiteralString = """
@@ -319,7 +331,11 @@ class Neo4jGraphStore:
 
     async def persist_session(self, session: SessionInput) -> None:
         """Upsert the Session, its User and its Agents."""
-        await self._run(
+        bound = session.metadata.get("ace_event_bridge") is True
+        project_id = session.metadata.get("ace_project_id") if bound else None
+        if project_id is not None and not isinstance(project_id, str):
+            raise GraphWriteError("trusted session project binding must be a string")
+        records = await self._run(
             _PERSIST_SESSION,
             {
                 "session_id": session.session_id,
@@ -328,8 +344,12 @@ class Neo4jGraphStore:
                 "session_start_time": session.session_start_time,
                 "session_end_time": session.session_end_time,
                 "agent_ids": list(session.agent_ids),
+                "scope_bound": bound,
+                "project_id": project_id,
             },
         )
+        if not records:
+            raise GraphWriteError("session owner or trusted project binding changed")
 
     async def persist_episodes(self, episodes: Sequence[Episode]) -> int:
         """Upsert Episodes immutably; repeated identities are not duplicated."""

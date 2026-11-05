@@ -1,0 +1,26 @@
+{
+  "completed": true,
+  "timestamp": "2026-11-05T04:42:50.134870+00:00",
+  "run_id": "binding-smoke-e7781ab7a319",
+  "checks": {
+    "real_worker_available": true,
+    "trusted_owner": true,
+    "trusted_project": true,
+    "binding_version_one": true,
+    "temporary_lock_removed": true,
+    "existing_backfill_and_new_sessions_need_no_changes": true
+  },
+  "elapsed_seconds": 0.7013718660164159,
+  "source_hash_origin": "runtime build tree",
+  "source_sha256": {
+    "src/context_graph/graph/neo4j_store.py": "ec333cc72101f38770d647f8d2d64bbcc85170e15c4d80f1eda2c6dbec216064",
+    "src/agent_context/session_bindings.py": "5464f7f478c126bebd596ac1cafe6653fecc00f02f31742a8bf41ee3dda6d3e0",
+    "src/agent_context/retrieval.py": "763a91289450eaa7fb71816e95e0ac07de1357f717f1ed685f77ce4e1da26d60",
+    "src/agent_context/governance.py": "6dd87c2d84096772b273299ec4a7532bb53793e3128bdfce8d594e073e5c1a68"
+  },
+  "limitations": [
+    "Isolated development stack only; user-facing data unchanged.",
+    "Metadata-only worker check with derivation disabled; model-backed continuation is recorded separately.",
+    "Node binding locks do not establish distributed graph write fencing or cross-store crash guarantees."
+  ]
+}

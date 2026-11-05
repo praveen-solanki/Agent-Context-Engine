@@ -129,8 +129,10 @@ to rank authorized candidates before LIMIT. NIM requests use `input_type=query`;
 ingestion continues to use `passage`. Neo4j's cosine result is normalized so
 orthogonal vectors do not gain relevance. Model/dimension mismatches are excluded
 from semantic scoring; lexical matching remains available. This uses native
-cosine over the private indexed subject partition, avoiding global ANN top-k
-followed by authorization filtering. It does not establish large-partition load
+cosine over candidates restricted by the owner/scope query, avoiding global ANN
+top-k followed by authorization filtering. An inspected plan used the status
+index followed by owner filtering; an indexed owner partition is not claimed.
+It does not establish large-partition load
 performance. No new vector service or graph planner is introduced.
 
 Configure the API's `EMBEDDING_API_KEY`, base URL/model and `EMBEDDING_DIMENSION`

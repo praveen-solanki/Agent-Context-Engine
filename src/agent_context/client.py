@@ -44,7 +44,10 @@ class AgentContextClient:
         for attempt in range(3):
             try:
                 response = await self.http.post(
-                    path, json=payload.model_dump(mode="json")
+                    path,
+                    json=payload.model_dump(
+                        mode="json", exclude_none=True, exclude_defaults=True
+                    ),
                 )
             except httpx.TransportError:
                 if attempt == 2:

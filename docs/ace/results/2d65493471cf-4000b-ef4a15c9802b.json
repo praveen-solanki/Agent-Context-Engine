@@ -1,0 +1,724 @@
+{
+  "comparison_id": "ef4a15c9802b",
+  "evaluation_finished": true,
+  "failed_trials": 0,
+  "protocol_version": "research-comparison-v4",
+  "scenario": "three-session changed-report-language",
+  "source_demo": "data/ace_demo/2d65493471cf.json",
+  "source_sha256": "99608e7db8331c43435ce55b4e533d7e2e9bb06ca9bd885eae6f75876d3081ab",
+  "model": "nvidia/nemotron-3.5-bolt-e4b",
+  "temperature": 0.0,
+  "budget": 4000,
+  "budget_unit": "rendered_context_utf8_bytes_upper_bound",
+  "trials": 3,
+  "seed": 0,
+  "prompt_sha256": "ff1183c9965995ee065bf72470ab7ef2657c7f6ab8d8b50ed9ea1f0de078c169",
+  "evaluator_source_sha256": "5a2381c36c2f35a8c0291fe268dc6561e584fe198988eaad94b1d737eba71353",
+  "results": [
+    {
+      "method": "existing_retriever",
+      "trial": 1,
+      "seed": 0,
+      "decision": {
+        "report_language": "Spanish",
+        "recommended_option": "A",
+        "evidence": [
+          "research-brief"
+        ]
+      },
+      "error_type": null,
+      "correct_current_language": true,
+      "correct_next_action": true,
+      "valid_evidence": true,
+      "document_cited": true,
+      "context_cited": false,
+      "context_bytes_upper_bound": 1276,
+      "budget_violation": false,
+      "seconds": 0.6739,
+      "chat_calls": 1,
+      "prompt_tokens": 688,
+      "completion_tokens": 35,
+      "provider_attempts": 1,
+      "failed_attempts": 0,
+      "usage_complete": true
+    },
+    {
+      "method": "rolling_summary",
+      "trial": 1,
+      "seed": 0,
+      "decision": {
+        "report_language": "Spanish",
+        "recommended_option": "A",
+        "evidence": [
+          "research-brief"
+        ]
+      },
+      "error_type": null,
+      "correct_current_language": true,
+      "correct_next_action": true,
+      "valid_evidence": true,
+      "document_cited": true,
+      "context_cited": false,
+      "context_bytes_upper_bound": 559,
+      "budget_violation": false,
+      "seconds": 0.7328,
+      "chat_calls": 1,
+      "prompt_tokens": 470,
+      "completion_tokens": 35,
+      "provider_attempts": 1,
+      "failed_attempts": 0,
+      "usage_complete": true
+    },
+    {
+      "method": "last_3_records",
+      "trial": 1,
+      "seed": 0,
+      "decision": {
+        "report_language": "Spanish",
+        "recommended_option": "A",
+        "evidence": [
+          "research-brief"
+        ]
+      },
+      "error_type": null,
+      "correct_current_language": true,
+      "correct_next_action": true,
+      "valid_evidence": true,
+      "document_cited": true,
+      "context_cited": false,
+      "context_bytes_upper_bound": 1219,
+      "budget_violation": false,
+      "seconds": 0.6287,
+      "chat_calls": 1,
+      "prompt_tokens": 1156,
+      "completion_tokens": 25,
+      "provider_attempts": 1,
+      "failed_attempts": 0,
+      "usage_complete": true
+    },
+    {
+      "method": "full_history",
+      "trial": 1,
+      "seed": 0,
+      "decision": {
+        "report_language": "Spanish",
+        "recommended_option": "A",
+        "evidence": [
+          "research-brief"
+        ]
+      },
+      "error_type": null,
+      "correct_current_language": true,
+      "correct_next_action": true,
+      "valid_evidence": true,
+      "document_cited": true,
+      "context_cited": false,
+      "context_bytes_upper_bound": 2373,
+      "budget_violation": false,
+      "seconds": 0.6479,
+      "chat_calls": 1,
+      "prompt_tokens": 1894,
+      "completion_tokens": 35,
+      "provider_attempts": 1,
+      "failed_attempts": 0,
+      "usage_complete": true
+    },
+    {
+      "method": "ace",
+      "trial": 1,
+      "seed": 0,
+      "decision": {
+        "report_language": "Spanish",
+        "recommended_option": "A",
+        "evidence": [
+          "ep_2ae9b80ff593b9797cae0415",
+          "ep_7926a6c4f5878ca632347f2d",
+          "research-brief"
+        ]
+      },
+      "error_type": null,
+      "correct_current_language": true,
+      "correct_next_action": true,
+      "valid_evidence": true,
+      "document_cited": true,
+      "context_cited": false,
+      "context_bytes_upper_bound": 362,
+      "budget_violation": false,
+      "seconds": 1.3851,
+      "chat_calls": 1,
+      "prompt_tokens": 662,
+      "completion_tokens": 89,
+      "provider_attempts": 1,
+      "failed_attempts": 0,
+      "usage_complete": true
+    },
+    {
+      "method": "vector_top_3",
+      "trial": 1,
+      "seed": 0,
+      "decision": {
+        "report_language": "Spanish",
+        "recommended_option": "A",
+        "evidence": [
+          "research-brief"
+        ]
+      },
+      "error_type": null,
+      "correct_current_language": true,
+      "correct_next_action": true,
+      "valid_evidence": true,
+      "document_cited": true,
+      "context_cited": false,
+      "context_bytes_upper_bound": 1179,
+      "budget_violation": false,
+      "seconds": 0.6209,
+      "chat_calls": 1,
+      "prompt_tokens": 1032,
+      "completion_tokens": 35,
+      "provider_attempts": 1,
+      "failed_attempts": 0,
+      "usage_complete": true
+    },
+    {
+      "method": "rolling_summary",
+      "trial": 2,
+      "seed": 1,
+      "decision": {
+        "report_language": "Spanish",
+        "recommended_option": "A",
+        "evidence": [
+          "research-brief"
+        ]
+      },
+      "error_type": null,
+      "correct_current_language": true,
+      "correct_next_action": true,
+      "valid_evidence": true,
+      "document_cited": true,
+      "context_cited": false,
+      "context_bytes_upper_bound": 559,
+      "budget_violation": false,
+      "seconds": 0.5368,
+      "chat_calls": 1,
+      "prompt_tokens": 470,
+      "completion_tokens": 35,
+      "provider_attempts": 1,
+      "failed_attempts": 0,
+      "usage_complete": true
+    },
+    {
+      "method": "vector_top_3",
+      "trial": 2,
+      "seed": 1,
+      "decision": {
+        "report_language": "Spanish",
+        "recommended_option": "A",
+        "evidence": [
+          "research-brief"
+        ]
+      },
+      "error_type": null,
+      "correct_current_language": true,
+      "correct_next_action": true,
+      "valid_evidence": true,
+      "document_cited": true,
+      "context_cited": false,
+      "context_bytes_upper_bound": 1179,
+      "budget_violation": false,
+      "seconds": 0.6331,
+      "chat_calls": 1,
+      "prompt_tokens": 1032,
+      "completion_tokens": 35,
+      "provider_attempts": 1,
+      "failed_attempts": 0,
+      "usage_complete": true
+    },
+    {
+      "method": "ace",
+      "trial": 2,
+      "seed": 1,
+      "decision": {
+        "report_language": "Spanish",
+        "recommended_option": "A",
+        "evidence": [
+          "ep_2ae9b80ff593b9797cae0415",
+          "ep_7926a6c4f5878ca632347f2d",
+          "research-brief"
+        ]
+      },
+      "error_type": null,
+      "correct_current_language": true,
+      "correct_next_action": true,
+      "valid_evidence": true,
+      "document_cited": true,
+      "context_cited": false,
+      "context_bytes_upper_bound": 362,
+      "budget_violation": false,
+      "seconds": 1.3428,
+      "chat_calls": 1,
+      "prompt_tokens": 662,
+      "completion_tokens": 89,
+      "provider_attempts": 1,
+      "failed_attempts": 0,
+      "usage_complete": true
+    },
+    {
+      "method": "full_history",
+      "trial": 2,
+      "seed": 1,
+      "decision": {
+        "report_language": "Spanish",
+        "recommended_option": "A",
+        "evidence": [
+          "research-brief"
+        ]
+      },
+      "error_type": null,
+      "correct_current_language": true,
+      "correct_next_action": true,
+      "valid_evidence": true,
+      "document_cited": true,
+      "context_cited": false,
+      "context_bytes_upper_bound": 2373,
+      "budget_violation": false,
+      "seconds": 0.6354,
+      "chat_calls": 1,
+      "prompt_tokens": 1894,
+      "completion_tokens": 35,
+      "provider_attempts": 1,
+      "failed_attempts": 0,
+      "usage_complete": true
+    },
+    {
+      "method": "existing_retriever",
+      "trial": 2,
+      "seed": 1,
+      "decision": {
+        "report_language": "Spanish",
+        "recommended_option": "A",
+        "evidence": [
+          "research-brief"
+        ]
+      },
+      "error_type": null,
+      "correct_current_language": true,
+      "correct_next_action": true,
+      "valid_evidence": true,
+      "document_cited": true,
+      "context_cited": false,
+      "context_bytes_upper_bound": 1276,
+      "budget_violation": false,
+      "seconds": 0.5239,
+      "chat_calls": 1,
+      "prompt_tokens": 688,
+      "completion_tokens": 35,
+      "provider_attempts": 1,
+      "failed_attempts": 0,
+      "usage_complete": true
+    },
+    {
+      "method": "last_3_records",
+      "trial": 2,
+      "seed": 1,
+      "decision": {
+        "report_language": "Spanish",
+        "recommended_option": "A",
+        "evidence": [
+          "research-brief"
+        ]
+      },
+      "error_type": null,
+      "correct_current_language": true,
+      "correct_next_action": true,
+      "valid_evidence": true,
+      "document_cited": true,
+      "context_cited": false,
+      "context_bytes_upper_bound": 1219,
+      "budget_violation": false,
+      "seconds": 0.7209,
+      "chat_calls": 1,
+      "prompt_tokens": 1156,
+      "completion_tokens": 35,
+      "provider_attempts": 1,
+      "failed_attempts": 0,
+      "usage_complete": true
+    },
+    {
+      "method": "rolling_summary",
+      "trial": 3,
+      "seed": 2,
+      "decision": {
+        "report_language": "Spanish",
+        "recommended_option": "A",
+        "evidence": [
+          "research-brief"
+        ]
+      },
+      "error_type": null,
+      "correct_current_language": true,
+      "correct_next_action": true,
+      "valid_evidence": true,
+      "document_cited": true,
+      "context_cited": false,
+      "context_bytes_upper_bound": 559,
+      "budget_violation": false,
+      "seconds": 0.5389,
+      "chat_calls": 1,
+      "prompt_tokens": 470,
+      "completion_tokens": 35,
+      "provider_attempts": 1,
+      "failed_attempts": 0,
+      "usage_complete": true
+    },
+    {
+      "method": "vector_top_3",
+      "trial": 3,
+      "seed": 2,
+      "decision": {
+        "report_language": "Spanish",
+        "recommended_option": "A",
+        "evidence": [
+          "research-brief"
+        ]
+      },
+      "error_type": null,
+      "correct_current_language": true,
+      "correct_next_action": true,
+      "valid_evidence": true,
+      "document_cited": true,
+      "context_cited": false,
+      "context_bytes_upper_bound": 1179,
+      "budget_violation": false,
+      "seconds": 0.6227,
+      "chat_calls": 1,
+      "prompt_tokens": 1032,
+      "completion_tokens": 35,
+      "provider_attempts": 1,
+      "failed_attempts": 0,
+      "usage_complete": true
+    },
+    {
+      "method": "last_3_records",
+      "trial": 3,
+      "seed": 2,
+      "decision": {
+        "report_language": "Spanish",
+        "recommended_option": "A",
+        "evidence": [
+          "research-brief"
+        ]
+      },
+      "error_type": null,
+      "correct_current_language": true,
+      "correct_next_action": true,
+      "valid_evidence": true,
+      "document_cited": true,
+      "context_cited": false,
+      "context_bytes_upper_bound": 1219,
+      "budget_violation": false,
+      "seconds": 0.7355,
+      "chat_calls": 1,
+      "prompt_tokens": 1156,
+      "completion_tokens": 35,
+      "provider_attempts": 1,
+      "failed_attempts": 0,
+      "usage_complete": true
+    },
+    {
+      "method": "existing_retriever",
+      "trial": 3,
+      "seed": 2,
+      "decision": {
+        "report_language": "Spanish",
+        "recommended_option": "A",
+        "evidence": [
+          "research-brief"
+        ]
+      },
+      "error_type": null,
+      "correct_current_language": true,
+      "correct_next_action": true,
+      "valid_evidence": true,
+      "document_cited": true,
+      "context_cited": false,
+      "context_bytes_upper_bound": 1276,
+      "budget_violation": false,
+      "seconds": 0.6283,
+      "chat_calls": 1,
+      "prompt_tokens": 688,
+      "completion_tokens": 35,
+      "provider_attempts": 1,
+      "failed_attempts": 0,
+      "usage_complete": true
+    },
+    {
+      "method": "ace",
+      "trial": 3,
+      "seed": 2,
+      "decision": {
+        "report_language": "Spanish",
+        "recommended_option": "A",
+        "evidence": [
+          "ep_2ae9b80ff593b9797cae0415",
+          "ep_7926a6c4f5878ca632347f2d",
+          "research-brief"
+        ]
+      },
+      "error_type": null,
+      "correct_current_language": true,
+      "correct_next_action": true,
+      "valid_evidence": true,
+      "document_cited": true,
+      "context_cited": false,
+      "context_bytes_upper_bound": 362,
+      "budget_violation": false,
+      "seconds": 1.3354,
+      "chat_calls": 1,
+      "prompt_tokens": 662,
+      "completion_tokens": 89,
+      "provider_attempts": 1,
+      "failed_attempts": 0,
+      "usage_complete": true
+    },
+    {
+      "method": "full_history",
+      "trial": 3,
+      "seed": 2,
+      "decision": {
+        "report_language": "Spanish",
+        "recommended_option": "A",
+        "evidence": [
+          "research-brief"
+        ]
+      },
+      "error_type": null,
+      "correct_current_language": true,
+      "correct_next_action": true,
+      "valid_evidence": true,
+      "document_cited": true,
+      "context_cited": false,
+      "context_bytes_upper_bound": 2373,
+      "budget_violation": false,
+      "seconds": 0.5331,
+      "chat_calls": 1,
+      "prompt_tokens": 1894,
+      "completion_tokens": 35,
+      "provider_attempts": 1,
+      "failed_attempts": 0,
+      "usage_complete": true
+    }
+  ],
+  "summary": {
+    "full_history": {
+      "trials": 3,
+      "successful_trials": 3,
+      "success_fraction": 1.0,
+      "median_seconds": 0.6354,
+      "reported_prompt_tokens": 5682,
+      "reported_completion_tokens": 105,
+      "usage_complete": true
+    },
+    "last_3_records": {
+      "trials": 3,
+      "successful_trials": 3,
+      "success_fraction": 1.0,
+      "median_seconds": 0.7209,
+      "reported_prompt_tokens": 3468,
+      "reported_completion_tokens": 95,
+      "usage_complete": true
+    },
+    "rolling_summary": {
+      "trials": 3,
+      "successful_trials": 3,
+      "success_fraction": 1.0,
+      "median_seconds": 0.5389,
+      "reported_prompt_tokens": 1410,
+      "reported_completion_tokens": 105,
+      "usage_complete": true
+    },
+    "vector_top_3": {
+      "trials": 3,
+      "successful_trials": 3,
+      "success_fraction": 1.0,
+      "median_seconds": 0.6227,
+      "reported_prompt_tokens": 3096,
+      "reported_completion_tokens": 105,
+      "usage_complete": true
+    },
+    "existing_retriever": {
+      "trials": 3,
+      "successful_trials": 3,
+      "success_fraction": 1.0,
+      "median_seconds": 0.6283,
+      "reported_prompt_tokens": 2064,
+      "reported_completion_tokens": 105,
+      "usage_complete": true
+    },
+    "ace": {
+      "trials": 3,
+      "successful_trials": 3,
+      "success_fraction": 1.0,
+      "median_seconds": 1.3428,
+      "reported_prompt_tokens": 1986,
+      "reported_completion_tokens": 267,
+      "usage_complete": true
+    }
+  },
+  "context_sha256": {
+    "full_history": "eedd77f9be5c30475432c1e40ad4a273ca22920d37b4e2fac9225ea70180b993",
+    "last_3_records": "c36be296d8ee346b57acea38ab69f0c85760bdfd72ee2d22d9ffd319e7a00268",
+    "rolling_summary": "790a5d5747989a9657845b8245d1523b9d2fea98831dff4f41a062c554a7e9d9",
+    "vector_top_3": "132f3fd80bb8113e3acc928c48a7b53a53a2abe9d19224285146e7fa777813db",
+    "existing_retriever": "06345d83d354e1ac7f6709b0e135ca9917c8779a2df01739cb62dee3155a331e",
+    "ace": "e9c673ae6961dfbac8b7b1a451ace4ad06cc78fcc70fd86767919bcc7d46ac04"
+  },
+  "contexts": {
+    "full_history": "{\"actor_kind\": \"user\", \"event_id\": \"turn-9326afc1a7d959b8328dddeafabf1306058e392392d73767e6002e1f5a59e4b2\", \"kind\": \"user_message\", \"text\": \"My report language preference is English. Always write my research reports in English. Read research-brief and recommend the cheapest option that works offline, citing the document.\", \"tool_call_id\": null, \"tool_succeeded\": null}\n{\"actor_kind\": \"agent\", \"event_id\": \"turn-9326afc1a7d959b8328dddeafabf1306058e392392d73767e6002e1f5a59e4b2-read-0-result\", \"kind\": \"tool_result\", \"text\": \"Option A costs 10 units and supports offline operation. Option B costs 20 units and requires a network.\", \"tool_call_id\": \"turn-9326afc1a7d959b8328dddeafabf1306058e392392d73767e6002e1f5a59e4b2-read-0\", \"tool_succeeded\": true}\n{\"actor_kind\": \"agent\", \"event_id\": \"turn-9326afc1a7d959b8328dddeafabf1306058e392392d73767e6002e1f5a59e4b2-answer\", \"kind\": \"assistant_message\", \"text\": \"Option A is the cheapest option that works offline, costing 10 units, while Option B costs 20 units and requires a network.\\n\\nSources: [research-brief], [memory:ctx_01ed51affd1b46628bda6eaf6da82429]\", \"tool_call_id\": null, \"tool_succeeded\": null}\n{\"actor_kind\": \"user\", \"event_id\": \"turn-4a7ee7111992c171d830514037e9573f7ce8157fd09bfa5821f46e8c091ba69d\", \"kind\": \"correction\", \"text\": \"Correction: my report language preference is Spanish instead of English. From now on always write my research reports in Spanish. Read research-brief and recommend the cheapest option that works offline with a citation.\", \"tool_call_id\": null, \"tool_succeeded\": null}\n{\"actor_kind\": \"agent\", \"event_id\": \"turn-4a7ee7111992c171d830514037e9573f7ce8157fd09bfa5821f46e8c091ba69d-read-0-result\", \"kind\": \"tool_result\", \"text\": \"Option A costs 10 units and supports offline operation. Option B costs 20 units and requires a network.\", \"tool_call_id\": \"turn-4a7ee7111992c171d830514037e9573f7ce8157fd09bfa5821f46e8c091ba69d-read-0\", \"tool_succeeded\": true}\n{\"actor_kind\": \"agent\", \"event_id\": \"turn-4a7ee7111992c171d830514037e9573f7ce8157fd09bfa5821f46e8c091ba69d-answer\", \"kind\": \"assistant_message\", \"text\": \"La opci\\u00f3n m\\u00e1s barata que funciona sin conexi\\u00f3n es la Opci\\u00f3n A, que cuesta 10 unidades.\\n\\nSources: [research-brief], [memory:ctx_01ed51affd1b46628bda6eaf6da82429], [memory:ctx_de89a52d554542eaa47e9b168d4424fc]\", \"tool_call_id\": null, \"tool_succeeded\": null}",
+    "last_3_records": "{\"actor_kind\": \"user\", \"event_id\": \"turn-4a7ee7111992c171d830514037e9573f7ce8157fd09bfa5821f46e8c091ba69d\", \"kind\": \"correction\", \"text\": \"Correction: my report language preference is Spanish instead of English. From now on always write my research reports in Spanish. Read research-brief and recommend the cheapest option that works offline with a citation.\", \"tool_call_id\": null, \"tool_succeeded\": null}\n{\"actor_kind\": \"agent\", \"event_id\": \"turn-4a7ee7111992c171d830514037e9573f7ce8157fd09bfa5821f46e8c091ba69d-read-0-result\", \"kind\": \"tool_result\", \"text\": \"Option A costs 10 units and supports offline operation. Option B costs 20 units and requires a network.\", \"tool_call_id\": \"turn-4a7ee7111992c171d830514037e9573f7ce8157fd09bfa5821f46e8c091ba69d-read-0\", \"tool_succeeded\": true}\n{\"actor_kind\": \"agent\", \"event_id\": \"turn-4a7ee7111992c171d830514037e9573f7ce8157fd09bfa5821f46e8c091ba69d-answer\", \"kind\": \"assistant_message\", \"text\": \"La opci\\u00f3n m\\u00e1s barata que funciona sin conexi\\u00f3n es la Opci\\u00f3n A, que cuesta 10 unidades.\\n\\nSources: [research-brief], [memory:ctx_01ed51affd1b46628bda6eaf6da82429], [memory:ctx_de89a52d554542eaa47e9b168d4424fc]\", \"tool_call_id\": null, \"tool_succeeded\": null}",
+    "rolling_summary": "The user initially preferred English for research reports and requested the cheapest offline option from 'research-brief', which was identified as Option A (10 units) citing the document. This preference was corrected to Spanish, and the request was re-executed, resulting in the recommendation of Option A (10 units) in Spanish, citing the document and relevant memory contexts. Progress is verified: the cheapest offline option (Option A) was correctly identified in both English and Spanish, and the language preference was successfully updated to Spanish.",
+    "vector_top_3": "{\"actor_kind\": \"user\", \"event_id\": \"turn-9326afc1a7d959b8328dddeafabf1306058e392392d73767e6002e1f5a59e4b2\", \"kind\": \"user_message\", \"text\": \"My report language preference is English. Always write my research reports in English. Read research-brief and recommend the cheapest option that works offline, citing the document.\", \"tool_call_id\": null, \"tool_succeeded\": null}\n{\"actor_kind\": \"agent\", \"event_id\": \"turn-9326afc1a7d959b8328dddeafabf1306058e392392d73767e6002e1f5a59e4b2-answer\", \"kind\": \"assistant_message\", \"text\": \"Option A is the cheapest option that works offline, costing 10 units, while Option B costs 20 units and requires a network.\\n\\nSources: [research-brief], [memory:ctx_01ed51affd1b46628bda6eaf6da82429]\", \"tool_call_id\": null, \"tool_succeeded\": null}\n{\"actor_kind\": \"user\", \"event_id\": \"turn-4a7ee7111992c171d830514037e9573f7ce8157fd09bfa5821f46e8c091ba69d\", \"kind\": \"correction\", \"text\": \"Correction: my report language preference is Spanish instead of English. From now on always write my research reports in Spanish. Read research-brief and recommend the cheapest option that works offline with a citation.\", \"tool_call_id\": null, \"tool_succeeded\": null}",
+    "existing_retriever": "What is true about this user:\n- [USER] report_language: Spanish \u2014 said: \"user: Correction: my report language preference is Spanish instead of English. From now on always write my research reports in Spanish. Read\"\n- [USER] recommendation_criteria: cheapest option that works offline \u2014 said: \"user: My report language preference is English. Always write my research reports in English. Read research-brief and recommend the cheapest \"\n\nEarlier conversations with this user, most recent first:\n- 2026-11-05 00:51 (3 messages, open): nothing durable was recorded. It opened with: \"user: Continue the research using my current summary language requirement. Read research-brief and deliver the final cited recommendation.\".\n- 2026-11-05 00:51 (3 messages, open): report_language. It opened with: \"user: Correction: my report language preference is Spanish instead of English. From now on always write my research reports in Spanish. Read\".\n- 2026-11-05 00:51 (3 messages, open): report_language, recommendation_criteria. It opened with: \"user: My report language preference is English. Always write my research reports in English. Read research-brief and recommend the cheapest \".\n\nPreferences this user changed:\n- report_language: previously English, now Spanish (2026-11-05)",
+    "ace": "[{\"kind\":\"retrieved_data\",\"id\":\"ctx_de89a52d554542eaa47e9b168d4424fc\",\"text\":\"personalization:report_language: Spanish\",\"evidence\":[\"ep_2ae9b80ff593b9797cae0415\"]},{\"kind\":\"retrieved_data\",\"id\":\"ctx_01ed51affd1b46628bda6eaf6da82429\",\"text\":\"personalization:recommendation_criteria: cheapest option that works offline\",\"evidence\":[\"ep_7926a6c4f5878ca632347f2d\"]}]"
+  },
+  "source_registries": {
+    "full_history": {
+      "context": {
+        "kind": "prepared_context",
+        "sha256": "eedd77f9be5c30475432c1e40ad4a273ca22920d37b4e2fac9225ea70180b993"
+      },
+      "research-brief": {
+        "kind": "document"
+      },
+      "turn-9326afc1a7d959b8328dddeafabf1306058e392392d73767e6002e1f5a59e4b2": {
+        "kind": "event"
+      },
+      "turn-9326afc1a7d959b8328dddeafabf1306058e392392d73767e6002e1f5a59e4b2-read-0-result": {
+        "kind": "event"
+      },
+      "turn-9326afc1a7d959b8328dddeafabf1306058e392392d73767e6002e1f5a59e4b2-answer": {
+        "kind": "event"
+      },
+      "turn-4a7ee7111992c171d830514037e9573f7ce8157fd09bfa5821f46e8c091ba69d": {
+        "kind": "event"
+      },
+      "turn-4a7ee7111992c171d830514037e9573f7ce8157fd09bfa5821f46e8c091ba69d-read-0-result": {
+        "kind": "event"
+      },
+      "turn-4a7ee7111992c171d830514037e9573f7ce8157fd09bfa5821f46e8c091ba69d-answer": {
+        "kind": "event"
+      }
+    },
+    "last_3_records": {
+      "context": {
+        "kind": "prepared_context",
+        "sha256": "c36be296d8ee346b57acea38ab69f0c85760bdfd72ee2d22d9ffd319e7a00268"
+      },
+      "research-brief": {
+        "kind": "document"
+      },
+      "turn-4a7ee7111992c171d830514037e9573f7ce8157fd09bfa5821f46e8c091ba69d": {
+        "kind": "event"
+      },
+      "turn-4a7ee7111992c171d830514037e9573f7ce8157fd09bfa5821f46e8c091ba69d-read-0-result": {
+        "kind": "event"
+      },
+      "turn-4a7ee7111992c171d830514037e9573f7ce8157fd09bfa5821f46e8c091ba69d-answer": {
+        "kind": "event"
+      }
+    },
+    "rolling_summary": {
+      "context": {
+        "kind": "prepared_context",
+        "sha256": "790a5d5747989a9657845b8245d1523b9d2fea98831dff4f41a062c554a7e9d9"
+      },
+      "research-brief": {
+        "kind": "document"
+      }
+    },
+    "vector_top_3": {
+      "context": {
+        "kind": "prepared_context",
+        "sha256": "132f3fd80bb8113e3acc928c48a7b53a53a2abe9d19224285146e7fa777813db"
+      },
+      "research-brief": {
+        "kind": "document"
+      },
+      "turn-9326afc1a7d959b8328dddeafabf1306058e392392d73767e6002e1f5a59e4b2": {
+        "kind": "event"
+      },
+      "turn-9326afc1a7d959b8328dddeafabf1306058e392392d73767e6002e1f5a59e4b2-answer": {
+        "kind": "event"
+      },
+      "turn-4a7ee7111992c171d830514037e9573f7ce8157fd09bfa5821f46e8c091ba69d": {
+        "kind": "event"
+      }
+    },
+    "existing_retriever": {
+      "context": {
+        "kind": "prepared_context",
+        "sha256": "06345d83d354e1ac7f6709b0e135ca9917c8779a2df01739cb62dee3155a331e"
+      },
+      "research-brief": {
+        "kind": "document"
+      }
+    },
+    "ace": {
+      "context": {
+        "kind": "prepared_context",
+        "sha256": "e9c673ae6961dfbac8b7b1a451ace4ad06cc78fcc70fd86767919bcc7d46ac04"
+      },
+      "research-brief": {
+        "kind": "document"
+      },
+      "ctx_de89a52d554542eaa47e9b168d4424fc": {
+        "kind": "memory"
+      },
+      "ep_2ae9b80ff593b9797cae0415": {
+        "kind": "episode"
+      },
+      "ctx_01ed51affd1b46628bda6eaf6da82429": {
+        "kind": "memory"
+      },
+      "ep_7926a6c4f5878ca632347f2d": {
+        "kind": "episode"
+      }
+    }
+  },
+  "source_events": [
+    "{\"actor_kind\": \"user\", \"event_id\": \"turn-9326afc1a7d959b8328dddeafabf1306058e392392d73767e6002e1f5a59e4b2\", \"kind\": \"user_message\", \"text\": \"My report language preference is English. Always write my research reports in English. Read research-brief and recommend the cheapest option that works offline, citing the document.\", \"tool_call_id\": null, \"tool_succeeded\": null}",
+    "{\"actor_kind\": \"agent\", \"event_id\": \"turn-9326afc1a7d959b8328dddeafabf1306058e392392d73767e6002e1f5a59e4b2-read-0-result\", \"kind\": \"tool_result\", \"text\": \"Option A costs 10 units and supports offline operation. Option B costs 20 units and requires a network.\", \"tool_call_id\": \"turn-9326afc1a7d959b8328dddeafabf1306058e392392d73767e6002e1f5a59e4b2-read-0\", \"tool_succeeded\": true}",
+    "{\"actor_kind\": \"agent\", \"event_id\": \"turn-9326afc1a7d959b8328dddeafabf1306058e392392d73767e6002e1f5a59e4b2-answer\", \"kind\": \"assistant_message\", \"text\": \"Option A is the cheapest option that works offline, costing 10 units, while Option B costs 20 units and requires a network.\\n\\nSources: [research-brief], [memory:ctx_01ed51affd1b46628bda6eaf6da82429]\", \"tool_call_id\": null, \"tool_succeeded\": null}",
+    "{\"actor_kind\": \"user\", \"event_id\": \"turn-4a7ee7111992c171d830514037e9573f7ce8157fd09bfa5821f46e8c091ba69d\", \"kind\": \"correction\", \"text\": \"Correction: my report language preference is Spanish instead of English. From now on always write my research reports in Spanish. Read research-brief and recommend the cheapest option that works offline with a citation.\", \"tool_call_id\": null, \"tool_succeeded\": null}",
+    "{\"actor_kind\": \"agent\", \"event_id\": \"turn-4a7ee7111992c171d830514037e9573f7ce8157fd09bfa5821f46e8c091ba69d-read-0-result\", \"kind\": \"tool_result\", \"text\": \"Option A costs 10 units and supports offline operation. Option B costs 20 units and requires a network.\", \"tool_call_id\": \"turn-4a7ee7111992c171d830514037e9573f7ce8157fd09bfa5821f46e8c091ba69d-read-0\", \"tool_succeeded\": true}",
+    "{\"actor_kind\": \"agent\", \"event_id\": \"turn-4a7ee7111992c171d830514037e9573f7ce8157fd09bfa5821f46e8c091ba69d-answer\", \"kind\": \"assistant_message\", \"text\": \"La opci\\u00f3n m\\u00e1s barata que funciona sin conexi\\u00f3n es la Opci\\u00f3n A, que cuesta 10 unidades.\\n\\nSources: [research-brief], [memory:ctx_01ed51affd1b46628bda6eaf6da82429], [memory:ctx_de89a52d554542eaa47e9b168d4424fc]\", \"tool_call_id\": null, \"tool_succeeded\": null}"
+  ],
+  "query": "Continue the research using the current report language preference. Recommend the cheapest option that works offline.",
+  "document": {
+    "research-brief": "Option A costs 10 units and supports offline operation. Option B costs 20 units and requires a network."
+  },
+  "embedding_model": "nvidia/nemotron-3.5-embed-1b",
+  "embedding_dimension": 2048,
+  "source_events_sha256": "eedd77f9be5c30475432c1e40ad4a273ca22920d37b4e2fac9225ea70180b993",
+  "document_sha256": "04e09b0c2c95c5277cd807e3c28eee4b41735724a6937eeb8a6c5a8fe4e8d5ca",
+  "preparation": {
+    "seconds": 3.296706510009244,
+    "summary_chat": {
+      "calls": 1,
+      "prompt_tokens": 1204,
+      "completion_tokens": 109
+    },
+    "embedding_batch_size": 1,
+    "expected_vector_passage_batches": 6,
+    "expected_query_embedding_calls": 2,
+    "embedding_usage": null,
+    "ace_server_usage": null
+  },
+  "limitations": [
+    "One synthetic scenario with repeated same-case trials; no public-dataset generalization or superiority claim",
+    "Seeds are requested from the provider, not a guarantee of backend determinism; small same-case trials are not independent task samples and do not justify confidence intervals or tail-latency SLOs",
+    "Ingestion costs are separate and must be included from the demo run's provider usage logs before reporting dollars per task",
+    "Provider rates were not supplied; no dollar costs invented",
+    "No public dataset/license or multi-provider result claimed",
+    "Citations identify a hash-bound prepared context view or the supplied document; identity and correct option are checked, not general semantic entailment of every language claim"
+  ]
+}

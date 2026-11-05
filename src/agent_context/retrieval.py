@@ -28,7 +28,10 @@ WHERE (c.status = 'active' OR
   AND NOT c.context_id IN $blocked_ids
   AND coalesce(c.user_revoked,false)=false
   AND ((c.scope_type = 'USER' AND c.scope_id = $user_id)
-       OR (c.scope_type = 'SESSION' AND c.scope_id = $session_id)
+       OR (c.scope_type = 'SESSION' AND c.scope_id = $session_id AND EXISTS {
+          MATCH (s:Session {session_id:$session_id,user_id:$user_id})
+          WHERE s.ace_scope_bound=true
+            AND (s.ace_project_id IS NULL OR s.ace_project_id=$project_id) })
        OR (c.scope_type = 'PROJECT' AND c.scope_id = $project_id))
 WITH c, toLower(replace(coalesce(c.concept_key,''),'_',' ') + ' ' +
                 coalesce(toString(c.value),'')) AS searchable
@@ -43,7 +46,10 @@ ORDER BY CASE WHEN lexical > semantic THEN lexical ELSE semantic END DESC,
                 CASE WHEN c.context_type IN ['Constraint','Preference','WorkingStyle']
                     THEN 0 ELSE 1 END, c.observed_at DESC, c.context_id
 LIMIT $limit
-RETURN properties(c) AS context, semantic, c.cardinality = 'single' AND EXISTS {
+OPTIONAL MATCH (source_session:Session {session_id:c.scope_id,user_id:$user_id})
+WHERE c.scope_type='SESSION'
+RETURN properties(c) AS context, semantic, source_session.ace_project_id AS scope_project,
+c.cardinality = 'single' AND EXISTS {
  MATCH (other:Context {subject_user_id:$user_id, scope_type:c.scope_type,
                        scope_id:c.scope_id, concept_key:c.concept_key})
  WHERE other.context_id <> c.context_id
@@ -158,6 +164,7 @@ class Neo4jCandidateSource:
                     user_id=principal.user_id,
                     scope_type=context.scope_type,
                     scope_id=original_scope,
+                    project_id=request.project_id if record["scope_project"] is not None else None,
                     canonical_key=context.concept_key,
                     text=f"{context.concept_key}: {value}",
                     value=context.value

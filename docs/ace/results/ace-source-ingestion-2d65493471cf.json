@@ -1,0 +1,23 @@
+{
+  "source_demo_run": "2d65493471cf",
+  "source": "fresh isolated ace-benchmark-audit worker structured logs",
+  "ingestion_chat_usage": {
+    "successful_chat_responses": 19,
+    "reported_prompt_tokens": 14392,
+    "reported_completion_tokens": 1172,
+    "responses_without_usage": 0
+  },
+  "schemas": {
+    "SegmentationProposal": 15,
+    "ExtractionEnvelope": 3,
+    "ConceptAdjudication": 1
+  },
+  "retry_events": {},
+  "embedding_usage": null,
+  "dollar_cost": null,
+  "limitations": [
+    "Only successful chat responses expose token usage; embedding usage and provider prices were not available.",
+    "All work in this fresh worker belongs to the one synthetic source demo; repeated answer trials are reported separately.",
+    "This does not establish full dollar cost or amortized production cost."
+  ]
+}

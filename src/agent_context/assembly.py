@@ -323,6 +323,13 @@ class ContextAssembler:
                 and item.scope_id == principal.user_id
                 or item.scope_type == ScopeType.SESSION
                 and item.scope_id == request.session_id
+                and (
+                    item.project_id is None
+                    or (
+                        item.project_id == request.project_id
+                        and item.project_id in principal.projects
+                    )
+                )
                 or item.scope_type == ScopeType.PROJECT
                 and request.project_id is not None
                 and item.scope_id == request.project_id

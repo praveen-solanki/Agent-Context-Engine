@@ -14,6 +14,10 @@ from agent_context.bridge import scoped_id
 from agent_context.contracts import Principal, utcnow
 from agent_context.retrieval import Neo4jCandidateSource
 from tests.factories import context_node
+from context_graph.graph.neo4j_store import Neo4jGraphStore
+from context_graph.config import Neo4jSettings
+from context_graph.domain.conversation import SessionInput
+from tests.factories import make_message
 from agent_context.assembly import SearchRequest
 from collections.abc import Sequence
 
@@ -59,6 +63,11 @@ async def test_private_query_scope_and_assembly_against_real_neo4j() -> None:
         ("claimed_team", {"scope_type": "TEAM", "scope_id": "claimed-team"}),
     ]
     try:
+        await Neo4jGraphStore(Neo4jSettings(uri="bolt://127.0.0.1:7690"), driver=driver).persist_session(
+            SessionInput(session_id=scoped_id(tenant, "session"), user_id=scoped_id(tenant, user),
+                         messages=(make_message(1, "Unbound private session"),),
+                         metadata={"ace_event_bridge":True, "ace_project_id":None})
+        )
         for name, overrides in variants:
             properties = {
                 **context_node(concept=f"{tenant}_{name}"),
@@ -94,6 +103,10 @@ async def test_private_query_scope_and_assembly_against_real_neo4j() -> None:
             "MATCH (c:Context {ace_test: $tag}) DETACH DELETE c",
             tag=tenant,
             database_="neo4j",
+        )
+        await driver.execute_query(
+            "MATCH(n) WHERE n.session_id=$sid OR n.user_id=$uid DETACH DELETE n",
+            sid=scoped_id(tenant,"session"),uid=scoped_id(tenant,user),database_="neo4j",
         )
         await driver.close()
 
@@ -132,6 +145,32 @@ async def test_older_relevant_decision_survives_recent_irrelevant_candidate_pres
         assert decision_id in {entry.item_id for entry in bundle.items}
     finally:
         await driver.execute_query("MATCH (c:Context {ace_test: $tag}) DETACH DELETE c", tag=tag, database_="neo4j")
+        await driver.close()
+
+
+async def test_session_context_cannot_bypass_a_revoked_project_grant() -> None:
+    tag = uuid4().hex
+    uid, sid, project = (scoped_id(tag, name) for name in ("owner", "session", "secret"))
+    actor = Principal(tenant_id=tag, user_id="owner", actor_id="owner")
+    driver = AsyncGraphDatabase.driver("bolt://127.0.0.1:7690", auth=None)
+    store = Neo4jGraphStore(Neo4jSettings(uri="bolt://127.0.0.1:7690"), driver=driver)
+    try:
+        await store.persist_session(SessionInput(
+            session_id=sid, user_id=uid, agent_ids=(tag+"-agent",), messages=(make_message(1,"Private session requirement"),),
+            metadata={"ace_event_bridge": True, "ace_project_id": project},
+        ))
+        await driver.execute_query("CREATE(c:Context) SET c=$props", props={
+            **context_node(concept=tag), "ace_test":tag, "subject_user_id":uid,
+            "scope_type":"SESSION", "scope_id":sid,
+        }, database_="neo4j")
+        source = Neo4jCandidateSource(driver, database="neo4j", tenant_id=tag)
+        query = AssembleRequest(agent_id="agent", session_id="session", budget=TokenBudget(model_context_tokens=12000))
+        assert not await source.fetch(actor, query, limit=32)
+        granted = actor.model_copy(update={"projects":frozenset({"secret"})})
+        assert len(await source.fetch(granted, query.model_copy(update={"project_id":"secret"}), limit=32)) == 1
+    finally:
+        await driver.execute_query("MATCH(c:Context {ace_test:$tag}) DETACH DELETE c", tag=tag, database_="neo4j")
+        await driver.execute_query("MATCH(n) WHERE n.session_id=$sid OR n.user_id=$uid OR n.agent_id=$agent DETACH DELETE n", sid=sid,uid=uid,agent=tag+"-agent",database_="neo4j")
         await driver.close()
 
 

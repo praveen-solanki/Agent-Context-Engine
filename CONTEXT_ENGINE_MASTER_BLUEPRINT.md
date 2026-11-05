@@ -670,6 +670,42 @@ Do not claim measured token reduction, task-success gain, p95 latency, multi-ten
 
 ### Progress ledger (the next agent should maintain this)
 
+2026-11-05 R08/R09 verification increment: **PARTIAL overall**. Existing core,
+R07 recommendation checks, task/CAS/mandatory packing and handoff verification
+were preserved. Reproduced gaps were fixed in the existing evaluator: obsolete
+source reports are rejected, all six baselines have equal source/citation repair
+policies, query embeddings and summary byte budgets are correct, repeated seeded
+trials and failures/usage/provenance are recorded. Final v5 reports contain
+**36 answer trials across 500/4000-byte allowances; all six methods pass all
+three trials at both budgets**. There is no demonstrated task-success advantage.
+ACE used fewer answer prompt tokens than full history; rolling summary used
+fewer than ACE, and ACE answers were slower in this probe. Worker chat usage is
+separate; total embedding/dollar costs and public-data generalization remain
+unmeasured. Earlier rubric/summary failures are retained. Public metadata confirms
+LongMemEval is available but **NOT YET RUN**; ConvoMem's tracked converted subset
+is not a versioned QA benchmark. See the exact reports and method limitations in
+the new `REMAINING_WORK.md` increment and `docs/ace/validation.md`.
+
+Security testing also reproduced a private-session project-access bypass.
+Trusted project metadata is now persisted immutably on Sessions and rechecked
+by retrieval, assembly and source evidence, including after grant removal.
+Unknown old bindings fail closed. A versioned metadata-only dry-run/apply/rollback
+tool reuses authoritative outbox identity; real-store migration/retry/rollback
+and HTTP negative tests pass. Three sessions in the isolated benchmark stack
+were backfilled; the user-facing database was not migrated.
+Eight competing graph-binding races also pass; comparisons hold the Session node
+write lock before reading binding fields. The final rebuilt worker's six-check
+upgrade proof is `docs/ace/results/session-binding-upgrade-20261105.json`. This
+does not close the distributed graph-fencing requirement. SDK basic calls
+remain compatible with the older console API (observed 422 before, 200 after).
+These bounded fixes are **CONFIRMED DONE — SKIP**, backed by **506 regression
+tests passed, two opt-in live tests skipped, one legacy live-UI case deselected
+(17.65 s), and clean Pyright**. Independent live upgrade evidence is recorded
+separately in validation.md. Whole-project completion, public benchmarks,
+cross-provider and production reliability/security/recovery gates remain open.
+New commits are local pending fresh approval for publication to the currently
+public repository; do not infer a push or a new GitHub CI run.
+
 2026-11-05 task-state increment passed end-to-end verification. Existing
 handoff/host/replay primitives passed 23 focused tests and were preserved.
 `WorkState`, `TaskStateService` and `TaskCandidateSource` now reuse the existing

@@ -85,6 +85,7 @@ async def test_reproducible_selection_and_final_rendered_byte_bound() -> None:
         {"user_id": "u2"},
         {"scope_id": "u2"},
         {"scope_type": "SESSION", "scope_id": "other-session"},
+        {"scope_type": "SESSION", "scope_id": "s1", "project_id": "revoked-project"},
         {"scope_type": "PROJECT", "scope_id": "other-project"},
         {"scope_type": "TEAM", "scope_id": "claimed-team"},
     ],
