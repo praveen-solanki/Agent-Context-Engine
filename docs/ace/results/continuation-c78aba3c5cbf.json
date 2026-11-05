@@ -1,0 +1,288 @@
+{
+  "run_id": "continuation-c78aba3c5cbf",
+  "timestamp": "2026-11-05T00:13:35.700774+00:00",
+  "checks": {
+    "old_handoff_blocked": true,
+    "latest_requirements_and_cancelled_step": true,
+    "reconciled_resume_is_safe": true
+  },
+  "models": [
+    {
+      "model": "nvidia/nemotron-3.5-bolt-e4b",
+      "decision": {
+        "next_action": "Audit report",
+        "report_language": "Spanish",
+        "completed_action_ids": [
+          "continuation-c78aba3c5cbf-read",
+          "continuation-c78aba3c5cbf-draft"
+        ],
+        "cancelled_steps": [
+          "Publish obsolete version"
+        ]
+      },
+      "calls": 1,
+      "prompt_tokens": 1191,
+      "completion_tokens": 59
+    }
+  ],
+  "host_tool_executions": {
+    "read": 1,
+    "draft": 1,
+    "audit": 0
+  },
+  "limitations": [
+    "One synthetic continuation workflow; not a benchmark or production certification.",
+    "Two model families on one NVIDIA provider; cross-provider portability remains unverified.",
+    "Host chat usage is metered; worker/query embedding usage and dollar cost are unknown.",
+    "The alternate model call failed; passing preliminary checks do not mean the complete scenario passed."
+  ],
+  "bundle": {
+    "bundle_id": "38e45bbcf87f1064bb4bbd2c6ece98d8b7c095e4eef52bdaec004cf78ef75135",
+    "policy_version": "ace-assembly-v4",
+    "tokenizer_version": "utf8-byte-bound-v1",
+    "items": [
+      {
+        "item_id": "ace_task.ace_868685e3d173001a3776f6ddf8b83b78250dd6c0c7b85e4af1cc4f43a2a3750f:2",
+        "tenant_id": "ace-live",
+        "user_id": "research-user",
+        "scope_type": "TASK",
+        "scope_id": "continuation-c78aba3c5cbf",
+        "canonical_key": "task_state:continuation-c78aba3c5cbf",
+        "text": "{\"version\":2,\"updated_at\":\"2026-11-05T00:14:07.656886Z\",\"content\":{\"project_id\":\"research-project\",\"task_id\":\"continuation-c78aba3c5cbf\",\"source_session_id\":\"continuation-c78aba3c5cbf-B\",\"goal\":\"Complete and audit the research report\",\"requirements\":[\"Use Spanish reports\"],\"completed\":[{\"action_id\":\"continuation-c78aba3c5cbf-read\",\"project_id\":\"research-project\",\"description\":\"Read evidence\",\"source_session_id\":\"continuation-c78aba3c5cbf-A\",\"result_event_id\":\"continuation-c78aba3c5cbf-A-2\"},{\"action_id\":\"continuation-c78aba3c5cbf-draft\",\"project_id\":\"research-project\",\"description\":\"Draft report\",\"source_session_id\":\"continuation-c78aba3c5cbf-B\",\"result_event_id\":\"continuation-c78aba3c5cbf-B-2\"}],\"pending\":[\"Audit report\"],\"blockers\":[],\"unresolved_operations\":[],\"artifacts\":[{\"artifact_id\":\"continuation-c78aba3c5cbf-report\",\"project_id\":\"research-project\",\"sha256\":\"8c22b291a92c21cf19f618091b132b49ee2fde7774aba1fcf6164fae2a2b6526\"}],\"expires_at\":null,\"status\":\"active\",\"cancelled\":[\"Publish obsolete version\"],\"dependencies\":[],\"source_event_id\":\"continuation-c78aba3c5cbf-B-1\",\"must_keep\":[\"Use Spanish reports\"]}}",
+        "value": null,
+        "fingerprint": "c472cdb56672de05d93a17e495fc3be2283fdc973a793f9dfe1beb7d820ad2d9",
+        "evidence_ids": [
+          "event:continuation-c78aba3c5cbf-B-1"
+        ],
+        "status": "active",
+        "valid_from": null,
+        "valid_until": null,
+        "observed_at": "2026-11-05T00:14:07.656886Z",
+        "single_valued": true,
+        "required": true,
+        "trusted_policy": false,
+        "priority": 1.0,
+        "semantic_score": 0.0,
+        "superseded_at": null,
+        "unresolved_conflict": false,
+        "approved_task_state": true,
+        "project_id": "research-project",
+        "source_warnings": []
+      },
+      {
+        "item_id": "ctx_9e1b18c89e78408ea26ebbc08dd14fcd",
+        "tenant_id": "ace-live",
+        "user_id": "research-user",
+        "scope_type": "SESSION",
+        "scope_id": "continuation-c78aba3c5cbf-C",
+        "canonical_key": "personalization:task_continuation_method",
+        "text": "personalization:task_continuation_method: latest_requirements_and_verified_work",
+        "value": "latest_requirements_and_verified_work",
+        "fingerprint": "fp_220040a8321794f95077421b",
+        "evidence_ids": [
+          "ep_d02353125160248b7c5d10e3"
+        ],
+        "status": "active",
+        "valid_from": "2026-11-05T00:14:07.666097Z",
+        "valid_until": null,
+        "observed_at": "2026-11-05T00:14:07.666097Z",
+        "single_valued": true,
+        "required": false,
+        "trusted_policy": false,
+        "priority": 1.0,
+        "semantic_score": 0.0,
+        "superseded_at": null,
+        "unresolved_conflict": false,
+        "approved_task_state": false,
+        "project_id": null,
+        "source_warnings": []
+      },
+      {
+        "item_id": "ctx_47f68275626049198a86bbbd3b9f4967",
+        "tenant_id": "ace-live",
+        "user_id": "research-user",
+        "scope_type": "PROJECT",
+        "scope_id": "research-project",
+        "canonical_key": "personalization:deployment_location",
+        "text": "personalization:deployment_location: inside company building",
+        "value": "inside company building",
+        "fingerprint": "fp_9ad60c46062440acc187afb0",
+        "evidence_ids": [
+          "ep_695a4677e63f451b99d1dae1"
+        ],
+        "status": "active",
+        "valid_from": "2026-11-04T23:43:58.828681Z",
+        "valid_until": null,
+        "observed_at": "2026-11-04T23:43:58.828681Z",
+        "single_valued": true,
+        "required": false,
+        "trusted_policy": false,
+        "priority": 1.0,
+        "semantic_score": 0.0,
+        "superseded_at": null,
+        "unresolved_conflict": false,
+        "approved_task_state": false,
+        "project_id": null,
+        "source_warnings": []
+      },
+      {
+        "item_id": "ctx_64de1232820e4a99943a78c5961cb19b",
+        "tenant_id": "ace-live",
+        "user_id": "research-user",
+        "scope_type": "USER",
+        "scope_id": "research-user",
+        "canonical_key": "personalization:report_language",
+        "text": "personalization:report_language: Spanish",
+        "value": "Spanish",
+        "fingerprint": "fp_e58134c12258eb56d60645c9",
+        "evidence_ids": [
+          "ep_ea234222cc5ea704ff52661d"
+        ],
+        "status": "active",
+        "valid_from": "2026-11-04T13:01:43.308239Z",
+        "valid_until": null,
+        "observed_at": "2026-11-04T13:20:46.625067Z",
+        "single_valued": true,
+        "required": false,
+        "trusted_policy": false,
+        "priority": 1.0,
+        "semantic_score": 0.0,
+        "superseded_at": null,
+        "unresolved_conflict": false,
+        "approved_task_state": false,
+        "project_id": null,
+        "source_warnings": []
+      },
+      {
+        "item_id": "ctx_a0915912e8d34cf599b7d2d81188d367",
+        "tenant_id": "ace-live",
+        "user_id": "research-user",
+        "scope_type": "USER",
+        "scope_id": "research-user",
+        "canonical_key": "personalization:report_recommendation_criteria",
+        "text": "personalization:report_recommendation_criteria: cheapest option that works offline with a citation",
+        "value": "cheapest option that works offline with a citation",
+        "fingerprint": "fp_20610b1db422dc481a060e12",
+        "evidence_ids": [
+          "ep_828ca0adf9f766aaaa40e3e8"
+        ],
+        "status": "active",
+        "valid_from": "2026-11-04T13:20:46.625067Z",
+        "valid_until": null,
+        "observed_at": "2026-11-04T13:20:46.625067Z",
+        "single_valued": true,
+        "required": false,
+        "trusted_policy": false,
+        "priority": 0.0,
+        "semantic_score": 0.0,
+        "superseded_at": null,
+        "unresolved_conflict": false,
+        "approved_task_state": false,
+        "project_id": null,
+        "source_warnings": []
+      },
+      {
+        "item_id": "ctx_8f6d84f1fa1643e4a1f7359156fce21e",
+        "tenant_id": "ace-live",
+        "user_id": "research-user",
+        "scope_type": "USER",
+        "scope_id": "research-user",
+        "canonical_key": "personalization:recommendation_criteria",
+        "text": "personalization:recommendation_criteria: cheapest option that works offline",
+        "value": "cheapest option that works offline",
+        "fingerprint": "fp_4378030dbf7066b3ae77578e",
+        "evidence_ids": [
+          "ep_bcc860b097de00ed079f63a5"
+        ],
+        "status": "active",
+        "valid_from": "2026-11-04T13:01:26.189738Z",
+        "valid_until": null,
+        "observed_at": "2026-11-04T13:20:33.250470Z",
+        "single_valued": true,
+        "required": false,
+        "trusted_policy": false,
+        "priority": 0.0,
+        "semantic_score": 0.0,
+        "superseded_at": null,
+        "unresolved_conflict": false,
+        "approved_task_state": false,
+        "project_id": null,
+        "source_warnings": []
+      }
+    ],
+    "rendered": "[{\"kind\":\"current_task_state\",\"id\":\"ace_task.ace_868685e3d173001a3776f6ddf8b83b78250dd6c0c7b85e4af1cc4f43a2a3750f:2\",\"text\":\"{\\\"version\\\":2,\\\"updated_at\\\":\\\"2026-11-05T00:14:07.656886Z\\\",\\\"content\\\":{\\\"project_id\\\":\\\"research-project\\\",\\\"task_id\\\":\\\"continuation-c78aba3c5cbf\\\",\\\"source_session_id\\\":\\\"continuation-c78aba3c5cbf-B\\\",\\\"goal\\\":\\\"Complete and audit the research report\\\",\\\"requirements\\\":[\\\"Use Spanish reports\\\"],\\\"completed\\\":[{\\\"action_id\\\":\\\"continuation-c78aba3c5cbf-read\\\",\\\"project_id\\\":\\\"research-project\\\",\\\"description\\\":\\\"Read evidence\\\",\\\"source_session_id\\\":\\\"continuation-c78aba3c5cbf-A\\\",\\\"result_event_id\\\":\\\"continuation-c78aba3c5cbf-A-2\\\"},{\\\"action_id\\\":\\\"continuation-c78aba3c5cbf-draft\\\",\\\"project_id\\\":\\\"research-project\\\",\\\"description\\\":\\\"Draft report\\\",\\\"source_session_id\\\":\\\"continuation-c78aba3c5cbf-B\\\",\\\"result_event_id\\\":\\\"continuation-c78aba3c5cbf-B-2\\\"}],\\\"pending\\\":[\\\"Audit report\\\"],\\\"blockers\\\":[],\\\"unresolved_operations\\\":[],\\\"artifacts\\\":[{\\\"artifact_id\\\":\\\"continuation-c78aba3c5cbf-report\\\",\\\"project_id\\\":\\\"research-project\\\",\\\"sha256\\\":\\\"8c22b291a92c21cf19f618091b132b49ee2fde7774aba1fcf6164fae2a2b6526\\\"}],\\\"expires_at\\\":null,\\\"status\\\":\\\"active\\\",\\\"cancelled\\\":[\\\"Publish obsolete version\\\"],\\\"dependencies\\\":[],\\\"source_event_id\\\":\\\"continuation-c78aba3c5cbf-B-1\\\",\\\"must_keep\\\":[\\\"Use Spanish reports\\\"]}}\",\"evidence\":[\"event:continuation-c78aba3c5cbf-B-1\"]},{\"kind\":\"retrieved_data\",\"id\":\"ctx_9e1b18c89e78408ea26ebbc08dd14fcd\",\"text\":\"personalization:task_continuation_method: latest_requirements_and_verified_work\",\"evidence\":[\"ep_d02353125160248b7c5d10e3\"]},{\"kind\":\"retrieved_data\",\"id\":\"ctx_47f68275626049198a86bbbd3b9f4967\",\"text\":\"personalization:deployment_location: inside company building\",\"evidence\":[\"ep_695a4677e63f451b99d1dae1\"]},{\"kind\":\"retrieved_data\",\"id\":\"ctx_64de1232820e4a99943a78c5961cb19b\",\"text\":\"personalization:report_language: Spanish\",\"evidence\":[\"ep_ea234222cc5ea704ff52661d\"]},{\"kind\":\"retrieved_data\",\"id\":\"ctx_a0915912e8d34cf599b7d2d81188d367\",\"text\":\"personalization:report_recommendation_criteria: cheapest option that works offline with a citation\",\"evidence\":[\"ep_828ca0adf9f766aaaa40e3e8\"]},{\"kind\":\"retrieved_data\",\"id\":\"ctx_8f6d84f1fa1643e4a1f7359156fce21e\",\"text\":\"personalization:recommendation_criteria: cheapest option that works offline\",\"evidence\":[\"ep_bcc860b097de00ed079f63a5\"]}]",
+    "token_count": 2387,
+    "exclusions": [],
+    "excluded_counts": {},
+    "warnings": [],
+    "selections": [
+      {
+        "item_id": "ace_task.ace_868685e3d173001a3776f6ddf8b83b78250dd6c0c7b85e4af1cc4f43a2a3750f:2",
+        "reasons": [
+          "valid_recent_context",
+          "current_task_state",
+          "standing_priority"
+        ]
+      },
+      {
+        "item_id": "ctx_9e1b18c89e78408ea26ebbc08dd14fcd",
+        "reasons": [
+          "valid_recent_context",
+          "standing_priority"
+        ]
+      },
+      {
+        "item_id": "ctx_47f68275626049198a86bbbd3b9f4967",
+        "reasons": [
+          "valid_recent_context",
+          "standing_priority"
+        ]
+      },
+      {
+        "item_id": "ctx_64de1232820e4a99943a78c5961cb19b",
+        "reasons": [
+          "valid_recent_context",
+          "standing_priority"
+        ]
+      },
+      {
+        "item_id": "ctx_a0915912e8d34cf599b7d2d81188d367",
+        "reasons": [
+          "valid_recent_context"
+        ]
+      },
+      {
+        "item_id": "ctx_8f6d84f1fa1643e4a1f7359156fce21e",
+        "reasons": [
+          "valid_recent_context"
+        ]
+      }
+    ],
+    "scope": {
+      "tenant_id": "ace-live",
+      "user_id": "research-user",
+      "actor_id": "research-user",
+      "session_id": "continuation-c78aba3c5cbf-C",
+      "project_id": "research-project",
+      "task_id": "continuation-c78aba3c5cbf"
+    },
+    "consistency_sequence": 1
+  },
+  "elapsed_seconds": 38.21443350199843,
+  "source_sha256": {
+    "src/agent_context/task_state.py": "fb2b07be5816d9fcd62e174445118250ade51a5950cce892a0be43c645805218",
+    "src/agent_context/handoff.py": "00771856b8ab1f44867343cae8d0f9667e300f713367b133bf650a544acd2703",
+    "src/agent_context/assembly.py": "55343308b2c339677d0e053f7be63c1792f7fb48162d75f0b42bd609620f067e",
+    "/workspace/Agent-Context-Engine/tests/integration/test_ace_continuation_live.py": "9a8c7b3fe6cbcf3bcd493037e70a086d90d02254b7c4ae0d221467de45ae6d33"
+  },
+  "completed": false,
+  "failure_type": "ProviderError",
+  "failed_model": "mistralai/mistral-large-2-instruct",
+  "failed_model_http_status": 404,
+  "source_hash_note": "Original hashes were taken from the local checkout at report completion. A later task privacy recheck was not in this runtime. Runtime build-tree hashes below identify the actual service source.",
+  "runtime_source_sha256": {
+    "src/agent_context/task_state.py": "fb2b07be5816d9fcd62e174445118250ade51a5950cce892a0be43c645805218",
+    "src/agent_context/handoff.py": "00771856b8ab1f44867343cae8d0f9667e300f713367b133bf650a544acd2703",
+    "src/agent_context/assembly.py": "55343308b2c339677d0e053f7be63c1792f7fb48162d75f0b42bd609620f067e"
+  }
+}

@@ -1,0 +1,15 @@
+{
+  "run_id": "artifact-check-2eed7ca74225",
+  "completed": true,
+  "old_sha256": "c76a72677dac1bc9e8baaf3fb552bc07a8a209d38a6d819c8a253b66b29e7066",
+  "new_sha256": "544cffc291e7817fa137a245111c23ece0d1b6bb37292d06e2f09c905f386fc7",
+  "warnings": [
+    "artifact_version_changed"
+  ],
+  "safe_to_continue": false,
+  "checks": {
+    "changed_hash_detected": true,
+    "resume_blocked": true,
+    "bundle_warns": true
+  }
+}

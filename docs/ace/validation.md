@@ -161,6 +161,31 @@ No prices, confidence intervals or public dataset results have been invented.
 
 ## Remaining whole-product gates
 
+2026-11-05 current-task increment: **480 passed, two explicit opt-in live tests
+skipped, one legacy live-UI case deselected in 16.37s**; Pyright clean. Eight
+focused real-Mongo state/SDK/HTTP tests verify protected requirements, authentic
+event causation, retained verified outcomes, CAS races/replay, mandatory budget,
+current scope/selection trace/watermark, stale/reconciled handoffs, revocation and
+changed artifacts. The canonical task projection reuses existing handoff CAS,
+artifact/outcome verifiers and privacy storage; old snapshot hashes are preserved.
+
+Separately, the isolated real API/worker two-model test passed in **55.00s**:
+`results/continuation-c404a96f34ed.json` records both actual model decisions and
+seven workflow checks. Current Spanish requirements replaced English; cancelled
+work stayed cancelled; completed action IDs were preserved; the host selected
+and performed the remaining audit, recovered the recorded receipt without
+another execution, and rejected unknown operations/expired handoffs. A separate
+**9.09s** live test changed a real stored artifact and proved current-state/bundle
+warnings and unsafe resume (`artifact-check-2eed7ca74225.json`).
+
+The first alternate-model attempt failed with an account-level Mistral 404 and
+is preserved as `continuation-c78aba3c5cbf.json`, explicitly incomplete. The
+successful models are NVIDIA Bolt E4B and Lightning 30B on the same provider;
+this does not establish cross-provider support. These are bounded functional
+acceptance runs, not multi-scenario benchmark gains, total billing or production
+SLOs. Generic task operations are API/SDK capabilities; the frozen console is
+unchanged. Arbitrary external tools still need their own idempotency/reconciliation.
+
 2026-11-05 retrieval increment: the full suite with disposable real Mongo/Neo4j
 passed **474 tests, one legacy credentialed UI case deselected, in 16.59s**;
 Pyright reported zero errors/warnings. Search's missing contract and evidence's
@@ -178,7 +203,7 @@ is now implemented for the private deployment; current task state and shared
 scope/load/production gates remain outstanding.
 
 The blueprint is still an incremental product roadmap, not a completed production
-certification. Required remaining gates include shared/task retrieval
+certification. Required remaining gates include shared/legacy graph-TASK retrieval
 parity, wider multi-session/public-dataset evaluation and ablations, a genuine
 cross-provider run, production distributed fencing/quotas, TLS/identity deployment,
 external backup erasure/retention and disaster-recovery/load/chaos validation.

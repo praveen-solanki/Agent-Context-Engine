@@ -9,15 +9,16 @@ import json
 import re
 from collections import Counter
 from datetime import datetime
-from typing import Protocol
+from typing import Protocol, Literal
 
 from pydantic import AwareDatetime, Field, model_validator
 from typing_extensions import Self
 
 from agent_context.contracts import Contract, Identifier, Permission, Principal, utcnow
+from agent_context.events import EventConflict
 from context_graph.domain.enums import ContextStatus, ScopeType
 
-ASSEMBLY_POLICY_VERSION = "ace-assembly-v3"
+ASSEMBLY_POLICY_VERSION = "ace-assembly-v4"
 
 
 def lexical_terms(text: str) -> set[str]:
@@ -69,8 +70,18 @@ class ContextQuery(Contract):
     agent_id: Identifier
     session_id: Identifier
     project_id: Identifier | None = None
+    task_id: Identifier | None = None
+    task_version: int | None = Field(default=None, ge=1)
     query: str = Field(default="", max_length=16000)
     minimum_sequence: int = Field(default=0, ge=0)
+
+    @model_validator(mode="after")
+    def bound_task(self) -> Self:
+        if self.task_id is not None and self.project_id is None:
+            raise ValueError("a task must be bound to an authorized project")
+        if self.task_version is not None and self.task_id is None:
+            raise ValueError("a task version requires a task ID")
+        return self
 
 
 class AssembleRequest(ContextQuery):
@@ -87,6 +98,9 @@ class SearchRequest(ContextQuery):
     as_of: AwareDatetime | None = None
     limit: int = Field(default=20, ge=1, le=100)
     cursor: str | None = Field(default=None, max_length=512)
+
+
+ContextWarning = Literal["completed_action_no_longer_verifiable", "artifact_version_changed"]
 
 
 class ContextItem(Contract):
@@ -111,6 +125,9 @@ class ContextItem(Contract):
     semantic_score: float = Field(default=0, ge=0, le=1)
     superseded_at: AwareDatetime | None = None
     unresolved_conflict: bool = False
+    approved_task_state: bool = False
+    project_id: Identifier | None = None
+    source_warnings: tuple[ContextWarning, ...] = ()
 
 
 class CandidateSource(Protocol):
@@ -149,6 +166,26 @@ class Exclusion(Contract):
     reason: str
 
 
+class AssemblyScope(Contract):
+    tenant_id: Identifier
+    user_id: Identifier
+    actor_id: Identifier
+    session_id: Identifier
+    project_id: Identifier | None = None
+    task_id: Identifier | None = None
+
+
+SelectionReason = Literal[
+    "mandatory_policy", "current_task_state", "lexical_relevance",
+    "semantic_relevance", "standing_priority", "valid_recent_context",
+]
+
+
+class Selection(Contract):
+    item_id: str
+    reasons: tuple[SelectionReason, ...]
+
+
 class ContextBundle(Contract):
     bundle_id: str
     policy_version: str = ASSEMBLY_POLICY_VERSION
@@ -159,6 +196,9 @@ class ContextBundle(Contract):
     exclusions: tuple[Exclusion, ...]
     excluded_counts: dict[str, int]
     warnings: tuple[str, ...] = ()
+    selections: tuple[Selection, ...] = ()
+    scope: AssemblyScope | None = None
+    consistency_sequence: int | None = None
 
 
 class SearchResult(Contract):
@@ -170,6 +210,7 @@ class SearchResult(Contract):
     historical: bool = False
     as_of: AwareDatetime | None = None
     warnings: tuple[str, ...] = ()
+    consistency_sequence: int | None = None
 
 
 class MandatoryContextTooLarge(ValueError):
@@ -187,7 +228,11 @@ def render(items: list[ContextItem]) -> str:
     return json.dumps(
         [
             {
-                "kind": "trusted_policy" if item.trusted_policy else "retrieved_data",
+                "kind": (
+                    "trusted_policy" if item.trusted_policy
+                    else "current_task_state" if item.approved_task_state
+                    else "retrieved_data"
+                ),
                 "id": item.item_id,
                 "text": item.text,
                 "evidence": item.evidence_ids,
@@ -205,10 +250,12 @@ class ContextAssembler:
         required_source: CandidateSource,
         *,
         optional_sources: tuple[CandidateSource, ...] = (),
+        required_sources: tuple[CandidateSource, ...] = (),
         counter: TokenCounter | None = None,
         settings: AssemblySettings | None = None,
     ) -> None:
         self.source, self.optional = required_source, optional_sources
+        self.required = required_sources
         self.counter, self.settings = (
             counter or UTF8UpperBound(),
             settings or AssemblySettings(),
@@ -244,13 +291,19 @@ class ContextAssembler:
 
         results = await asyncio.gather(
             fetch(self.source),
+            *(fetch(source) for source in self.required),
             *(fetch(source) for source in self.optional),
             return_exceptions=True,
         )
-        if isinstance(results[0], BaseException):
-            raise RuntimeError("required context source unavailable") from results[0]
+        for result in results[:1 + len(self.required)]:
+            if isinstance(result, (LookupError, PermissionError, EventConflict)):
+                raise result
+            if isinstance(result, BaseException):
+                raise RuntimeError("required context source unavailable") from result
         candidates: list[ContextItem] = []
         warnings: list[str] = []
+        if historical and request.task_id is not None:
+            warnings.append("historical_task_state_not_included")
         for index, result in enumerate(results):
             if isinstance(result, BaseException):
                 warnings.append(f"optional_source_{index}_unavailable")
@@ -274,6 +327,11 @@ class ContextAssembler:
                 and request.project_id is not None
                 and item.scope_id == request.project_id
                 and item.scope_id in principal.projects
+                or item.scope_type == ScopeType.TASK
+                and request.task_id is not None
+                and item.scope_id == request.task_id
+                and item.project_id == request.project_id
+                and item.project_id in principal.projects
             )
             if (item.tenant_id, item.user_id) != (
                 principal.tenant_id,
@@ -303,7 +361,7 @@ class ContextAssembler:
                         "candidate sources disagree about an immutable item ID"
                     )
                 reason = "duplicate"
-            elif item.required and not item.trusted_policy:
+            elif item.required and not (item.trusted_policy or item.approved_task_state):
                 raise RuntimeError(
                     "untrusted content cannot declare a mandatory policy"
                 )
@@ -313,6 +371,7 @@ class ContextAssembler:
                 continue
             seen[item.item_id] = item
             eligible.append(item)
+            warnings.extend(item.source_warnings)
 
         # Competing active single-valued facts are explicitly withheld instead
         # of letting similarity or recency choose the truth.
@@ -459,6 +518,21 @@ class ContextAssembler:
             sort_keys=True,
             separators=(",", ":"),
         )
+
+        def selection(item: ContextItem) -> Selection:
+            reasons: list[SelectionReason] = ["valid_recent_context"]
+            if item.required and item.trusted_policy:
+                reasons.append("mandatory_policy")
+            if item.approved_task_state:
+                reasons.append("current_task_state")
+            if lexical_terms(request.query) & lexical_terms(item.text):
+                reasons.append("lexical_relevance")
+            if item.semantic_score > 0:
+                reasons.append("semantic_relevance")
+            if item.priority > 0:
+                reasons.append("standing_priority")
+            return Selection(item_id=item.item_id, reasons=tuple(reasons))
+
         return ContextBundle(
             bundle_id=hashlib.sha256(identity.encode()).hexdigest(),
             tokenizer_version=self.counter.version,
@@ -468,4 +542,10 @@ class ContextAssembler:
             exclusions=tuple(exclusions),
             excluded_counts=dict(counts),
             warnings=tuple(warnings),
+            scope=AssemblyScope(
+                tenant_id=principal.tenant_id, user_id=principal.user_id,
+                actor_id=principal.actor_id, session_id=request.session_id,
+                project_id=request.project_id, task_id=request.task_id,
+            ),
+            selections=tuple(selection(item) for item in selected),
         )

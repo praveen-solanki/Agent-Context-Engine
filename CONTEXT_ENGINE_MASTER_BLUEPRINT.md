@@ -670,6 +670,27 @@ Do not claim measured token reduction, task-success gain, p95 latency, multi-ten
 
 ### Progress ledger (the next agent should maintain this)
 
+2026-11-05 task-state increment passed end-to-end verification. Existing
+handoff/host/replay primitives passed 23 focused tests and were preserved.
+`WorkState`, `TaskStateService` and `TaskCandidateSource` now reuse the existing
+versioned snapshot collection/CAS, bind tasks to authenticated projects/events,
+protect user-approved requirements from agent changes, retain verified outcomes,
+and assemble an atomic mandatory current-task section. SDK/HTTP tests verify
+old-handoff rejection, latest requirements, cancellation, artifact changes,
+tiny-budget failure, scope/selected-reason trace and consistency watermarks.
+Final regression passed **480 tests, two opt-in live tests skipped, one legacy
+live-UI test deselected (16.37s)**; Pyright clean. Separately, real API/worker
+continuation passed all seven checks with Bolt E4B and Lightning 30B: latest
+Spanish requirements, X/Y verified completion, cancelled-step exclusion, correct
+next audit, receipt recovery without repeat execution, unknown-outcome refusal
+and expired-handoff refusal. See `continuation-c404a96f34ed.json` (55.00s pytest)
+and the actual changed-artifact refusal in `artifact-check-2eed7ca74225.json`
+(9.09s). The first Mistral account-404 attempt is retained as a failed report.
+The bounded private state/packing/resume/independent-host behaviors are
+**CONFIRMED DONE — SKIP**. Cross-provider, broad comparative utility and
+distributed production/crash/restore gates remain open. No UI expansion or
+arbitrary external exactly-once transaction guarantee is implied.
+
 2026-11-05 R01/R05 increment after inspecting `6c76b13`: existing private
 scope/lifecycle/packing behavior was confirmed (26 focused real-store tests)
 and skipped. The search alias and missing evidence span/trust fields were
@@ -706,8 +727,8 @@ historical six-flag reports.
 | 0 — baseline audit / ADRs | Baseline preserved at `3e2454e09deb12aa68c90e76a4948c221d7974b2`; ADRs recorded; comparative model metrics still pending | `docs/ace/architecture.md`; original 292 offline tests and Pyright passed |
 | 1 — authenticated event intake + feedback | Live NVIDIA event-to-context feedback verified; immutable derivation consent, trust-separated evidence and recovery tests added | `docs/ace/validation.md`; live host and Compose functional probes |
 | 2 — retrieval adapter/guardrails | Private lexical/semantic ranking before LIMIT, effective-history search and bounded exact evidence verified; physical isolation required; task-state and broader shared-scope/load gates pending | `agent_context/retrieval.py`, `assembly.py`, `governance.py`; real-store retrieval/search/privacy tests; `retrieval-live-20261105.json` |
-| 3 — context assembler | Deterministic scoring, dedup/conflict checks, atomic packing, reserves, JSON rendering and explainable exclusions implemented; comparative agent evaluation pending | `agent_context/assembly.py`; 19 focused tests; HTTP/SDK integration tests |
-| 4 — handoff/task state | Existing snapshot/correction/replay primitives verified; actual bounded demo recommendation now independently assessed; canonical live task state and cross-provider validation remain pending | `artifacts.py`, `demo.py`; `docs/ace/results/live-demo-verified-20261104.json`; old false-positive report preserved |
+| 3 — context assembler | Private lexical/semantic candidates plus mandatory current task state, deterministic conflict/budget safety, selected reasons, auth scope and watermark verified; comparative utility still pending | `assembly.py`, required `TaskCandidateSource`; real-store/HTTP tests; `continuation-c404a96f34ed.json` |
+| 4 — handoff/task state | Canonical bounded task revisions, user-approved changes/cancellations, verified progress, stale/reconciled handoffs and artifact refusal demonstrated with an independent two-model host; cross-provider/distributed guarantees pending | `task_state.py`, `handoff.py`; `continuation-c404a96f34ed.json`, `artifact-check-2eed7ca74225.json`; failed attempt preserved |
 | 5 — SDK/API/live demo | Research host, new console, local initializer, Compose stack, CI and `run.sh` local bootstrap implemented; production deployment remains pending | `docs/ace/operations.md`; launcher configuration/orchestration tests and fresh-stack verification recorded in `docs/ace/validation.md` |
 | 6 — reproducible comparative evaluations | Six-baseline, one-scenario live probe recorded; no superiority claim; public datasets, multiple trials, ablations and total billing remain pending | `evaluation.py`; `docs/ace/results/baseline-probe.json` preserves the first-pass citation failure |
 | 7 — production hardening/governance | Revocation replay fences, derivation consent, export, lease-aware scoped primary erasure, safe logs and auth-source isolation implemented/tested; distributed guarantees, backup retention, TLS deployment and load/chaos gates remain pending | `privacy.py`, `governance.py`; `docs/ace/operations.md` and validation evidence |

@@ -40,7 +40,9 @@ from agent_context.handoff import (
     HandoffInput,
     HandoffService,
     ResumeResult,
+    TASK_STATE_PREFIX,
 )
+from agent_context.task_state import TaskStateService, TaskUpdate, TaskState
 
 
 class HTTPBoundary:
@@ -104,6 +106,7 @@ def create_app(
     watermark_timeout_seconds: float = 5,
     artifacts: ArtifactStore | None = None,
     governance: GovernanceService | None = None,
+    tasks: TaskStateService | None = None,
 ) -> FastAPI:
     """Bindings map SHA256(high-entropy bearer token) to server-owned identities."""
     if not auth_bindings or any(len(key) != 64 for key in auth_bindings):
@@ -209,20 +212,22 @@ def create_app(
             status = status.model_copy(update={"state": ProcessingState.AVAILABLE})
         return status
 
-    async def wait_for_context(body: ContextQuery, actor: Principal) -> None:
+    async def wait_for_context(body: ContextQuery, actor: Principal) -> int | None:
         actor.require(Permission.VIEW, body.project_id)
         if body.minimum_sequence:
             async with asyncio.timeout(watermark_timeout_seconds):
-                while (
-                    await events.get(actor, body.session_id)
-                ).available_sequence < body.minimum_sequence:
+                while True:
+                    stream = await events.get(actor, body.session_id)
+                    if stream.available_sequence >= body.minimum_sequence:
+                        return stream.available_sequence
                     await asyncio.sleep(0.05)
+        return None
 
     @app.post("/v1/context/assemble")
     async def assemble(
         body: AssembleRequest, actor: Principal = Depends(authenticate)
     ) -> ContextBundle:
-        await wait_for_context(body, actor)
+        watermark = await wait_for_context(body, actor)
         bundle = await assembler.assemble(actor, body)
         state = await events.privacy.require_active(actor.tenant_id, actor.user_id)
         if any(item.item_id in state.blocked_item_ids for item in bundle.items):
@@ -230,24 +235,26 @@ def create_app(
             state = await events.privacy.require_active(actor.tenant_id, actor.user_id)
             if any(item.item_id in state.blocked_item_ids for item in bundle.items):
                 raise RuntimeError("context changed during assembly")
-        return bundle
+        return bundle.model_copy(update={"consistency_sequence": watermark})
 
     @app.post("/v1/context/search")
     async def search(
         body: SearchRequest, actor: Principal = Depends(authenticate)
     ) -> SearchResult:
-        await wait_for_context(body, actor)
+        watermark = await wait_for_context(body, actor)
         result = await assembler.search(actor, body)
         state = await events.privacy.require_active(actor.tenant_id, actor.user_id)
         if any(item.item_id in state.blocked_item_ids for item in result.items):
             # A page cursor must not survive concurrent revocation.
             raise RuntimeError("context changed during search; restart search")
-        return result
+        return result.model_copy(update={"consistency_sequence": watermark})
 
     @app.get("/v1/context/items/{item_id}/evidence")
     async def evidence(
         item_id: str, actor: Principal = Depends(authenticate)
     ) -> list[dict[str, object]]:
+        if tasks and item_id.startswith(TASK_STATE_PREFIX):
+            return await tasks.evidence(actor, item_id)
         if governance is None:
             raise RuntimeError("governance adapter unavailable")
         return await governance.evidence(actor, item_id)
@@ -309,18 +316,41 @@ def create_app(
     async def prepare(
         body: HandoffInput, actor: Principal = Depends(authenticate)
     ) -> HandoffArtifact:
-        return await handoffs.prepare(actor, body)
+        return await handoffs.prepare(
+            actor, body, current_task=tasks.snapshot if tasks else None
+        )
+
+    @app.post("/v1/tasks/state")
+    async def update_task(
+        body: TaskUpdate, actor: Principal = Depends(authenticate)
+    ) -> TaskState:
+        if tasks is None:
+            raise RuntimeError("task state adapter unavailable")
+        return await tasks.update(actor, body)
+
+    @app.get("/v1/tasks/{task_id}")
+    async def get_task(
+        task_id: str, project_id: str, actor: Principal = Depends(authenticate)
+    ) -> TaskState:
+        if tasks is None:
+            raise RuntimeError("task state adapter unavailable")
+        return await tasks.current(actor, project_id, task_id)
 
     @app.post("/v1/handoffs/{handoff_id}/resume")
     async def resume(
         handoff_id: str, body: ResumeInput, actor: Principal = Depends(authenticate)
     ) -> ResumeResult:
-        return await handoffs.resume(
+        watermark = await wait_for_context(body.assembly, actor)
+        result = await handoffs.resume(
             actor,
             handoff_id,
             expected_version=body.expected_version,
             request=body.assembly,
             assembler=assembler,
+            current_task=tasks.snapshot if tasks else None,
         )
+        return result.model_copy(update={
+            "bundle": result.bundle.model_copy(update={"consistency_sequence": watermark}),
+        })
 
     return app

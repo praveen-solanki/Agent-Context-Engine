@@ -5,13 +5,17 @@ from __future__ import annotations
 from hashlib import sha256
 
 import httpx
+import pytest
 
 from agent_context.api import create_app
 from agent_context.assembly import ContextAssembler
 from agent_context.client import AgentContextClient
 from agent_context.contracts import Principal
+from agent_context.contracts import Permission
+from agent_context.handoff import HandoffInput
 from agent_context.event_store import MongoEventStore
 from agent_context.handoff import ArtifactRef, CompletedAction, HandoffService
+from agent_context.task_state import TaskCandidateSource, TaskStateService, TaskUpdate
 from tests.integration.test_ace_events import event_store as event_store
 from tests.unit.test_assembly import Source, item, request
 from tests.unit.test_event_contracts import event, principal
@@ -130,3 +134,80 @@ async def test_dependency_failure_is_typed_and_private_errors_are_not_returned(
         assert result.status_code == 503 and "private" not in result.text
         result = await client.get("/health/ready")
         assert result.status_code == 503 and "private" not in result.text
+
+
+async def test_sdk_current_task_and_reconciled_handoff_through_real_api(
+    event_store: MongoEventStore,
+) -> None:
+    async def deny_action(_: Principal, __: CompletedAction) -> bool:
+        return False
+
+    async def deny_artifact(_: Principal, __: ArtifactRef) -> bool:
+        return False
+
+    async def ready() -> bool:
+        return True
+
+    actor = principal(projects=["p1"], permissions=frozenset(Permission))
+    handoffs = HandoffService(
+        event_store.collection.database.client, event_store.collection.database.name,
+        verify_action=deny_action, verify_artifact=deny_artifact,
+    )
+    await handoffs.ensure_indexes()
+    tasks = TaskStateService(handoffs, event_store)
+    app = create_app(
+        events=event_store,
+        assembler=ContextAssembler(Source(), required_sources=(TaskCandidateSource(tasks),)),
+        handoffs=handoffs, tasks=tasks,
+        auth_bindings={sha256(TOKEN.encode()).hexdigest(): actor}, ready=ready,
+    )
+    client = AgentContextClient(base_url="http://test", bearer_token=TOKEN, transport=httpx.ASGITransport(app=app))
+    try:
+        await client.record_events(event(project_id="p1"))
+        initial = TaskUpdate(
+            project_id="p1", task_id="task1", source_session_id="s1",
+            source_event_id="e1", goal="Review the report",
+            expected_version=0, idempotency_key="initial",
+            requirements=("Use Python",), must_keep=("Use Python",), pending=("audit",),
+        )
+        state = await client.update_task(initial)
+        assert not state.source_available
+        claim = await event_store.claim(actor.tenant_id)
+        assert claim is not None and await event_store.finish(*claim, success=True)
+        state = await client.current_task("p1", "task1")
+        assert state.version == 1 and state.source_available
+        query = request(project_id="p1", task_id="task1", minimum_sequence=1)
+        bundle = await client.assemble_context(query)
+        assert bundle.consistency_sequence == 1 and bundle.scope and bundle.scope.task_id == "task1"
+        assert bundle.selections[0].reasons and bundle.items[0].required
+        evidence = await client.evidence(bundle.items[0].item_id)
+        assert evidence[0]["event_id"] == "e1" and evidence[0]["actor_kind"] == "user"
+        handoff = HandoffInput(
+            **state.content.model_dump(), handoff_id="handoff", idempotency_key="handoff-1",
+            expected_version=0, task_state_version=1,
+        )
+        await client.prepare_handoff(handoff)
+        await client.record_events(event(2, project_id="p1", kind="correction", text="Use Rust instead."))
+        changed = initial.model_copy(update={
+            "expected_version": 1, "idempotency_key": "correction", "source_event_id": "e2",
+            "requirements": ("Use Rust",), "must_keep": ("Use Rust",),
+        })
+        state = await client.update_task(changed)
+        claim = await event_store.claim(actor.tenant_id)
+        assert claim is not None and await event_store.finish(*claim, success=True)
+        result = await client.resume_handoff("handoff", expected_version=1, request=query)
+        assert not result.safe_to_continue and "stale_task_state" in result.warnings
+        assert "Use Rust" in result.bundle.rendered and "Use Python" not in result.bundle.rendered
+        with pytest.raises(httpx.HTTPStatusError) as stale:
+            await client.prepare_handoff(handoff.model_copy(update={"expected_version": 1, "idempotency_key": "stale"}))
+        assert stale.value.response.status_code == 409
+        await client.prepare_handoff(HandoffInput(
+            **state.content.model_dump(), handoff_id="handoff", idempotency_key="handoff-2",
+            expected_version=1, task_state_version=2,
+        ))
+        current = await client.resume_handoff("handoff", expected_version=2, request=query)
+        assert current.safe_to_continue and current.current_task and current.current_task.version == 2
+        assert current.bundle.consistency_sequence == 2
+        assert "Use Python" not in current.bundle.rendered
+    finally:
+        await client.aclose()

@@ -148,6 +148,92 @@ and evidence again. It never executes tools. The private artifact registry compu
 current versions for handoff resume. Arbitrary external URLs are never fetched;
 remote repositories require a separately configured authoritative verifier.
 
+## Current tasks and continuation
+
+`POST /v1/tasks/state` / `AgentContextClient.update_task(TaskUpdate(...))`
+updates a typed current `WorkState`. `GET /v1/tasks/{task_id}?project_id=...` /
+`.current_task(project_id, task_id)` inspects the latest version. Both are private
+to the authenticated user and require the current project grant. A task ID alone
+does not grant access. Every update cites an actual authenticated event from the
+same project/session and uses `expected_version` plus an idempotency key.
+
+The update payload is an explicit authenticated state assertion; its
+`source_event_id` is a causation/lineage reference, not a claim that every field
+was semantically extracted from that text. Evidence inspection returns the
+stored `state_assertion` separately from the original causation event. Successful
+actions additionally require real matching host tool outcomes, and artifact
+references require the current server-computed content hash. Model prose is not
+proof that work completed.
+
+A user creates/approves goals, requirements, selected `must_keep` constraints,
+cancellations, dependencies, expiry and status. Changing these fields requires
+`correct`; an agent cannot approve them or create a new task. An authenticated
+agent can report progress from its own tool-result event. Previously verified
+completed actions cannot be removed or rewritten. `must_keep` must be a subset
+of current requirements; cancelled steps cannot remain pending. The latest state
+replaces obsolete pending/requirement lists rather than merging old instructions.
+
+Pass `task_id` and `project_id` to `AssembleRequest` to request current task
+context. Optional `task_version` is a precondition (409 on change). Runtime
+registers this as a required source: missing task returns 404; unavailable source
+event or expired task fails explicitly. It never silently omits requested task
+state. The complete state section is atomic and mandatory within the allocated
+render budget; insufficient space returns `mandatory_context_exceeds_budget`.
+It remains data labeled `current_task_state`, never host policy. Ordinary memory
+preferences remain optional relevance candidates. Bundles now expose typed
+`selections`, authorization `scope`, and the observed `consistency_sequence`
+when a minimum event watermark was requested. The byte bound covers `rendered`,
+not diagnostic metadata a host chooses to serialize separately.
+
+Current tasks reuse the handoff store's atomic CAS and bounded immutable revision
+list. A server-owned reserved ID gives each user/project/task exactly one current
+head, so separate handoff IDs cannot fork that head. There is no new database,
+event pipeline or workflow executor. Existing export/quarantine/primary erasure
+includes these records through the same collection. Quotas remain explicit:
+64KB per snapshot, 64 revisions per task, 32 entries/action references per list,
+4000 UTF-8 bytes per work entry. This is a bounded workflow contract, not an
+unbounded project history system. Historical memory search does not invent old
+operational task state; it reports `historical_task_state_not_included` when a
+task is requested with `as_of`.
+
+For a bound task, prepare a handoff with matching current content and
+`task_state_version`. Resume returns the immutable historical `handoff`, the
+current task reference, and one freshly assembled bundle. Mismatched task
+versions/requirements, cancelled/completed task status, unresolved operations,
+changed artifacts, expired handoffs and unavailable evidence prevent safe
+continuation. Reconcile the state and prepare a matching snapshot, then consume
+`resume.bundle.rendered` only after `safe_to_continue` is true. The bundled host
+uses that bundle and does not inject a competing old handoff when current task
+state exists. A host must also honor bundle warnings and verify current versions
+before external actions. Stable action IDs and recorded receipts allow recovery;
+unknown external outcomes require reconciliation. ACE does not provide atomic
+exactly-once transactions with arbitrary external tools.
+
+Legacy handoffs without canonical task state retain their previous snapshot-only
+semantics. Their idempotency hashes remain compatible. No legacy record is
+silently promoted to an approved task; old mis-scoped graph data is not migrated.
+The SDK and API should be upgraded together for the additive response fields.
+The existing console stays intact; generic tasks use these HTTP/SDK operations,
+not new task-management UI controls. Shared directory/graph-TASK retrieval is
+still fail-closed; the new private operational TASK section is separately bound
+to its authenticated project.
+
+For opt-in end-to-end validation, select a disposable API explicitly with
+`ACE_LIVE_CONTINUATION_URL`, configure existing demo user/host tokens securely,
+and select an actually accessible `ACE_ALTERNATE_MODEL`. Run:
+
+```sh
+CG_INTEGRATION=1 uv run --frozen pytest tests/integration/test_ace_continuation_live.py -q
+```
+
+`ACE_LIVE_REPORT_DIR` controls result output (default `/tmp`). For exact build
+evidence, `ACE_LIVE_RUNTIME_SOURCE_ROOT` points to the unchanged build tree used
+for that running API; otherwise reports label hashes as local-checkout evidence.
+The independent test uses SDK/HTTP only, switches models, verifies the next
+action and recovered receipts, and rejects stale/interrupted/expired continuation.
+It saves failed runs with `completed=false`; preliminary passing checks are not
+overall task success. It is not a benchmark or cross-provider certification.
+
 ## Validation
 
 ```

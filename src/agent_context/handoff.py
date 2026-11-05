@@ -5,9 +5,10 @@ from __future__ import annotations
 import hashlib
 import json
 from collections.abc import Awaitable, Callable
-from typing import Any
+from typing import Any, Literal
 
-from pydantic import AwareDatetime, Field
+from pydantic import AwareDatetime, Field, model_validator
+from typing_extensions import Self
 from pymongo import AsyncMongoClient
 from pymongo.errors import DuplicateKeyError
 
@@ -31,11 +32,12 @@ class CompletedAction(Contract):
     result_event_id: Identifier
 
 
-class HandoffInput(Contract):
-    schema_version: int = Field(default=1, ge=1, le=1)
-    handoff_id: Identifier
-    idempotency_key: Identifier
-    expected_version: int = Field(ge=0)
+TASK_STATE_PREFIX = "ace_task."
+
+
+class WorkState(Contract):
+    """The same bounded work contract for live state and historical handoffs."""
+
     project_id: Identifier
     task_id: Identifier
     source_session_id: Identifier
@@ -47,6 +49,29 @@ class HandoffInput(Contract):
     unresolved_operations: tuple[Identifier, ...] = Field(default=(), max_length=32)
     artifacts: tuple[ArtifactRef, ...] = Field(default=(), max_length=32)
     expires_at: AwareDatetime | None = None
+    status: Literal["active", "completed", "cancelled"] = "active"
+    cancelled: tuple[str, ...] = Field(default=(), max_length=32)
+    dependencies: tuple[str, ...] = Field(default=(), max_length=32)
+    source_event_id: Identifier | None = None
+    must_keep: tuple[str, ...] = Field(default=(), max_length=32)
+
+    @model_validator(mode="after")
+    def coherent_state(self) -> Self:
+        if not set(self.must_keep).issubset(self.requirements):
+            raise ValueError("must-keep constraints must be current requirements")
+        if set(self.cancelled) & set(self.pending):
+            raise ValueError("cancelled steps cannot remain pending")
+        if self.status != "active" and (self.pending or self.unresolved_operations):
+            raise ValueError("finished tasks cannot retain pending operations")
+        return self
+
+
+class HandoffInput(WorkState):
+    schema_version: int = Field(default=1, ge=1, le=1)
+    handoff_id: Identifier
+    idempotency_key: Identifier
+    expected_version: int = Field(ge=0)
+    task_state_version: int | None = Field(default=None, ge=1)
 
 
 class HandoffArtifact(Contract):
@@ -60,10 +85,12 @@ class ResumeResult(Contract):
     bundle: ContextBundle
     safe_to_continue: bool
     warnings: tuple[str, ...]
+    current_task: HandoffArtifact | None = None
 
 
 ActionVerifier = Callable[[Principal, CompletedAction], Awaitable[bool]]
 ArtifactVerifier = Callable[[Principal, ArtifactRef], Awaitable[bool]]
+TaskReader = Callable[[Principal, str, str], Awaitable[HandoffArtifact | None]]
 
 
 class HandoffService:
@@ -100,17 +127,29 @@ class HandoffService:
 
     @staticmethod
     def _digest(request: HandoffInput) -> str:
+        payload = request.model_dump(mode="json")
+        # Preserve idempotency hashes written before additive task fields.
+        defaults: dict[str, object] = {
+            "status": "active", "cancelled": [], "dependencies": [],
+            "source_event_id": None, "must_keep": [], "task_state_version": None,
+        }
+        for name, default in defaults.items():
+            if payload[name] == default:
+                payload.pop(name)
         return hashlib.sha256(
             json.dumps(
-                request.model_dump(mode="json"), sort_keys=True, separators=(",", ":")
+                payload, sort_keys=True, separators=(",", ":")
             ).encode()
         ).hexdigest()
 
     async def prepare(
-        self, principal: Principal, request: HandoffInput
+        self, principal: Principal, request: HandoffInput, *,
+        internal_task: bool = False, current_task: TaskReader | None = None,
     ) -> HandoffArtifact:
         await self.privacy.require_active(principal.tenant_id, principal.user_id)
         principal.require(Permission.ASSERT, request.project_id)
+        if request.handoff_id.startswith(TASK_STATE_PREFIX) and not internal_task:
+            raise PermissionError("task state IDs are owned by the task service")
         if len(request.model_dump_json().encode()) > 64000:
             raise CapacityExceeded("handoff exceeds 64KB bound")
         if request.expires_at is not None and request.expires_at <= utcnow():
@@ -132,6 +171,13 @@ class HandoffService:
                 raise EventConflict("handoff version precondition failed")
         elif request.expected_version != 0:
             raise EventConflict("new handoff must use version zero precondition")
+        if current_task is not None:
+            current = await current_task(principal, request.project_id, request.task_id)
+            if current is not None and (
+                request.task_state_version != current.version
+                or not work_matches(request, current.content)
+            ):
+                raise EventConflict("handoff must match current task state")
         if request.expected_version >= self.max_versions:
             raise CapacityExceeded(
                 "handoff revision limit reached; create a new handoff"
@@ -216,16 +262,34 @@ class HandoffService:
         expected_version: int,
         request: AssembleRequest,
         assembler: ContextAssembler,
+        current_task: TaskReader | None = None,
     ) -> ResumeResult:
         handoff = await self.latest(principal, identifier)
         content = handoff.content
         if content.project_id != request.project_id:
             raise PermissionError("assembly project does not match the handoff")
+        if request.task_id is not None and request.task_id != content.task_id:
+            raise PermissionError("assembly task does not match the handoff")
         warnings: list[str] = []
         if expected_version != handoff.version:
             warnings.append("stale_handoff_version")
         if content.expires_at is not None and content.expires_at <= utcnow():
             warnings.append("handoff_expired")
+        current = (
+            await current_task(principal, content.project_id, content.task_id)
+            if current_task else None
+        )
+        if current is not None:
+            if content.task_state_version != current.version or not work_matches(content, current.content):
+                warnings.append("stale_task_state")
+            content = current.content
+            request = request.model_copy(update={
+                "task_id": content.task_id, "task_version": current.version,
+            })
+        if content.status != "active":
+            warnings.append("task_is_not_active")
+        if current is not None and content.expires_at is not None and content.expires_at <= utcnow():
+            warnings.append("task_state_expired")
         if content.unresolved_operations:
             warnings.append("pending_operations_require_reconciliation")
         for artifact in content.artifacts:
@@ -235,6 +299,12 @@ class HandoffService:
             if not await self.verify_action(principal, action):
                 warnings.append("completed_action_no_longer_verifiable")
         bundle = await assembler.assemble(principal, request)
+        if "unresolved_single_value_conflicts" in bundle.warnings:
+            warnings.append("unresolved_single_value_conflicts")
+        if current_task and current:
+            latest = await current_task(principal, content.project_id, content.task_id)
+            if latest is None or latest.version != current.version:
+                warnings.append("task_changed_during_resume")
         # The host receives live assembled context plus explicitly labeled
         # historical work state. This method never invokes a tool or action.
         return ResumeResult(
@@ -242,4 +312,12 @@ class HandoffService:
             bundle=bundle,
             safe_to_continue=not warnings,
             warnings=tuple(dict.fromkeys(warnings)),
+            current_task=current,
         )
+
+
+def work_matches(snapshot: WorkState, current: WorkState) -> bool:
+    """Session/expiry/recording metadata is lineage, not an effective requirement."""
+    excluded = {"source_session_id", "source_event_id", "expires_at"}
+    fields = set(WorkState.model_fields) - excluded
+    return snapshot.model_dump(include=fields) == current.model_dump(include=fields)

@@ -13,31 +13,32 @@
 
 ## Current status and next execution — verified 2026-11-05
 
-**Latest inspected implementation:** [ec793a8854c8d2d713ea7d3f2ce6492d955a2880](https://github.com/praveen-solanki/Agent-Context-Engine/commit/ec793a8854c8d2d713ea7d3f2ce6492d955a2880) (commit date 2026-11-04). This status supplements the older baseline at the top; **re-verify at HEAD before coding**.
+**Latest inspected baseline:** `6c76b13`; retrieval increment committed at `8ed65b8`, followed by the verified task-state increment described in Section 7. This supplements the older baseline at the top; **re-verify at HEAD before coding**.
 
 **Already done — confirm and SKIP, do not rebuild:**
 - Existing ingestion, segmentation, exact Episode/source spans, extraction, concept resolution, scoped lifecycle, supersession and provenance (B01–B03).
 - Bounded authenticated event intake/outbox/worker, corrected project binding, private current-scope retrieval, core deterministic assembler, basic verified handoffs, API/SDK, demo host, primary privacy controls, Docker/local launcher and CI (B04–B11). Preserve implementations and tests.
 - **R07 bounded research-demo outcome oracle is fixed and verified**: typed recommendation checks reject the exact prior false-positive refusal; a separate real NVIDIA-backed three-session run delivers the actual Spanish Option A recommendation with document citation. See [verified demo](docs/ace/results/live-demo-verified-20261104.json) and [negative proof](docs/ace/results/recommendation-oracle-negative-v2-20261104.json). Do not implement another oracle; broaden **R08** separately.
 - **R01 specific literal-recall starvation defect is fixed**: authorized lexical relevance is scored before the Neo4j LIMIT, with a real-database regression of 220 irrelevant newer items versus a relevant older decision. Do not recreate this fix; **R01 still has other gaps**.
+- **Private search/history/evidence and semantic integration are CONFIRMED DONE within the tested bounds**: `8ed65b8`, real Neo4j tests and `retrieval-live-20261105.json`. Current task state, mandatory packing, stale-to-reconciled handoff, cancellation and verified progress now pass the independent two-model workflow in `continuation-c404a96f34ed.json`; changed-artifact refusal passes `artifact-check-2eed7ca74225.json`. Preserve these implementations; broader benchmark/production gates remain open.
 
 **Still open — in strict priority order:**
 
 | Order | Requirement | Still needed (only if current code/tests do not already satisfy it) | Concrete finish criterion |
 |---|---|---|---|
-| 1 | **R01 + R05 — candidate retrieval, evidence, scopes and temporal semantics** | Semantic/hybrid retrieval reusing existing embedding/index interfaces; evidence/episodic and historical lookup; current effective values; trusted TEAM/DEPARTMENT/ORG and TASK parity where original blueprint requires it; fix `/v1/context/search`, currently an alias of assemble. Keep datastore-level access guards. | Authorized relevant recall/evidence and scope/history end-to-end, including negative isolation tests; no stale selection or candidate starvation. |
-| 2 | **R02 — adaptive context assembly** | Make the actual deployed bundle combine current task/project state, verified progress, effective constraints, evidence and relevance within budget. Current scoring is largely lexical/recency/priority; constraint priority is **not** the same as mandatory inclusion. Preserve deterministic conflict, safety and token packing already implemented. | One accurate, task-aware, policy-safe context package with mandatory constraints, reasons, evidence and measured budget; no unnecessary extra LLM call. |
-| 3 | **R03 + remaining R04 — coherent multi-session continuation** | Tie current verified task state to handoff and assembly, reconcile stale handoff requirements against latest corrections and action outcomes, handle pending/failed work/replay safely. Existing HandoffService verifies versions, hashes and outcomes, but resume currently returns separate historic handoff + live bundle. | Multi-session continuation executes the correct next task action after changed requirements; no old instruction or duplicate side effect. |
-| 4 | **R06 — independent agent/model use** | Validate existing HTTP/Python SDK through another compatible host/model, not a new framework. | Same context semantics through an independent integration; record model/runtime and actual output. |
+| 1 | **R01 + R05 — retrieval parity** | Tested private lexical/semantic/history/search/evidence and operational TASK sources are done; preserve them. Broad retrieval quality/cost and load remain to measure. Shared directory/legacy graph-TASK support remains explicitly fail-closed under the selected partition model. | Extend only a demonstrated remaining gap; do not rebuild confirmed paths. |
+| 2 | **R02 — adaptive context assembly** | Current task section, verified progress, accepted constraints, atomic mandatory budget, scope/selection trace and watermark are wired and tested. Wider quality/noise/utility comparisons remain R08. | Preserve the verified assembler and evaluate its actual benefit. |
+| 3 | **R03 + remaining R04 — continuation** | Bounded authenticated task transitions and safe current-state resume now pass real-service tests. Unknown external side effects still require host reconciliation; arbitrary external exactly-once behavior is not claimed. | Preserve known-receipt retry safety; distributed/crash/recovery closure remains R10. |
+| 4 | **R06 — independent host/model use** | SDK/HTTP-only host passed with two accessible NVIDIA models. Genuine cross-provider run remains UNVERIFIED without a second configured provider. The catalogue-listed Mistral model returned 404; failed report is preserved. | Run the same contract on an available alternate provider; do not infer it from model settings. |
 | 5 | **R08 — rigorous evaluation** | Expand beyond the one synthetic six-baseline probe: representative multi-session datasets, repeated task-success checks, state correctness, ablations, full ingestion/host/provider token-cost and latency accounting, security failures. | Reproducible comparison showing measured benefits **or honest negative findings**, no invented superiority claim. |
 | 6 | **R09 + R10 — production gates** | Tenant-isolation/deployment decision; verify rotation/revocation of historically exposed credential; security and poisoning tests; distributed worker/write fencing; rates/quotas; secure TLS/identity; observability; load/chaos; privacy-aware backup restore and retention. | Target deployment's security, recovery and reliability supported by actual tests/runbooks, not local Docker alone. |
 | 7 | **R11 — documentation reconciliation** | Keep README, master blueprint, validation and this file consistent with proven functionality. | Code, tests, documentation and status table agree. |
 
-**Important current code confirmations:** `src/agent_context/api.py` still makes `/v1/context/search` call the assemble handler; `src/agent_context/runtime.py` wires `ContextAssembler(Neo4jCandidateSource)` without a task-state candidate source; `src/agent_context/retrieval.py` ranks private current candidates lexically before LIMIT, but has no integrated semantic/historical/shared retrieval; `src/agent_context/handoff.py` returns historical handoff plus separate live bundle without reconciling changed requirements into a single current next-step package. These are **existing blueprint requirements**, not license to invent features.
+**Current code:** search is distinct from assembly; runtime wires native lexical/semantic retrieval plus the required current-task source. Historical memory is explicit. Canonical task versions and accepted requirements are reconciled before handoff continuation. Legacy snapshot-only clients retain their documented weaker semantics. Generic task controls are API/SDK operations; the frozen console was not expanded.
 
-**Testing evidence:** the repository's audit ledger records **463 passing tests and one deselected legacy live-UI case**, Pyright clean, and the latest inspected commit has a successful [GitHub Actions run](https://github.com/praveen-solanki/Agent-Context-Engine/actions/runs/41933094232). The connected review did not itself rerun those tests. Prior credential rotation of the historically exposed key remains unverified, despite a replacement key being used. Do not claim production readiness or statistical performance gains.
+**Latest local evidence:** **480 passing tests, two opt-in live tests skipped, one legacy live-UI test deselected (16.37s)**; Pyright clean. The two live tests passed separately against the isolated deployed API/worker: the two-model continuation in 55.00s and changed-artifact negative in 9.09s. These are separate runs, not an inflated combined suite count. Exposed-key revocation remains unverified pending owner confirmation. No production readiness or statistical performance gain is claimed.
 
-**Immediate next task:** Begin **R01 + R05** by inspecting the current source and running existing focused tests; implement **only** proven remaining behavior, then complete R02/R03 in order. Do not rework R07 or repeat the fixed lexical-recall change. Update the evidence ledger and master blueprint after each verified milestone.
+**Immediate next task:** Verify the remaining R08 evaluation gaps, then R09/R10 production gates, preserving the confirmed retrieval/task/assembly/handoff behavior. Cross-provider validation remains an explicit external verification gap. Update both ledgers after each verified increment.
 
 ---
 
@@ -502,8 +503,8 @@ record → availability → new-session semantic search → exact evidence → p
 context, all five assertions passed. Source hashes identify the exercised build;
 one synthetic run is not a recall benchmark or latency SLO.
 
-**Still PARTIAL:** R01/R05 as whole requirements. Current task/project-state
-candidates depend on R02/R03; shared directory/TASK graph parity is still
+**At this checkpoint, still PARTIAL:** R01/R05 as whole requirements. Task-state
+candidates were subsequently wired and verified in the increment below; shared directory/TASK graph parity is still
 fail-closed under the selected physically isolated private deployment. Large
 partition query cost and benchmark ablations remain unmeasured. No migration of
 previously mis-scoped legacy data is implied. Search's bounded candidate window
@@ -512,6 +513,66 @@ and effective-time semantics are documented in `docs/ace/development.md`.
 Initial assessments are anchored to the inspected commit. Updated rows below
 claim completion only within the explicitly verified boundaries and linked
 evidence. Open production/whole-product gates remain open.
+
+### R02/R03/R04 task-state increment — verified 2026-11-05
+
+Before changes, **23 handoff/host/grounding tests passed**: existing version CAS,
+artifact/outcome verification and replay were **CONFIRMED DONE — SKIP**. Source
+inspection and a missing-module acceptance test confirmed there was no canonical
+task-state path. A separate trace regression confirmed missing selected reasons
+and scope metadata. Changes reuse `HandoffService`'s bounded atomic revisions in
+the same collection, with a server-owned project/task ID, rather than a second
+state database or workflow executor.
+
+Current implementation: typed `WorkState` shared by handoffs and current tasks;
+authenticated event causation; user-approved constraints; agent progress restricted
+to verified outcomes; correction grants; completed-action retention; explicit
+cancellations/dependencies; current state as an atomic mandatory TASK section in
+the deployed assembler. New API/SDK task operations, scope/selection trace and
+read-your-writes watermark are wired. Resume compares the canonical task version,
+returns current context, blocks old requirements/changed artifacts, and requires
+a matching handoff before continuing. Legacy snapshots remain usable with their
+existing weaker semantics; additive fields preserve old idempotency hashes.
+
+Focused state/HTTP verification passes **8 real-Mongo tests**, including
+CAS races, forged agent requirements, unproven completion, old-request replay,
+tiny budgets, stale/reconciled handoffs and changed artifacts. Full regression:
+**480 passed, two opt-in live tests skipped, one legacy live-UI test deselected
+(16.37s)**; Pyright zero errors/warnings. Separately:
+
+- [continuation-c404a96f34ed.json](docs/ace/results/continuation-c404a96f34ed.json)
+  passed seven actual workflow checks against the isolated deployed API/worker.
+  `nvidia/nemotron-3.5-bolt-e4b` and
+  `nvidia/nemotron-3.5-lightning-30b-a3b` both selected B's current Spanish
+  requirement, preserved X/Y completion IDs, excluded the cancelled step and
+  chose the correct remaining audit. The SDK/HTTP-only host executed the audit,
+  recovered the durable receipt on retry (one execution), and recorded verified
+  progress. Interrupted unknown outcomes and expired handoffs were refused.
+  Pytest passed in 55.00s; report elapsed time is recorded separately.
+- [artifact-check-2eed7ca74225.json](docs/ace/results/artifact-check-2eed7ca74225.json)
+  passed real artifact registry → changed hash → current state/bundle warning →
+  unsafe resume in 9.09s. It did not repeat the model workflow.
+- [continuation-c78aba3c5cbf.json](docs/ace/results/continuation-c78aba3c5cbf.json)
+  preserves the first failed run: Mistral's catalogue entry returned an account
+  404 after the primary model passed. It is explicitly `completed=false`;
+  preliminary successful checks are not overall task completion. Its build-hash
+  annotation distinguishes the actual runtime tree from later checkout changes.
+
+**CONFIRMED DONE — SKIP:** the bounded private current-state path, mandatory
+atomic packing, accepted requirement/cancellation updates, recorded-outcome
+retention, stale-to-reconciled resume, exact artifact verification and independent
+SDK/HTTP host/two-model integration. Current state and handoffs reuse one store,
+one work contract and existing event/outcome/artifact/privacy components. No UI
+expansion, new model framework or second event pipeline. Legacy hash compatibility
+is regression-tested; no migration rewrites old history.
+
+**Still open:** broad R08 quality/utility evidence; genuine cross-provider
+validation; unbounded task-history requirements (the explicit existing revision/
+list quotas still apply); arbitrary external exactly-once/crash behavior;
+production fencing/erasure/restore/load gates. Task API assertions are deliberate
+authenticated commands with event causation, not automatic LLM-created authority.
+The console retains its existing research flow; generic task controls use the
+documented API/SDK.
 
 | Requirement | Starting status | Verified code path / test / report / commit | Next decision |
 |---|---|---|---|
@@ -525,12 +586,12 @@ evidence. Open production/whole-product gates remain open.
 | B10 Primary privacy controls | CONFIRMED DONE (documented primary-storage scope) | e55fb5a: real revocation/export/quarantine/erasure tests passed | SKIP base; external backup/restore/operator gates remain R09/R10 |
 | B11 Local deployment/CI | CONFIRMED DONE (existing Linux local path) | e55fb5a baseline exposed fake-readiness race; corrected test handshake then 462 passed, one live legacy UI test deselected. Fresh isolated Compose API/worker run reached real model answers | SKIP production launcher; native macOS/WSL install remains unverified |
 | B12 Converter/generator and initial benchmark | CONFIRMED DONE (existing tools only); PARTIAL (evaluation breadth) | e55fb5a converter/generator unit tests passed; saved six-baseline report inspected | SKIP converter/generator; no comparative-superiority claim |
-| R01 Relevant candidate retrieval | PARTIAL — pre-limit literal-recall gap fixed | Real Neo4j regression with 220 unrelated recent preferences, a 90-day-old project decision, candidate limit 32 and 1000-token bundle failed before changes and passes after authorized lexical ranking before LIMIT | SKIP redoing this fix; semantic/state/history/search parity and retrieval cost/load gates remain open |
-| R02 Task-aware assembly | PARTIAL | To fill | Verify, close precise gap |
-| R03 Live task state + coherent resume | PARTIAL | To fill | Verify, close precise gap |
-| R04 Event feedback/task transitions | PARTIAL/VERIFY | To fill | Use existing types wherever adequate |
-| R05 Scope/temporal parity | PARTIAL | To fill | Verify targeted missing scopes/validity |
-| R06 Independent agent integration | PARTIAL/UNVERIFIED | To fill | Prove existing API/SDK portability |
+| R01 Relevant candidate retrieval | CONFIRMED DONE for tested private sources; broader quality/load PARTIAL | `8ed65b8`; actual runtime lexical/semantic/history/search/evidence plus required task source; real Neo4j candidate-pressure/conflict tests and live reports above | SKIP these paths; measure breadth/cost under R08/R10; shared scope remains fail-closed |
+| R02 Task-aware assembly | CONFIRMED DONE for bounded current-task contract; broader utility PARTIAL | `assembly.py` + required `TaskCandidateSource`; atomic required state, constraints, reasons/scope/watermark, source/budget/conflict tests; independent two-model next-step proof | SKIP verified packing/state work; evaluate comparative utility |
+| R03 Live task state + coherent resume | CONFIRMED DONE for bounded recorded-outcome workflow | `TaskStateService` → existing snapshot CAS; SDK/HTTP/live continuation and changed-artifact reports above | SKIP rebuilding state; external crash/transaction guarantees remain R10 |
+| R04 Event feedback/task transitions | CONFIRMED DONE for explicit state projection with real event causation | Existing event kinds reused; authenticated user/agent source matching, availability gate, verified outcomes, CAS/retry tests and real worker path | SKIP new event kinds; distributed failure closure remains R10 |
+| R05 Scope/temporal parity | CONFIRMED DONE for private memory/current operational TASK; broader shared scope PARTIAL | Real current/as-of/supersession/revocation tests; bound task/project and negative tenant/user/project checks | Preserve chosen physical partition/fail-closed shared scopes; no legacy graph-TASK migration claimed |
+| R06 Independent agent integration | CONFIRMED DONE (SDK/HTTP-only host and two NVIDIA models); cross-provider UNVERIFIED | `test_ace_continuation_live.py`, `continuation-c404a96f34ed.json`; failed alternate Mistral result retained | Do not add adapters; prove a real second provider when configured |
 | R07 Real outcome evaluation | CONFIRMED DONE (existing bounded research task) | Source checkpoint 9ad2d52; live-demo-verified-20261104.json passes all per-session typed/quote/source checks; recommendation-oracle-negative-v2-20261104.json rejects the exact preserved refusal; unit negative matrix passes | SKIP rebuilding oracle; same-model-judge limits and broader R08 benchmark gates remain explicit |
 | R08 Comparative benchmarks | PARTIAL | To fill | Multi-scenario, repeated trials/cost |
 | R09 Production security/privacy | PARTIAL | To fill | Rotation/isolation/negative gates |

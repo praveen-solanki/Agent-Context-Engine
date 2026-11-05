@@ -27,6 +27,7 @@ from agent_context.handoff import HandoffService
 from agent_context.governance import GovernanceService
 from agent_context.outcomes import EventOutcomeVerifier
 from agent_context.retrieval import Neo4jCandidateSource
+from agent_context.task_state import TaskStateService, TaskCandidateSource
 from context_graph.config import Settings
 from context_graph.tool import ContextGraphIngestion
 from context_graph.providers.chat_backend import EmbeddingProviderImpl
@@ -95,6 +96,7 @@ def application() -> FastAPI:
         verify_action=EventOutcomeVerifier(events),
         verify_artifact=artifacts.verify,
     )
+    tasks = TaskStateService(handoffs, events)
     embeddings = (
         EmbeddingProviderImpl(
             embedding=settings.embedding, retry=settings.retry, for_query=True
@@ -121,6 +123,7 @@ def application() -> FastAPI:
         events=events,
         assembler=ContextAssembler(
             source,
+            required_sources=(TaskCandidateSource(tasks),),
             settings=AssemblySettings(
                 source_timeout_seconds=runtime.source_timeout_seconds,
             ),
@@ -130,6 +133,7 @@ def application() -> FastAPI:
         ready=ready,
         artifacts=artifacts,
         governance=governance,
+        tasks=tasks,
     )
 
     @asynccontextmanager

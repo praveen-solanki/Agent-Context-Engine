@@ -73,6 +73,9 @@ async def test_reproducible_selection_and_final_rendered_byte_bound() -> None:
     assert [i.item_id for i in first.items] == ["c1"]
     assert first.token_count == len(first.rendered.encode()) <= 150
     assert first.excluded_counts == {"budget": 1}
+    assert first.scope is not None and first.scope.user_id == ACTOR.user_id
+    assert first.selections[0].item_id == "c1"
+    assert "lexical_relevance" in first.selections[0].reasons
 
 
 @pytest.mark.parametrize(

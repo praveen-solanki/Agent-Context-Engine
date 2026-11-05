@@ -10,6 +10,7 @@ from pydantic import BaseModel
 from agent_context.assembly import AssembleRequest, ContextBundle, SearchRequest, SearchResult
 from agent_context.contracts import EventInput, EventStatus, ProcessingState, Stream
 from agent_context.handoff import HandoffArtifact, HandoffInput, ResumeResult
+from agent_context.task_state import TaskUpdate, TaskState
 
 
 class AgentContextClient:
@@ -94,6 +95,18 @@ class AgentContextClient:
 
     async def prepare_handoff(self, request: HandoffInput) -> HandoffArtifact:
         return await self._post("/v1/handoffs", request, HandoffArtifact)
+
+    async def update_task(self, request: TaskUpdate) -> TaskState:
+        return await self._post("/v1/tasks/state", request, TaskState)
+
+    async def current_task(self, project_id: str, task_id: str) -> TaskState:
+        from urllib.parse import quote
+
+        response = await self.http.get(
+            f"/v1/tasks/{quote(task_id, safe='')}", params={"project_id": project_id}
+        )
+        response.raise_for_status()
+        return TaskState.model_validate(response.json())
 
     async def resume_handoff(
         self, identifier: str, *, expected_version: int, request: AssembleRequest
