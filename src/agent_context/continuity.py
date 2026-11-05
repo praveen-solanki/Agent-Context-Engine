@@ -23,7 +23,12 @@ from agent_context.contracts import (
     Stream,
     utcnow,
 )
-from agent_context.demo import DemoSettings, ResearchAssistant, ResearchTurn
+from agent_context.demo import (
+    DemoSettings,
+    ResearchAssistant,
+    ResearchTurn,
+    TaskUpdateFeedback,
+)
 from agent_context.events import EventConflict
 from agent_context.handoff import CompletedAction, ReportedProgress, WorkState
 from agent_context.task_state import TaskState, TaskUpdate
@@ -39,7 +44,10 @@ class ReferencedChange(Contract):
 
 
 class TaskIntent(Contract):
-    goal_quote: Quote | None = None
+    goal_quote: Quote | None = Field(
+        default=None,
+        description="Exact span of the current user message creating/changing the goal. Otherwise null. Never copy the existing goal from current_task.",
+    )
     add_requirements: tuple[Quote, ...] = Field(default=(), max_length=16)
     remove_requirements: tuple[ReferencedChange, ...] = Field(default=(), max_length=16)
     add_steps: tuple[Quote, ...] = Field(default=(), max_length=16)
@@ -71,7 +79,14 @@ Keep ordering of requested steps. Dependencies remain explicit user constraints;
 never infer they were satisfied. Do not promote a suggestion to an approved step
 from an ambiguous 'yes' or an unclear reference: return a concise clarification
 question and no changes. goal_quote changes only when the user explicitly creates
-or changes the objective, not each time they discuss a step. Return the schema."""
+or changes the objective, not each time they discuss a step.
+Facts about the active project's availability, resources, delivery conditions or
+other constraints are requirement updates even without an instruction to save or
+change the plan. Keep unrelated requirements; remove an older one only when the
+user explicitly supersedes it. Clarification is only a question about a genuinely
+ambiguous mutation, never an answer to a recall question or a project summary.
+An empty pending list means no accepted next step, not a completed objective.
+Return the schema."""
 
 
 def apply_intent(
@@ -81,24 +96,36 @@ def apply_intent(
     if intent.clarification:
         return current
     quotes = [
-        *intent.add_requirements,
-        *intent.add_steps,
-        *intent.add_blockers,
-        *intent.add_dependencies,
-        *intent.add_reported_progress,
+        (name, value)
+        for name, values in (
+            ("add_requirements", intent.add_requirements),
+            ("add_steps", intent.add_steps),
+            ("add_blockers", intent.add_blockers),
+            ("add_dependencies", intent.add_dependencies),
+            ("add_reported_progress", intent.add_reported_progress),
+        )
+        for value in values
     ]
-    if intent.goal_quote:
-        quotes.append(intent.goal_quote)
-    changes = [
-        *intent.remove_requirements,
-        *intent.cancel_steps,
-        *intent.report_completed,
-        *intent.resolve_blockers,
-        *intent.resolve_dependencies,
-    ]
-    quotes.extend(change.quote for change in changes)
-    if any(not quote.strip() or quote not in event.text for quote in quotes):
-        raise ValueError("task proposal includes a span absent from the user message")
+    # Some providers echo the accepted goal while proposing a different field.
+    # An identical value asserts nothing new and must not reject valid deltas.
+    if intent.goal_quote and (current is None or intent.goal_quote != current.goal):
+        quotes.append(("goal_quote", intent.goal_quote))
+    quotes.extend(
+        (name + ".quote", change.quote)
+        for name, changes in (
+            ("remove_requirements", intent.remove_requirements),
+            ("cancel_steps", intent.cancel_steps),
+            ("report_completed", intent.report_completed),
+            ("resolve_blockers", intent.resolve_blockers),
+            ("resolve_dependencies", intent.resolve_dependencies),
+        )
+        for change in changes
+    )
+    for name, quote in quotes:
+        if not quote.strip() or quote not in event.text:
+            raise ValueError(
+                f"{name} includes a span absent from the current user message: {quote!r}. Use an exact source span; omit unrequested changes."
+            )
     if current is None:
         if intent.goal_quote is None:
             return None
@@ -334,6 +361,7 @@ class WorkspaceAssistant:
             else None
         )
         clarification: str | None = None
+        task_feedback: TaskUpdateFeedback | None = None
         planner_calls = 0
         if (
             recorded is not None
@@ -357,26 +385,53 @@ class WorkspaceAssistant:
                 }
             )
             settings = self.assistant.settings
-            if (
-                len(INTENT_SYSTEM.encode())
-                + len(payload.encode())
-                + settings.response_tokens
-                > settings.model_context_tokens
-            ):
-                raise ValueError("task planning exceeds the context budget")
-            intent = await self.llm.structured(
-                system=INTENT_SYSTEM,
-                user=payload,
-                schema=TaskIntent,
-                max_output_tokens=settings.response_tokens,
-            )
-            planner_calls = 1
-            clarification = intent.clarification
-            try:
-                changed = apply_intent(task.content if task else None, intent, event)
-            except ValueError:
-                changed = task.content if task else None
-                clarification = "Please clarify the goal or existing step you want to change. I could not confirm that change from your message."
+            changed = task.content if task else None
+            proposal = payload
+            # Reuse the host's bounded validation-repair allowance. A model's
+            # paraphrase must be repaired, never promoted to an exact quote.
+            for attempt in range(settings.answer_repair_attempts + 1):
+                if (
+                    len(INTENT_SYSTEM.encode())
+                    + len(proposal.encode())
+                    + settings.response_tokens
+                    > settings.model_context_tokens
+                ):
+                    label = "task planning" if attempt == 0 else "task planning repair"
+                    raise ValueError(label + " exceeds the context budget")
+                intent = await self.llm.structured(
+                    system=INTENT_SYSTEM,
+                    user=proposal,
+                    schema=TaskIntent,
+                    max_output_tokens=settings.response_tokens,
+                )
+                planner_calls += 1
+                if intent.clarification:
+                    clarification = "A proposed project change needs clarification."
+                    task_feedback = "needs_clarification"
+                else:
+                    clarification = None
+                    task_feedback = None
+                try:
+                    changed = apply_intent(
+                        task.content if task else None, intent, event
+                    )
+                    break
+                except ValueError as error:
+                    if attempt == settings.answer_repair_attempts:
+                        clarification = "The task update was not applied because its source quotes or current-entry references could not be validated. Answer factual questions from current context; ask for clarification before changing the plan."
+                        task_feedback = "rejected"
+                        break
+                    proposal = (
+                        payload
+                        + "\n"
+                        + json.dumps(
+                            {
+                                "validation_feedback": str(error),
+                                "previous_proposal": intent.model_dump(mode="json"),
+                                "repair_instruction": "Use only verbatim spans of the current message and exact existing targets. Do not copy the old goal into goal_quote unless the current message changes it. If no mutation is requested return empty changes; if genuinely ambiguous ask a question in clarification.",
+                            }
+                        )
+                    )
             if changed is not None and (task is None or changed != task.content):
                 task = await self._save(changed, task, event, "-intent")
         if answer is not None:
@@ -400,35 +455,6 @@ class WorkspaceAssistant:
                 suggested_next_steps=answer.suggested_next_steps,
                 task_context=answer.task_context,
             )
-        elif clarification:
-            await self.host.record_events(
-                EventInput(
-                    event_id=event_id + "-answer",
-                    session_id=session_id,
-                    agent_id=self.assistant.settings.agent_id,
-                    sequence=event.sequence + 1,
-                    event_time=utcnow(),
-                    kind=EventKind.ASSISTANT_MESSAGE,
-                    text=clarification,
-                    project_id=self.project_id,
-                    causation_id=event_id,
-                )
-            )
-            await self.host.wait_available(event_id + "-answer")
-            result = ResearchTurn(
-                answer=clarification,
-                bundle=ContextBundle(
-                    bundle_id="clarification-" + event_id,
-                    tokenizer_version="utf8-byte-bound-v1",
-                    items=(),
-                    rendered="",
-                    token_count=0,
-                    exclusions=(),
-                    excluded_counts={},
-                ),
-                next_sequence=event.sequence + 2,
-                model_calls=planner_calls,
-            )
         else:
             result = await self.assistant.turn(
                 session_id=session_id,
@@ -438,6 +464,7 @@ class WorkspaceAssistant:
                 correction=correction,
                 task_id=task.content.task_id if task else None,
                 task_version=task.version if task else None,
+                task_update_feedback=task_feedback,
             )
             result = result.model_copy(
                 update={"model_calls": result.model_calls + planner_calls}

@@ -11,13 +11,41 @@
 
 ---
 
+## Constraint-update/recall follow-up — 2026-11-05
+
+**CONFIRMED DEFECT → FIXED within focused verification bounds.** At `6f8560d`,
+NVIDIA copied the approved old goal into TaskIntent while adding an exact new
+constraint. Source validation rejected the entire delta because the old goal was
+absent from the latest message. An identical approved goal is now a no-op; actual
+new facts/goals retain exact-source checks. Invalid proposals get bounded,
+field-specific repair instead of immediate discard.
+
+The parser's clarification string also bypassed assembly/citation validation and
+could contain an uncited project summary. That path is removed. Only fixed
+validation-status flags reach the existing grounded answer host; raw parser prose
+is neither published nor supplied as rival evidence. An empty plan is labelled
+unknown-next-step for an active goal, not completion.
+
+**38 affected checks passed**, changed-code/test Pyright clean; before-fix
+reproductions and capped model-only observations are preserved in
+[verification](docs/ace/validation.md) and the
+[synthetic probe record](docs/ace/results/workspace-constraint-recall-20261105.json).
+Both recorded real-model English/French constraint proposals validate after the
+no-op correction; this was local replay of the same outputs, not a new live
+workflow run. No full suite, full ingestion E2E, benchmark or production-readiness
+work. Previously rejected updates must be restated after upgrade; historical
+answers are not rewritten. This follow-up is local pending publication.
+
+---
+
 ## Current UI increment — 2026-11-05 (owner-authorized scope)
 
 This instruction supersedes the older frozen-console/UI exclusions below for
 this increment only. Implement the first four conversation/UI improvements;
 **do not implement usefulness/benchmark or production-readiness work.** Baseline
-`4e56b06` was already pushed and passed GitHub CI. This workspace increment is
-local and has not been pushed.
+`4e56b06` was already pushed and passed GitHub CI. The workspace increment below
+was subsequently published as `6f8560d`; the newer defect correction above remains
+local pending publication.
 
 | Requested improvement | Inspected implementation and decision | Verified result |
 |---|---|---|

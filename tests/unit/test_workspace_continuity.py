@@ -270,3 +270,28 @@ def test_unplanned_progress_and_dependency_resolution_require_real_quotes() -> N
             TaskIntent(add_reported_progress=("Model invention",)),
             event(text="Nothing completed"),
         )
+
+
+def test_echoing_an_approved_goal_does_not_require_reassertion_or_block_a_new_constraint() -> (
+    None
+):
+    current = work()
+    message = "The venue only permits deliveries before noon."
+    intent = TaskIntent(goal_quote=current.goal, add_requirements=(message,))
+    updated = apply_intent(current, intent, event(2, project_id="p1", text=message))
+    assert updated and updated.goal == current.goal
+    assert updated.requirements == (*current.requirements, message)
+    assert (
+        apply_intent(
+            current,
+            TaskIntent(goal_quote=current.goal),
+            event(text="What is the plan?"),
+        )
+        == current
+    )
+    with pytest.raises(ValueError, match="goal_quote.*absent"):
+        apply_intent(
+            current,
+            TaskIntent(goal_quote="A different unapproved goal"),
+            event(text=message),
+        )

@@ -26,6 +26,14 @@ outcomes. Suggested steps are proposals until explicitly accepted in conversatio
 external completion is invented. The next planned step is the first remaining
 accepted step; prerequisites can still be unresolved.
 
+An unchanged approved goal echoed by the planner is treated as a no-op. Actual
+new claims still require exact quotes; invalid proposals receive bounded repair.
+Planner prose is not an answer or source: clarification/rejection passes only a
+fixed status to the same context/citation host as ordinary replies. An active goal
+with no accepted step remains active. After upgrading, restate a constraint that
+was previously rejected; the app does not rewrite old answers or silently migrate
+unapplied historical plan changes.
+
 Memory entries provide View evidence, Apply correction and Remove from memory.
 Corrections retain an exact target/fingerprint in the durable request, revoke the
 old entry using existing governance, and ingest the replacement normally. Original

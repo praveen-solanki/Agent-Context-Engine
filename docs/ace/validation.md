@@ -1,6 +1,61 @@
 # Validation evidence — latest increment 2026-11-05
 
 
+## Constraint-update and uncited-recall correction — 2026-11-05
+
+Baseline `6f8560d`. The reported failure is a defect, not a manual-save design.
+Three focused reproductions failed before changes: paraphrased constraint quotes
+caused whole-update rejection, and parser clarification could bypass the normal
+context/citation answer path. A capped real-model probe found the precise natural
+update trigger: the provider echoed the approved old goal along with a valid new
+constraint, and the validator incorrectly required that unchanged goal to appear
+in the new message.
+
+The validator now treats only an identical approved goal as a no-op. New goals
+and new facts still require exact current-message source spans. Other invalid
+proposals get field-specific feedback and bounded repairs using the existing host
+repair allowance/context budget; exhausting it preserves current state. Planner
+prose never becomes answer text or competing evidence: only fixed host-owned
+`needs_clarification`/`rejected` status flags enter the grounded answer path.
+Normal citation repair and task-version recording apply to every new reply.
+Workspace instructions/feedback are included in assembly's prompt reserves.
+An active project without accepted steps is explicitly labelled as such.
+
+**38 focused checks passed across scoped runs:** 10 real-Mongo API/SDK interaction
+checks, 11 host-grounding/budget checks, 15 task-delta/history checks and two UI
+checks. Three initial reproductions failed before the fix. Changed implementation
+and tests pass strict Pyright. No full suite or full ingestion E2E was run.
+
+Two capped model-only batches made at most six small configured NVIDIA requests
+with synthetic data and zero database writes. Failed outputs are retained: the
+first prose-feedback answer treated it as rival information; the status-only
+answer cited the supplied source, kept the goal active and suggested clarifying
+the next step. Both exact generated English/French constraint proposals pass when
+revalidated under the corrected no-op rule. That replay made no additional API
+requests. This is not a live UI/retrieval/worker success claim or a benchmark;
+actual billing/token usage was not measured. See the
+[verification record](results/workspace-constraint-recall-20261105.json).
+
+Focused reproduction commands:
+
+```sh
+.venv/bin/pytest -q tests/unit/test_memory_grounding.py tests/unit/test_workspace_continuity.py \
+  tests/ui/test_ace_console.py::test_active_goal_with_no_agreed_steps_is_not_labelled_complete \
+  tests/ui/test_ace_console.py::test_chat_persists_each_turn_and_rerun_does_not_submit_again
+CG_INTEGRATION=1 .venv/bin/pytest -q tests/integration/test_ace_workspace.py \
+  -k 'invalid_constraint_quote or planner_commentary or unrepairable_plan or stale_requirement or oversized_repair or ambiguous_plan or chat_updates_current or retry_after_a_tool or approved_goal_echo'
+.venv/bin/pyright src/agent_context/continuity.py src/agent_context/demo.py \
+  ui/context_engine_view.py tests/integration/test_ace_workspace.py \
+  tests/unit/test_memory_grounding.py tests/unit/test_workspace_continuity.py tests/ui/test_ace_console.py
+```
+
+Previously stored answers remain historical and past rejected updates are not
+silently applied. After updating API/worker/UI, restate a previously rejected
+constraint to add it to the plan. Universal model semantic correctness remains
+unproven; source validation is deliberately retained. The deferred usefulness and
+production-readiness work is unchanged.
+
+
 ## Conversational workspace — focused verification only
 
 Baseline `4e56b06`. Verified the existing host-grounding and initial console

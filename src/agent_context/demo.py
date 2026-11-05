@@ -9,6 +9,7 @@ from __future__ import annotations
 import hashlib
 import json
 from collections.abc import Mapping
+from typing import Literal
 
 import httpx
 from pydantic import BaseModel, Field, model_validator
@@ -57,6 +58,26 @@ If evidence is insufficient, state the limitation. Never claim a tool ran merely
 because prior conversation says so. Superseded requirements are not current.
 """
 
+WORKSPACE_SYSTEM = """Project progress reported by the user is unverified; only
+completed action receipts establish tool execution. Suggested next steps are
+proposals, not accepted requirements or completed work. Respect blockers,
+unresolved operations and dependencies; ask when the next action is ambiguous.
+Return up to four short suggested_next_steps only when useful. Never invent tool
+access or claim external work ran. An empty pending list does not mean the
+project is complete: use the explicit current task status. For an active goal
+with no accepted next step, say that the next step has not been agreed and
+propose one when useful. Preserve relevant current constraints in project recall,
+including updates saved as memory but not yet in the accepted plan; distinguish
+those cases. task_update_feedback is a host validation status: needs_clarification
+means a proposed mutation was ambiguous; rejected means no proposed mutation was
+applied. Neither flag is project evidence or a reason to skip a factual question.
+Answer the user's actual recall/question from
+current_context with citations even when the parser raised a clarification. Ask
+a clarification only when a requested plan mutation remains genuinely ambiguous.
+Do not claim a rejected update was applied.
+"""
+
+TaskUpdateFeedback = Literal["needs_clarification", "rejected"]
 MEMORY_SOURCE_PREFIX = "memory:"
 
 
@@ -168,6 +189,7 @@ class ResearchAssistant:
         handoff_version: int = 1,
         task_id: str | None = None,
         task_version: int | None = None,
+        task_update_feedback: TaskUpdateFeedback | None = None,
     ) -> ResearchTurn:
         event_id = self.event_identifier(session_id, turn_id)
         answer_id = event_id + "-answer"
@@ -207,6 +229,14 @@ class ResearchAssistant:
         await self.user.wait_available(
             event_id, timeout_seconds=self.settings.event_timeout_seconds
         )
+        instructions = SYSTEM + (
+            "\n" + WORKSPACE_SYSTEM if self.settings.workspace_mode else ""
+        )
+        feedback_bytes = (
+            len(json.dumps({"task_update_feedback": task_update_feedback}).encode())
+            if self.settings.workspace_mode
+            else 0
+        )
         request = AssembleRequest(
             agent_id=self.settings.agent_id,
             session_id=session_id,
@@ -216,8 +246,8 @@ class ResearchAssistant:
             task_version=task_version,
             budget=TokenBudget(
                 model_context_tokens=self.settings.model_context_tokens,
-                reserved_instructions_tokens=len(SYSTEM.encode()),
-                reserved_request_tokens=len(message.encode()) + 256,
+                reserved_instructions_tokens=len(instructions.encode()),
+                reserved_request_tokens=len(message.encode()) + feedback_bytes + 256,
                 reserved_output_tokens=self.settings.response_tokens,
                 max_engine_tokens=4000,
             ),
@@ -294,13 +324,11 @@ class ResearchAssistant:
             "english": "Write the final answer in English (en).",
         }
         # Interpolate only allowlisted locale instructions, never retrieved text.
-        system = SYSTEM + (
+        system = instructions + (
             "\n" + locale_instructions.get(next(iter(language_values)), "")
             if len(language_values) == 1
             else ""
         )
-        if self.settings.workspace_mode:
-            system += "\nProject progress reported by the user is unverified; only completed action receipts establish tool execution. Suggested next steps are proposals, not accepted requirements or completed work. Respect blockers, unresolved operations and dependencies; ask when the next action is ambiguous. Return up to four short suggested_next_steps only when useful; never invent tool access or claim external work ran."
         for record in current.events:
             old = record.event
             if old.kind == EventKind.TOOL_RESULT and old.causation_id == event_id:
@@ -344,6 +372,11 @@ class ResearchAssistant:
                     "available_documents": available,
                     "read_documents": evidence,
                     "remaining_reads": self.settings.max_tool_reads - call_index,
+                    **(
+                        {"task_update_feedback": task_update_feedback}
+                        if self.settings.workspace_mode
+                        else {}
+                    ),
                 },
                 ensure_ascii=False,
             )

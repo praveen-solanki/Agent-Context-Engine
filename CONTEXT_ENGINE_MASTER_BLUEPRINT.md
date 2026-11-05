@@ -670,6 +670,25 @@ Do not claim measured token reduction, task-success gain, p95 latency, multi-ten
 
 ### Progress ledger (the next agent should maintain this)
 
+2026-11-05 focused constraint/recall defect correction at baseline `6f8560d`:
+**CONFIRMED DONE within scoped checks**. An unchanged approved goal echoed by the
+model no longer invalidates a valid new constraint. New claims still require
+exact source quotes; invalid proposals receive bounded field-specific repair.
+Parser prose no longer bypasses the evidence/answer host or enters it as competing
+information; only fixed validation statuses are supplied. Active tasks with no
+accepted next step are not labelled complete. Reused the task CAS, assembler,
+SDK/host and citation repair; no new architecture or ingestion behavior.
+
+Evidence: 38 focused checks pass and changed implementation/tests are Pyright
+clean. Three before-fix reproductions and six capped synthetic model-only calls
+are documented, including failed raw proposals and their successful revalidation
+after the no-op fix. Revalidation is not a fresh provider execution. See
+[verification](docs/ace/validation.md) and
+[probe record](docs/ace/results/workspace-constraint-recall-20261105.json).
+No full suite, full ingestion E2E, benchmark or production-readiness work. Past
+failed updates are not silently migrated; historical answers remain history.
+
+
 2026-11-05 owner-authorized conversational workspace: the first four UI/continuity
 improvements are **CONFIRMED DONE within the focused verification bounds**.
 Existing ingestion, task CAS, mandatory assembly, tool receipts and governance

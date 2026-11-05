@@ -495,3 +495,23 @@ def test_untrusted_navigation_and_memory_labels_do_not_enable_markdown_images(
     assert session.label.startswith("\\!\\[")
     assert any(value.label.startswith("\\!\\[") for value in app.expander)
     assert any(value.value == payload for value in app.text)
+
+
+def test_active_goal_with_no_agreed_steps_is_not_labelled_complete(
+    offline: dict[tuple[str, str], WorkspaceSnapshot],
+) -> None:
+    current = offline[("p1", "s1")]
+    assert current.task
+    offline[("p1", "s1")] = replace(
+        current,
+        task=current.task.model_copy(
+            update={"content": current.task.content.model_copy(update={"pending": ()})}
+        ),
+    )
+    app = page()
+    assert not app.exception
+    assert any(
+        "project is active; no next step has been agreed" in caption.value
+        for caption in app.caption
+    )
+    assert any(text.value == "Write the report" for text in app.text)

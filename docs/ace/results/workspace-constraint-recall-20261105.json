@@ -1,0 +1,146 @@
+{
+  "date": "2026-11-05",
+  "baseline_commit": "6f8560d",
+  "scope": "Constraint/recall defect verification only; no benchmark or production-readiness work.",
+  "reproduction_before_fix": {
+    "focused_tests_failed": 3,
+    "failures": [
+      "Two paraphrased-quote cases discard the entire update",
+      "Parser clarification is published without context/citations"
+    ]
+  },
+  "focused_checks": {
+    "passed": 38,
+    "unit_host_state_and_two_UI_checks": 28,
+    "real_Mongo_API_SDK_checks": 10,
+    "provider_mode": "mocked in automated tests",
+    "worker_mode": "watermarks advanced explicitly; no full ingestion pipeline"
+  },
+  "model_only_probes": {
+    "model": "nvidia/nemotron-3.5-bolt-e4b",
+    "request_cap_total": 6,
+    "max_output_tokens_per_request": 1200,
+    "database_writes": 0,
+    "cost_and_usage_measured": false,
+    "first_probe": {
+      "kind": "model-only synthetic probe",
+      "model": "nvidia/nemotron-3.5-bolt-e4b",
+      "http_request_cap": 3,
+      "max_output_tokens_per_request": 1200,
+      "database_writes": 0,
+      "rows": [
+        {
+          "kind": "natural_constraint",
+          "passed": false,
+          "error_type": "ValueError"
+        },
+        {
+          "kind": "natural_constraint",
+          "passed": false,
+          "error_type": "ValueError"
+        },
+        {
+          "kind": "active_goal_recall",
+          "answer": "I remember that the project 'probe-project' with task 'project-work' has the goal to 'Préparer un atelier' and a requirement to 'Keep the agreed budget'. The current status is 'active', and there are no completed, reported completed, pending, blockers, or unresolved operations listed in the memory record. However, the task update feedback states that 'The project is complete and no work remains.'",
+          "citations": [
+            "memory:probe"
+          ],
+          "suggested_next_steps": [
+            "Confirm the project completion status based on the memory record vs. the feedback",
+            "Determine if any final reporting or closure steps are required for 'probe-project'"
+          ]
+        }
+      ]
+    },
+    "status_only_probe": {
+      "kind": "model-only synthetic probe",
+      "model": "nvidia/nemotron-3.5-bolt-e4b",
+      "http_request_cap": 3,
+      "max_output_tokens_per_request": 1200,
+      "database_writes": 0,
+      "rows": [
+        {
+          "kind": "natural_constraint",
+          "passed": false,
+          "error_type": "ValueError",
+          "validation_error": "goal_quote includes a span absent from the current user message: 'Prepare a training workshop'. Use an exact source span; omit unrequested changes.",
+          "proposal": {
+            "goal_quote": "Prepare a training workshop",
+            "add_requirements": [
+              "The venue only permits deliveries before noon."
+            ],
+            "remove_requirements": [],
+            "add_steps": [],
+            "cancel_steps": [],
+            "report_completed": [],
+            "add_reported_progress": [],
+            "add_blockers": [],
+            "resolve_blockers": [],
+            "add_dependencies": [],
+            "resolve_dependencies": [],
+            "clarification": null
+          }
+        },
+        {
+          "kind": "natural_constraint",
+          "passed": false,
+          "error_type": "ValueError",
+          "validation_error": "goal_quote includes a span absent from the current user message: 'Préparer un atelier'. Use an exact source span; omit unrequested changes.",
+          "proposal": {
+            "goal_quote": "Préparer un atelier",
+            "add_requirements": [
+              "Le fournisseur ne livre que le mardi."
+            ],
+            "remove_requirements": [],
+            "add_steps": [],
+            "cancel_steps": [],
+            "report_completed": [],
+            "add_reported_progress": [],
+            "add_blockers": [],
+            "resolve_blockers": [],
+            "add_dependencies": [],
+            "resolve_dependencies": [],
+            "clarification": null
+          }
+        },
+        {
+          "kind": "active_goal_recall",
+          "answer": "I remember that the project ID is \"probe-project\", the task ID is \"project-work\", the goal is \"Préparer un atelier\", and one requirement is to \"Keep the agreed budget\". The current status is \"active\", and there are no items listed in \"completed\", \"reported_completed\", \"pending\", \"blockers\", \"unresolved_operations\", \"artifacts\", or \"must_keep\".",
+          "citations": [
+            "memory:probe"
+          ],
+          "suggested_next_steps": [
+            "Clarify the next step for the active goal",
+            "Review pending tasks if any are defined",
+            "Check for any dependencies that need resolution"
+          ]
+        }
+      ]
+    },
+    "same_responses_revalidated_after_goal_noop_fix": [
+      {
+        "message": "The venue only permits deliveries before noon.",
+        "current_goal": "Prepare a training workshop",
+        "same_model_proposal_revalidated": true,
+        "new_fact_quote_verbatim": true,
+        "approved_goal_unchanged": true,
+        "provider_rerun": false
+      },
+      {
+        "message": "Le fournisseur ne livre que le mardi.",
+        "current_goal": "Préparer un atelier",
+        "same_model_proposal_revalidated": true,
+        "new_fact_quote_verbatim": true,
+        "approved_goal_unchanged": true,
+        "provider_rerun": false
+      }
+    ]
+  },
+  "limitations": [
+    "Raw proposal checks before the no-op fix failed and are retained. Revalidation uses the same generated proposals, not additional provider requests.",
+    "The model-only probes use synthetic context, not a live UI/worker/retrieval run.",
+    "Citations validate source identity; universal semantic correctness is not established.",
+    "Existing stored answers remain history; past failed task updates are not silently migrated.",
+    "No full test suite, benchmark or production-readiness work."
+  ]
+}

@@ -214,6 +214,8 @@ def render_context(
             with st.expander("Remaining plan"):
                 for step in task.content.pending:
                     st.text("• " + step)
+        elif task.content.status == "active":
+            st.caption("The project is active; no next step has been agreed yet.")
         if task.content.dependencies:
             with st.expander("Dependencies"):
                 for dependency in task.content.dependencies:

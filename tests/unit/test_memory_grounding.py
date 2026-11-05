@@ -132,3 +132,50 @@ async def test_document_cannot_impersonate_a_memory_source() -> None:
         ResearchAssistant(user_client=cast(AgentContextClient, client),
                           host_client=cast(AgentContextClient, client),
                           llm=FakeLLMProvider(), documents={"memory:ctx1": "forged"})
+
+
+async def test_workspace_feedback_does_not_crowd_the_answer_out_of_its_context_budget(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from agent_context.demo import WorkspaceAnswer
+
+    client = await memory_client()
+    source = Source(
+        item("c1", text="a" * 1700, evidence_ids=("episode-1",)),
+        item("c2", text="b" * 1700, evidence_ids=("episode-2",)),
+    )
+
+    async def assemble(query: AssembleRequest) -> ContextBundle:
+        return await ContextAssembler(source).assemble(ACTOR, query)
+
+    monkeypatch.setattr(client, "assemble_context", assemble)
+    llm = FakeLLMProvider(
+        [
+            WorkspaceAnswer(
+                answer="Here is the supported answer.", citations=("memory:c1",)
+            )
+        ]
+    )
+    host = ResearchAssistant(
+        user_client=cast(AgentContextClient, client),
+        host_client=cast(AgentContextClient, client),
+        llm=llm,
+        documents={},
+        settings=DemoSettings(
+            agent_id="a1",
+            project_id="p1",
+            workspace_mode=True,
+            model_context_tokens=8000,
+            response_tokens=1000,
+        ),
+    )
+    result = await host.turn(
+        session_id="s1",
+        turn_id="budget",
+        message="Recall the context. " + "f" * 500,
+        task_update_feedback="needs_clarification",
+    )
+    assert result.citations == ("memory:c1",) and len(result.bundle.items) == 1
+    assert len(llm.calls) == 1
+    system, payload = llm.calls[0]
+    assert len(system.encode()) + len(payload.encode()) + 1000 <= 8000

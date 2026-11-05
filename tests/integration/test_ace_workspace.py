@@ -357,7 +357,12 @@ async def test_ambiguous_plan_change_is_saved_as_clarification_not_work(
     workspace: Workspace,
 ) -> None:
     env = workspace
-    llm = FakeLLMProvider([TaskIntent(clarification="Which step should I add?")])
+    llm = FakeLLMProvider(
+        [
+            TaskIntent(clarification="Which step should I add?"),
+            WorkspaceAnswer(answer="Which step should I add?", citations=()),
+        ]
+    )
     assistant = WorkspaceAssistant(
         user=env.user, host=env.host, llm=llm, project_id="p1", documents={}
     )
@@ -369,7 +374,7 @@ async def test_ambiguous_plan_change_is_saved_as_clarification_not_work(
     replay = await assistant.turn(
         session_id="s1", turn_id="yes", message="Yes, do that."
     )
-    assert replay.result.cached and len(llm.calls) == 1
+    assert replay.result.cached and len(llm.calls) == 2
 
 
 async def test_interrupted_correction_recovers_exact_target_before_answering(
@@ -639,3 +644,237 @@ async def test_old_unfinished_request_cannot_overwrite_a_newer_conversation_plan
     assert len(llm.calls) == calls
     current = await env.user.current_task("p1", PROJECT_TASK_ID)
     assert current.version == 2 and current.content.goal == "Prepare a budget"
+
+
+async def seed_active_plan(env: Workspace) -> None:
+    from agent_context.contracts import utcnow
+    from agent_context.task_state import TaskUpdate
+
+    await env.user.record_events(
+        event(
+            event_id="seed",
+            session_id="seed-session",
+            project_id="p1",
+            event_time=utcnow(),
+            text="Prepare the project. Retain the budget constraint.",
+        )
+    )
+    await env.user.wait_available("seed")
+    await env.user.update_task(
+        TaskUpdate(
+            project_id="p1",
+            task_id=PROJECT_TASK_ID,
+            source_session_id="seed-session",
+            source_event_id="seed",
+            goal="Prepare the project",
+            requirements=("Retain the budget constraint",),
+            expected_version=0,
+            idempotency_key="seed",
+        )
+    )
+
+
+@pytest.mark.parametrize(
+    ("message", "paraphrase"),
+    [
+        (
+            "The supplier can deliver on Tuesdays only.",
+            "Delivery is restricted to Tuesday",
+        ),
+        ("La livraison est possible uniquement le jeudi.", "Livraison le jeudi"),
+    ],
+)
+async def test_invalid_constraint_quote_is_repaired_without_discarding_the_update(
+    workspace: Workspace, message: str, paraphrase: str
+) -> None:
+    env = workspace
+    await seed_active_plan(env)
+    citation = "memory:" + env.tasks.identifier(env.actor, "p1", PROJECT_TASK_ID) + ":2"
+    llm = FakeLLMProvider(
+        [
+            TaskIntent(add_requirements=(paraphrase,)),
+            TaskIntent(add_requirements=(message,)),
+            WorkspaceAnswer(
+                answer="The constraint is now part of the current plan.",
+                citations=(citation,),
+            ),
+        ]
+    )
+    assistant = WorkspaceAssistant(
+        user=env.user, host=env.host, llm=llm, project_id="p1", documents={}
+    )
+    outcome = await assistant.turn(
+        session_id="update", turn_id="update", message=message
+    )
+    assert outcome.task and outcome.task.version == 2
+    assert outcome.task.content.requirements == (
+        "Retain the budget constraint",
+        message,
+    )
+    assert outcome.result.citations == (citation,) and outcome.result.model_calls == 3
+    assert "validation_feedback" in llm.calls[1][1]
+
+
+async def test_planner_commentary_cannot_bypass_grounded_recall(
+    workspace: Workspace,
+) -> None:
+    env = workspace
+    await seed_active_plan(env)
+    citation = "memory:" + env.tasks.identifier(env.actor, "p1", PROJECT_TASK_ID) + ":1"
+    unsafe = "The project is complete and no work remains."
+    llm = FakeLLMProvider(
+        [
+            TaskIntent(clarification=unsafe),
+            WorkspaceAnswer(answer="Uncited summary", citations=()),
+            WorkspaceAnswer(
+                answer="The project is active. No next step has been agreed yet.",
+                citations=(citation,),
+            ),
+        ]
+    )
+    assistant = WorkspaceAssistant(
+        user=env.user, host=env.host, llm=llm, project_id="p1", documents={}
+    )
+    outcome = await assistant.turn(
+        session_id="recall",
+        turn_id="recall",
+        message="What do you remember and what remains?",
+    )
+    assert unsafe not in outcome.result.answer
+    assert outcome.result.citations == (citation,)
+    assert outcome.result.task_context and outcome.result.task_context.version == 1
+    assert (
+        len(llm.calls) == 3 and outcome.task and outcome.task.content.status == "active"
+    )
+    payload = json.loads(llm.calls[1][1])
+    assert payload["task_update_feedback"] == "needs_clarification"
+    assert all(unsafe not in payload for _, payload in llm.calls[1:])
+    assert "empty pending" in llm.calls[-1][0]
+    history, _ = restore(await env.user.session("recall"))
+    assert history[0].result.citations == (citation,)
+
+
+async def test_unrepairable_plan_proposal_preserves_state_and_still_grounds_the_answer(
+    workspace: Workspace,
+) -> None:
+    env = workspace
+    await seed_active_plan(env)
+    citation = "memory:" + env.tasks.identifier(env.actor, "p1", PROJECT_TASK_ID) + ":1"
+    invalid = TaskIntent(add_requirements=("A quote absent from the actual message",))
+    llm = FakeLLMProvider(
+        [
+            invalid,
+            invalid,
+            invalid,
+            WorkspaceAnswer(
+                answer="The requested change was not applied. The current goal remains active.",
+                citations=(citation,),
+            ),
+        ]
+    )
+    assistant = WorkspaceAssistant(
+        user=env.user, host=env.host, llm=llm, project_id="p1", documents={}
+    )
+    outcome = await assistant.turn(
+        session_id="invalid", turn_id="invalid", message="Adjust the constraints"
+    )
+    assert outcome.clarification and outcome.task and outcome.task.version == 1
+    assert outcome.task.content.requirements == ("Retain the budget constraint",)
+    assert outcome.result.citations == (citation,) and outcome.result.model_calls == 4
+    assert len(llm.calls) == 4
+
+
+async def test_stale_requirement_reference_is_repaired_before_replacing_a_constraint(
+    workspace: Workspace,
+) -> None:
+    env = workspace
+    await seed_active_plan(env)
+    quote = "The spending cap is now 500 units"
+    llm = FakeLLMProvider(
+        [
+            TaskIntent(
+                remove_requirements=(
+                    ReferencedChange(target="Old budget", quote=quote),
+                ),
+                add_requirements=(quote,),
+            ),
+            TaskIntent(
+                remove_requirements=(
+                    ReferencedChange(
+                        target="Retain the budget constraint", quote=quote
+                    ),
+                ),
+                add_requirements=(quote,),
+            ),
+            WorkspaceAnswer(
+                answer="The spending requirement was updated.",
+                citations=(
+                    "memory:"
+                    + env.tasks.identifier(env.actor, "p1", PROJECT_TASK_ID)
+                    + ":2",
+                ),
+            ),
+        ]
+    )
+    assistant = WorkspaceAssistant(
+        user=env.user, host=env.host, llm=llm, project_id="p1", documents={}
+    )
+    outcome = await assistant.turn(
+        session_id="replacement", turn_id="replacement", message=quote
+    )
+    assert (
+        outcome.task
+        and outcome.task.version == 2
+        and outcome.task.content.requirements == (quote,)
+    )
+    assert outcome.task.content.goal == "Prepare the project"
+    assert "missing current entry" in llm.calls[1][1]
+
+
+async def test_oversized_repair_proposal_never_reaches_the_provider_or_mutates_state(
+    workspace: Workspace,
+) -> None:
+    env = workspace
+    await seed_active_plan(env)
+    llm = FakeLLMProvider(
+        [TaskIntent(add_requirements=tuple("x" * 4000 for _ in range(16)))]
+    )
+    assistant = WorkspaceAssistant(
+        user=env.user, host=env.host, llm=llm, project_id="p1", documents={}
+    )
+    with pytest.raises(ValueError, match="repair exceeds the context budget"):
+        await assistant.turn(
+            session_id="bounded", turn_id="bounded", message="Change the budget"
+        )
+    assert len(llm.calls) == 1
+    assert (await env.user.current_task("p1", PROJECT_TASK_ID)).version == 1
+
+
+async def test_approved_goal_echo_does_not_discard_a_natural_constraint_update(
+    workspace: Workspace,
+) -> None:
+    env = workspace
+    await seed_active_plan(env)
+    message = "The venue only permits deliveries before noon."
+    citation = "memory:" + env.tasks.identifier(env.actor, "p1", PROJECT_TASK_ID) + ":2"
+    llm = FakeLLMProvider(
+        [
+            TaskIntent(goal_quote="Prepare the project", add_requirements=(message,)),
+            WorkspaceAnswer(
+                answer="The new constraint is saved in the plan.", citations=(citation,)
+            ),
+        ]
+    )
+    assistant = WorkspaceAssistant(
+        user=env.user, host=env.host, llm=llm, project_id="p1", documents={}
+    )
+    result = await assistant.turn(
+        session_id="natural-update", turn_id="update", message=message
+    )
+    assert (
+        result.task
+        and result.task.version == 2
+        and result.task.content.goal == "Prepare the project"
+    )
+    assert message in result.task.content.requirements
+    assert len(llm.calls) == 2 and result.result.citations == (citation,)
