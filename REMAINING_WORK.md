@@ -1060,3 +1060,13 @@ The overall project can be called **complete relative to the master blueprint** 
 > Work in **praveen-solanki/Agent-Context-Engine**, not the original Context-Graph repository. Read REMAINING_WORK.md, CONTEXT_ENGINE_MASTER_BLUEPRINT.md, AGENTS.md, README.md, docs/ace/architecture.md and docs/ace/validation.md, then inspect the relevant current source/tests. **The product scope is frozen: finish only the originally planned Agent Context Engine; introduce no unrelated new features.** Begin by verifying each existing capability, with a source-level call-path trace and meaningful tests. If anything is already implemented and passes, mark it CONFIRMED DONE with code/test evidence and SKIP it entirely. For partial gaps, fix only missing correctness/integration/evaluation/production behavior, preserving all current features and tests. Prioritize real context selection and task-aware assembly, current-state handoff continuity, genuine end-to-end task success, rigorous benchmarks, and original production gates. Document exact tests, live outputs, changed files, compatibility and remaining limitations. Update REMAINING_WORK.md and the master blueprint after each verified milestone. Do not claim a task complete merely because the README or an old report says so; do not create new architectures, frameworks or graph products.
 
 **Ultimate criterion:** Not "more AI features"; **a fully validated, reusable context engine whose timely, authorized, evidence-backed context helps long-running agents complete real work across sessions and can be operated safely under the documented conditions.**
+
+### 2026-11-06 — requested design skills and UI refinement
+
+CONFIRMED DONE within focused verification: both requested Apple design skills are
+installed locally with a pinned installer; presentation/theme now use a consistent
+system type scale, blue/graphite palette, distinct context inspector, mobile stacking,
+visible focus and motion/contrast preference handling. All 28 workspace UI tests
+pass; presentation Pyright is clean. Chromium checked 1440px/390px and accessibility
+preferences. See [design evidence and limits](docs/ace/ui-design.md). No backend,
+benchmark or production-readiness change is claimed.

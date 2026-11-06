@@ -939,3 +939,8 @@ not assert universal model answer correctness.
 - [Handoff State Continuity Benchmark (2026)](https://arxiv.org/abs/2610.36523)
 
 **Final design principle:** the graph is replaceable infrastructure. The product is the quality, correctness, safety and measurable utility of the **context supplied to an agent at the moment it needs to act**.
+
+2026-11-06 presentation-only increment: requested HIG/motion design skills installed
+with pinned provenance; existing conversational UI refined without replacing its
+workflow. CONFIRMED DONE within 28 focused UI checks, strict presentation typing,
+and desktop/mobile Chromium inspection. [Design evidence](docs/ace/ui-design.md).

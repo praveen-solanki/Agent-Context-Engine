@@ -10,3 +10,6 @@ data/*
 !data/convomem_demo/
 !data/org_structure.json
 !data/README.md
+
+# Locally installed, pinned third-party design guidance
+.agents/skills/

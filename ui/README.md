@@ -104,3 +104,7 @@ Design references retained from the existing UI:
 When automatic routing is uncertain about a new undertaking, copy its exact name
 from your message into **Create and use project**. This confirms creation before
 the unsent message is recorded. Multi-project updates require rephrasing instead.
+
+Design guidance and the current visual/accessibility decisions are recorded in
+[UI design](../docs/ace/ui-design.md). Install the two pinned, optional development
+skills with `./scripts/install-design-skills.sh`; running the app does not require them.

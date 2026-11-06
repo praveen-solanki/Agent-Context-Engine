@@ -37,7 +37,7 @@ def apply_style() -> None:
 
 def brand() -> None:
     st.markdown(
-        '<div class="ace-brand">Context Engine</div><div class="ace-brand-subtitle">Your project workspace</div>',
+        '<div class="ace-brand"><span class="ace-mark" aria-hidden="true">ce</span>Context Engine</div><div class="ace-brand-subtitle">Your project workspace</div>',
         unsafe_allow_html=True,
     )
 
@@ -57,7 +57,7 @@ def header(title: str) -> bool:
 
 def welcome() -> str | None:
     st.markdown(
-        '<div class="ace-empty"><h2>What are you working on?</h2><p>Describe a goal, share a change, or continue a project. Useful memory and task updates are saved as you talk.</p></div>',
+        '<div class="ace-empty"><span class="ace-eyebrow">A workspace that remembers</span><h2>What are you working on?</h2><p>Describe a goal, share a change, or continue a project. Useful memory and task updates are saved as you talk.</p></div>',
         unsafe_allow_html=True,
     )
     if st.button("What do you remember about this project?", icon=":material/history:"):
