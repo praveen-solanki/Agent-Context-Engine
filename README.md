@@ -39,6 +39,9 @@ configuration, isolated ACE ingestion, six baselines, scoring and reproducible
 reports. Validation used small fixtures and mocked providers; full public
 benchmark results are not claimed.
 
+The [pipeline integrity audit](docs/ace/pipeline-audit.md) records adversarial
+boundary fixes, optional engineering skills, verification evidence and open limits.
+
 See [one-command development setup and recovery](docs/ace/operations.md),
 [current validation evidence](docs/ace/validation.md), and
 [service configuration](docs/ace/development.md) and

@@ -35,6 +35,7 @@ from agent_context.benchmarks.scoring import (
     judge,
     judge_payload,
     lexical,
+    precision,
     recall,
 )
 from agent_context.benchmarks.storage import (
@@ -393,7 +394,7 @@ async def run(
             }
             atomic_write(target, json.dumps(result, indent=2) + "\n")
             try:
-                failures: dict[Method, str] = {}
+                failures: dict[Method, tuple[str, str]] = {}
                 if any(
                     method in config.methods for method in ("ace", "existing_retriever")
                 ):
@@ -412,7 +413,7 @@ async def run(
                             ) from None
                         failures.update(
                             {
-                                method: type(error).__name__
+                                method: (type(error).__name__, "ingestion")
                                 for method in config.methods
                                 if method in ("ace", "existing_retriever")
                             }
@@ -445,7 +446,7 @@ async def run(
                     except RequestLimitExceeded:
                         raise
                     except Exception as error:
-                        failures[method] = type(error).__name__
+                        failures[method] = (type(error).__name__, "context_preparation")
                     finally:
                         result["preparation"][method] = providers.measure(
                             before, start
@@ -459,14 +460,30 @@ async def run(
                             "method": method,
                             "trial": trial + 1,
                             "seed": config.seed + trial,
-                            "error_type": failures.get(method),
+                            "error_type": failures.get(method, (None, None))[0],
+                            "failure_stage": failures.get(method, (None, None))[1],
                             "answer": None,
                             "scores": None,
                         }
+                        stage = "answer_generation"
                         try:
                             if method not in views:
                                 continue
                             view = views[method]
+                            row["scores"] = {
+                                "evidence_turn_recall": recall(
+                                    view.source_turns, case.evidence_turns
+                                ),
+                                "evidence_session_recall": recall(
+                                    view.source_sessions, case.evidence_sessions
+                                ),
+                                "evidence_turn_precision": precision(
+                                    view.source_turns, case.evidence_turns
+                                ),
+                                "evidence_session_precision": precision(
+                                    view.source_sessions, case.evidence_sessions
+                                ),
+                            }
                             payload = json.dumps(
                                 {
                                     "question": case.question,
@@ -489,19 +506,12 @@ async def run(
                                 seed=config.seed + trial,
                             )
                             row["answer"] = answer.model_dump()
-                            row["scores"] = {
-                                **lexical(case, answer),
-                                "evidence_turn_recall": recall(
-                                    view.source_turns, case.evidence_turns
-                                ),
-                                "evidence_session_recall": recall(
-                                    view.source_sessions, case.evidence_sessions
-                                ),
-                            }
+                            row["scores"] = {**row["scores"], **lexical(case, answer)}
                             row["answer_measurement"] = providers.measure(
                                 before, start
                             ).model_dump(mode="json")
                             if config.scoring == "judge":
+                                stage = "judging"
                                 ensure_prompt(
                                     JUDGE_SYSTEM,
                                     json.dumps(judge_payload(case, answer)),
@@ -528,10 +538,13 @@ async def run(
                                     row["judge_measurement"] = providers.measure(
                                         judged_before, judged_start
                                     ).model_dump(mode="json")
-                        except RequestLimitExceeded:
+                        except RequestLimitExceeded as error:
+                            row["error_type"] = type(error).__name__
+                            row["failure_stage"] = stage
                             raise
                         except Exception as error:
                             row["error_type"] = type(error).__name__
+                            row["failure_stage"] = stage
                         finally:
                             row["total_measurement"] = providers.measure(
                                 before, start

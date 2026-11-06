@@ -330,3 +330,21 @@ Directory data is included in existing owner export/primary erasure and denied
 under quarantine. See [failure matrix and limits](project-routing.md) and
 [verification](validation.md). This increment is not a new deployment, distributed
 consistency, semantic-accuracy or production-readiness claim.
+
+
+## Optional engineering guidance and safe diagnostics
+
+`./scripts/install-skills.sh engineering` installs the pinned instruction-only
+Ponytail implementation/review/audit and four selected ECC workflows locally.
+No Node runtime, hooks, observers or MCP servers are enabled. Generic full-suite,
+coverage and smaller-model advice does not override project/user requirements.
+The original `./scripts/install-design-skills.sh` command remains supported.
+
+The supplied API runtime emits structured route-template events instead of raw
+URL access logs. Request IDs plus hashed stream/event IDs connect intake and worker
+records. Stage duration/outcome/error type and explicit failed-report counters aid
+diagnosis; source text, nested private fields and credentials are redacted. This
+is not a deployed distributed trace backend or provider-global rate limiter.
+For retry hints above the configured `max_backoff_seconds`, local provider retries
+stop with the transient error preserved; later orchestration/replay is separate.
+See [audit evidence](pipeline-audit.md) for implemented boundaries and limitations.

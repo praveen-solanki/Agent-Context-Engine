@@ -670,6 +670,17 @@ Do not claim measured token reduction, task-success gain, p95 latency, multi-ten
 
 ### Progress ledger (the next agent should maintain this)
 
+2026-11-06 research-informed pipeline integrity audit: **CONFIRMED DONE within
+289 distinct scoped checks, including 100 new adversarial cases**; changed-code
+strict types are clean. Reused existing architecture and corrected demonstrated
+boundary defects from intake through ingestion, retrieval, host and evaluation.
+Added safe stage/correlation diagnostics, labelled retrieval precision and failure
+phases, plus pinned optional development guidance. No alternate memory/queue stack,
+full suite, paid/live provider evaluation or production certification. See
+[audit and remaining limits](docs/ace/pipeline-audit.md) and
+[machine-readable evidence](docs/ace/results/pipeline-integrity-20261106.json).
+
+
 2026-11-05 owner-authorized automatic project identity and concurrent bug fixes:
 **CONFIRMED DONE within 79 focused checks; strict changed-code/test Pyright clean.**
 The actual conversational UI now resolves owner-authorized project names, aliases,

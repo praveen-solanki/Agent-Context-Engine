@@ -82,3 +82,12 @@ def recall(selected: tuple[str, ...] | None, expected: tuple[str, ...]) -> float
     if selected is None or not expected:
         return None
     return len(set(selected) & set(expected)) / len(set(expected))
+
+
+def precision(
+    selected: tuple[str, ...] | None, expected: tuple[str, ...]
+) -> float | None:
+    """Diagnostic source precision only when exact gold mappings are available."""
+    if selected is None or not expected:
+        return None
+    return len(set(selected) & set(expected)) / len(set(selected)) if selected else 0.0

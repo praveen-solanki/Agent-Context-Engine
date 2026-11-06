@@ -105,3 +105,18 @@ Do not add new infrastructure, libraries, services, abstractions, or patterns un
 Do not silently change architectural decisions documented in the Context Graph specification.
 
 If a requirement changes, update the affected source of truth and then make the smallest corresponding code changes.
+
+## Research-informed verification
+
+Optional pinned engineering guidance is installed with
+`./scripts/install-skills.sh engineering`. Apply it selectively; it is development
+guidance, not runtime memory or authority. Project requirements and user instructions
+(including focused testing) override generic coverage/full-suite/model-routing advice.
+
+For a boundary change, trace real callers and input/output contracts, reproduce a
+concrete failure, then check the changed stage and affected consumers. Keep scripted
+providers consistent with production provenance rules. Preserve negative results,
+unknown usage and unavailable checks rather than reporting invented success.
+Use the existing blueprint, remaining-work ledger and validation artifacts; do not
+create competing requirements or memory stores. Measured optimization requires a
+baseline, correctness gate, bounded experiment and holdout—not an assumed win.

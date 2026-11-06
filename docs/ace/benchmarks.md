@@ -254,3 +254,17 @@ See [validation evidence](validation.md) for executed commands/counts and
 interactive dataset and production-system gates. Native full datasets, official
 scores, paid provider interoperability at scale, public benchmark benefits and
 real dollar totals remain unmeasured by this fixture-only implementation.
+
+
+## Additional diagnostics verified 6 November 2026
+
+Reports include failure-stage and error-type counters. Source precision accompanies
+source recall only when exact mappings and nonempty reference evidence exist;
+otherwise it is null. Retrieval diagnostics survive answer-generation failure,
+so unsuccessful answering does not erase successful context preparation. Evidence
+label overlap is not semantic support, and incomplete gold labels can penalize
+useful additional context. Older artifacts remain readable. Blank question and
+reference strings fail preparation. The current four-format/six-method fixture
+workflow passes with real isolated stores and mocked providers; see
+[pipeline integrity evidence](pipeline-audit.md). No new public benchmark result
+or official-scoring equivalence is claimed.

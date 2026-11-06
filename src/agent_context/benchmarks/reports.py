@@ -5,7 +5,7 @@ from __future__ import annotations
 import json
 import math
 import random
-from collections import defaultdict
+from collections import Counter, defaultdict
 from pathlib import Path
 from statistics import mean, median
 from typing import Any
@@ -171,6 +171,8 @@ def summarize(directory: Path) -> Path:
                     "category": case.category,
                     "correct": correct,
                     "failed": bool(error or answer is None),
+                    "failure_stage": (row or {}).get("failure_stage"),
+                    "error_type": error,
                     "lexical": scores,
                     "judge_available": judged is not None,
                     "answer_seconds": (row or {})
@@ -217,6 +219,20 @@ def summarize(directory: Path) -> Path:
             / len(rows),
             "attempted_trials": len(rows),
             "failed_trials": sum(row["failed"] for row in rows),
+            "failure_stages": dict(
+                Counter(
+                    row["failure_stage"] or "unclassified"
+                    for row in rows
+                    if row["failed"]
+                )
+            ),
+            "error_types": dict(
+                Counter(
+                    row["error_type"] or "MissingAnswer"
+                    for row in rows
+                    if row["failed"]
+                )
+            ),
             "correct_trials": sum(row["correct"] for row in rows),
             "accuracy_on_attempted": mean(row["correct"] for row in rows),
             "case_macro_accuracy": mean(
@@ -240,11 +256,16 @@ def summarize(directory: Path) -> Path:
             if len(latencies) >= 100
             else None,
         }
-        for field in ("evidence_turn_recall", "evidence_session_recall"):
+        for field in (
+            "evidence_turn_recall",
+            "evidence_session_recall",
+            "evidence_turn_precision",
+            "evidence_session_precision",
+        ):
             values = [
                 row["retrieval"][field]
                 for row in rows
-                if row["retrieval"] and row["retrieval"][field] is not None
+                if row["retrieval"] and row["retrieval"].get(field) is not None
             ]
             summary[key][field] = mean(values) if values else None
     planned_cases = sum(
@@ -269,7 +290,8 @@ def summarize(directory: Path) -> Path:
             "Shared ingestion is charged once in actual stage totals; both ACE and legacy require it. Setup-inclusive per-trial figures amortize only these measured trials, not future production queries. Seeds are requested, not a guarantee of backend determinism.",
             "Missing provider usage/prices or failed requests make stage dollar cost unknown; reported tokens are not complete billing.",
             "Current-attempt and all-attempt stage totals are separate; the latter includes archived incomplete attempts. Method setup attribution includes shared ingestion for ACE and legacy separately; actual global charges count it once.",
-            "Evidence recall is available only for methods with exact source mapping and nonempty labels; summary/legacy null is not zero recall.",
+            "Evidence recall/precision are available only for methods with exact source mapping and nonempty labels; summary/legacy null is not zero. Precision treats unlabeled selected sources as unmatched and is diagnostic because gold evidence may not enumerate every useful source.",
+            "Failure stages distinguish ingestion, context preparation, answer generation and judging; older artifacts without stage metadata remain unclassified. No capture, stale-memory or scope-leakage rate is inferred from missing labels.",
             "ACE evidence inspection is bounded by the existing endpoint. Source references establish provenance, not semantic support of every generated assertion.",
             "Normalized task datasets evaluate supplied offline QA/next-action references, not interactive environment/tool execution success.",
             "Dataset clocks are replay clocks; synthesized ConvoMem timestamps preserve source order, not real-world elapsed time.",

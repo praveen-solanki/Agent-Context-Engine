@@ -19,7 +19,7 @@ from agent_context.contracts import Contract, Identifier, Permission, Principal,
 from agent_context.events import EventConflict
 from context_graph.domain.enums import ContextStatus, ScopeType
 
-ASSEMBLY_POLICY_VERSION = "ace-assembly-v4"
+ASSEMBLY_POLICY_VERSION = "ace-assembly-v5"
 
 
 def lexical_terms(text: str) -> set[str]:
@@ -324,6 +324,13 @@ class ContextAssembler:
             allowed_scope = (
                 item.scope_type == ScopeType.USER
                 and item.scope_id == principal.user_id
+                and (
+                    item.project_id is None
+                    or (
+                        item.project_id == request.project_id
+                        and item.project_id in principal.projects
+                    )
+                )
                 or item.scope_type == ScopeType.SESSION
                 and item.scope_id == request.session_id
                 and (
@@ -349,6 +356,14 @@ class ContextAssembler:
             ) or not allowed_scope:
                 counts["unauthorized"] += 1
                 continue
+            # Compare authorized copies before lifecycle filtering: an inactive
+            # copy must not be ignored while another source serves the old value.
+            duplicate = item.item_id in seen
+            if duplicate and seen[item.item_id] != item:
+                raise RuntimeError(
+                    "candidate sources disagree about an immutable item ID"
+                )
+            seen[item.item_id] = item
             reason = None
             if item.status != ContextStatus.ACTIVE and not (
                 historical
@@ -357,7 +372,7 @@ class ContextAssembler:
                 and item.superseded_at > at
             ):
                 reason = "inactive"
-            elif historical and item.observed_at > at:
+            elif item.observed_at > at:
                 reason = "not_yet_observed"
             elif item.superseded_at is not None and item.superseded_at <= at:
                 reason = "superseded"
@@ -365,11 +380,7 @@ class ContextAssembler:
                 item.valid_until and item.valid_until <= at
             ):
                 reason = "outside_validity"
-            elif item.item_id in seen:
-                if seen[item.item_id] != item:
-                    raise RuntimeError(
-                        "candidate sources disagree about an immutable item ID"
-                    )
+            elif duplicate:
                 reason = "duplicate"
             elif item.required and not (item.trusted_policy or item.approved_task_state):
                 raise RuntimeError(
@@ -379,7 +390,6 @@ class ContextAssembler:
                 counts[reason] += 1
                 exclusions.append(Exclusion(item_id=item.item_id, reason=reason))
                 continue
-            seen[item.item_id] = item
             eligible.append(item)
             warnings.extend(item.source_warnings)
 

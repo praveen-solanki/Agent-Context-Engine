@@ -141,7 +141,9 @@ class IngestionPipeline:
             settings=settings.resolution,
             retry_settings=settings.retry,
         )
-        self._writer = ContextWriter(store, clock=clock) if clock else ContextWriter(store)
+        self._writer = (
+            ContextWriter(store, clock=clock) if clock else ContextWriter(store)
+        )
         self._promotion = PromotionService(
             store=store,
             policy=self._policy,
@@ -408,10 +410,23 @@ class IngestionPipeline:
             trusted_only=session.metadata.get("ace_event_bridge") is True,
             derive_context=session.metadata.get("ace_derive_context") is not False,
         )
+        failed_sequences: set[int] = set()
         for batch in self._batcher.batches(
             self._run_id, session.session_id, extractable
         ):
-            await self._process_batch(session, batch, state, progress)
+            if not await self._process_batch(session, batch, state, progress):
+                failed_sequences.update(batch.sequences)
+        # One episode may span several batches. A successful chunk must never
+        # acknowledge another failed chunk or advance past its missing work.
+        await self._ledger.record_completed(
+            self._run_id,
+            session.session_id,
+            [
+                episode.sequence
+                for episode in extractable
+                if episode.sequence not in failed_sequences
+            ],
+        )
 
     async def _gate_page(
         self,
@@ -462,8 +477,8 @@ class IngestionPipeline:
         batch: ExtractionBatch,
         state: RollingSessionState,
         progress: _SessionProgress,
-    ) -> None:
-        """Extract, resolve and write one batch, then record its outcome."""
+    ) -> bool:
+        """Write one batch; episode completion is acknowledged by the page."""
         episodes = {chunk.episode_id: chunk.episode for chunk in batch.chunks}
         try:
             envelope = await self._extractor.extract(batch, state.render())
@@ -490,13 +505,10 @@ class IngestionPipeline:
                 sequences=list(batch.sequences),
                 error=str(error),
             )
-            return
+            return False
 
         state.update(envelope.signals)
         progress.batches_processed += 1
-        await self._ledger.record_completed(
-            self._run_id, session.session_id, batch.sequences
-        )
         await self._ledger.mark_committed(self._run_id, batch.batch_key)
         log_event(
             _logger,
@@ -505,6 +517,7 @@ class IngestionPipeline:
             sequences=list(batch.sequences),
             state=EpisodeState.GRAPH_COMMITTED.value,
         )
+        return True
 
     async def _apply_signal(
         self,

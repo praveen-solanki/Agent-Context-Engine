@@ -18,8 +18,11 @@ import asyncio
 import json
 import math
 from collections.abc import Sequence
+from datetime import UTC, datetime
+from email.utils import parsedate_to_datetime
 from types import TracebackType
 from typing import Any, Self
+from urllib.parse import urlparse
 
 import httpx
 from pydantic import BaseModel, ValidationError
@@ -32,7 +35,11 @@ from context_graph.config import (
     RetrySettings,
     StructuredOutputMode,
 )
-from context_graph.errors import ExtractionValidationError, ProviderError, TransientError
+from context_graph.errors import (
+    ExtractionValidationError,
+    ProviderError,
+    TransientError,
+)
 from context_graph.observability import get_logger, log_event
 from context_graph.retry import retry_async
 
@@ -85,7 +92,9 @@ class ChatTransport:
         self._settings = settings
         self._retry = retry
         self._limit = asyncio.Semaphore(settings.max_concurrent_requests)
-        self._client = client or httpx.AsyncClient(timeout=settings.request_timeout_seconds)
+        self._client = client or httpx.AsyncClient(
+            timeout=settings.request_timeout_seconds
+        )
 
     async def __aenter__(self) -> Self:
         return self
@@ -102,7 +111,9 @@ class ChatTransport:
         """Release the HTTP connection pool."""
         await self._client.aclose()
 
-    async def post(self, path: str, payload: dict[str, Any], label: str) -> dict[str, Any]:
+    async def post(
+        self, path: str, payload: dict[str, Any], label: str
+    ) -> dict[str, Any]:
         """POST to ``path`` under the configured base URL, retrying transient failures."""
         return await retry_async(
             lambda: self._post_once(path, payload, label),
@@ -110,7 +121,9 @@ class ChatTransport:
             description=f"azure:{label}",
         )
 
-    async def _post_once(self, path: str, payload: dict[str, Any], label: str) -> dict[str, Any]:
+    async def _post_once(
+        self, path: str, payload: dict[str, Any], label: str
+    ) -> dict[str, Any]:
         url = f"{self._settings.base_url.rstrip('/')}/{path.lstrip('/')}"
         async with self._limit:
             try:
@@ -121,13 +134,13 @@ class ChatTransport:
                 raise TransientError(f"{label}: request failed: {error}") from error
 
         if response.status_code in _RETRYABLE_STATUS:
-            raise TransientError(f"{label}: backend returned {response.status_code}")
-        if response.status_code >= 400:
-            raise ProviderError(
-                f"{label}: backend returned {response.status_code}: {response.text[:300]}"
+            raise TransientError(
+                f"{label}: backend returned {response.status_code}",
+                retry_after_seconds=_retry_after(response),
             )
-        body: dict[str, Any] = response.json()
-        return body
+        if response.status_code >= 400:
+            raise ProviderError(f"{label}: backend returned {response.status_code}")
+        return _response_object(response, label)
 
 
 class ChatLLMProvider:
@@ -143,7 +156,9 @@ class ChatLLMProvider:
     ) -> None:
         self._backend = backend
         self._llm = llm
-        self._transport = transport or ChatTransport(backend, retry=retry or RetrySettings())
+        self._transport = transport or ChatTransport(
+            backend, retry=retry or RetrySettings()
+        )
 
     @property
     def model(self) -> str:
@@ -206,6 +221,7 @@ class ChatLLMProvider:
                 return schema.model_validate_json(_json_payload(content))
             except (ValidationError, ValueError) as error:
                 last_error = str(error)[:400]
+                messages.append({"role": "assistant", "content": content})
                 log_event(
                     _logger,
                     "llm.output_invalid",
@@ -249,8 +265,23 @@ class ChatLLMProvider:
             payload["seed"] = seed
 
         body = await self._transport.post("chat/completions", payload, label)
-        choice = body["choices"][0]
-        usage: dict[str, Any] = body.get("usage") or {}
+        choices = body.get("choices")
+        if (
+            not isinstance(choices, list)
+            or not choices
+            or not isinstance(choices[0], dict)
+        ):
+            raise ProviderError(
+                f"{label}: backend returned an invalid choices envelope"
+            )
+        choice = choices[0]
+        message = choice.get("message")
+        if not isinstance(message, dict):
+            raise ProviderError(
+                f"{label}: backend returned an invalid message envelope"
+            )
+        raw_usage = body.get("usage")
+        usage: dict[str, Any] = raw_usage if isinstance(raw_usage, dict) else {}
         log_event(
             _logger,
             "llm.call_completed",
@@ -262,11 +293,15 @@ class ChatLLMProvider:
         )
         if choice.get("finish_reason") == "length":
             # A truncated body is not valid JSON: never treat it as success.
-            raise ExtractionValidationError(f"{label}: output truncated at the token cap")
-        content = choice["message"].get("content")
+            raise ExtractionValidationError(
+                f"{label}: output truncated at the token cap"
+            )
+        content = message.get("content")
+        if content is not None and not isinstance(content, str):
+            raise ProviderError(f"{label}: model content must be a string")
         if not content:
             raise ExtractionValidationError(f"{label}: model returned an empty message")
-        return str(content)
+        return content
 
     async def aclose(self) -> None:
         """Release the transport owned by this provider."""
@@ -308,7 +343,8 @@ class EmbeddingProviderImpl:
     async def _embed_chunk(self, texts: Sequence[str]) -> list[list[float]]:
         in_house = self._embedding.backend is EmbeddingBackend.IN_HOUSE
         # NIM embed models take input_type and reject the OpenAI "dimensions" field.
-        nvidia = "api.nvidia.com" in self._embedding.base_url
+        hostname = urlparse(self._embedding.base_url).hostname or ""
+        nvidia = hostname == "api.nvidia.com" or hostname.endswith(".api.nvidia.com")
         payload = (
             {
                 "inputs": [
@@ -325,7 +361,11 @@ class EmbeddingProviderImpl:
                 "model": self._embedding.model,
                 "input": list(texts),
                 **(
-                    {"input_type": "query" if self._for_query else "passage", "encoding_format": "float", "truncate": "END"}
+                    {
+                        "input_type": "query" if self._for_query else "passage",
+                        "encoding_format": "float",
+                        "truncate": "END",
+                    }
                     if nvidia
                     else {"dimensions": self._embedding.dimension}
                 ),
@@ -336,9 +376,21 @@ class EmbeddingProviderImpl:
             settings=self._retry,
             description="embeddings",
         )
-        return (
-            _in_house_vectors(body, len(texts)) if in_house else _openai_vectors(body, len(texts))
+        vectors = (
+            _in_house_vectors(body, len(texts))
+            if in_house
+            else _openai_vectors(body, len(texts))
         )
+        for vector in vectors:
+            if (
+                len(vector) != self.dimension
+                or not all(_finite_number(value) for value in vector)
+                or not any(vector)
+            ):
+                raise ProviderError(
+                    "embedding vectors must be finite, nonzero and match the configured dimension"
+                )
+        return vectors
 
     async def _post(self, payload: dict[str, Any]) -> dict[str, Any]:
         """One embeddings call, translating failures into pipeline errors."""
@@ -351,13 +403,13 @@ class EmbeddingProviderImpl:
         except httpx.HTTPError as error:
             raise TransientError(f"embeddings request failed: {error}") from error
         if response.status_code in _RETRYABLE_STATUS:
-            raise TransientError(f"embeddings returned {response.status_code}")
-        if response.status_code >= 400:
-            raise ProviderError(
-                f"embeddings returned {response.status_code}: {response.text[:300]}"
+            raise TransientError(
+                f"embeddings returned {response.status_code}",
+                retry_after_seconds=_retry_after(response),
             )
-        body: dict[str, Any] = response.json()
-        return body
+        if response.status_code >= 400:
+            raise ProviderError(f"embeddings returned {response.status_code}")
+        return _response_object(response, "embeddings")
 
     async def aclose(self) -> None:
         """Release the HTTP connection pool."""
@@ -369,9 +421,19 @@ def _openai_vectors(body: dict[str, Any], expected: int) -> list[list[float]]:
     data = body.get("data")
     if not isinstance(data, list) or len(data) != expected:
         raise ProviderError("embedding response did not match the request size")
-    items: list[dict[str, Any]] = [dict(item) for item in data]
-    items.sort(key=lambda item: int(item["index"]))
-    return [list(item["embedding"]) for item in items]
+    by_index: dict[int, list[float]] = {}
+    for item in data:
+        if not isinstance(item, dict):
+            raise ProviderError("embedding response contains an invalid item")
+        index, vector = item.get("index"), item.get("embedding")
+        if type(index) is not int or not 0 <= index < expected or index in by_index:
+            raise ProviderError(
+                "embedding indices must identify each requested input exactly once"
+            )
+        if not isinstance(vector, list):
+            raise ProviderError("embedding vector must be an array")
+        by_index[index] = vector
+    return [by_index[index] for index in range(expected)]
 
 
 def _in_house_vectors(body: dict[str, Any], expected: int) -> list[list[float]]:
@@ -379,11 +441,61 @@ def _in_house_vectors(body: dict[str, Any], expected: int) -> list[list[float]]:
     results = body.get("results")
     if not isinstance(results, list) or len(results) != expected:
         raise ProviderError("embedding response did not match the request size")
-    by_id = {str(item["id"]): list(item["embedding"]) for item in results}
+    by_id: dict[str, list[float]] = {}
+    for item in results:
+        if not isinstance(item, dict):
+            raise ProviderError("embedding response contains an invalid item")
+        raw_id, vector = item.get("id"), item.get("embedding")
+        if isinstance(raw_id, bool) or not isinstance(raw_id, (str, int)):
+            raise ProviderError("embedding response contains an invalid input ID")
+        identifier = str(raw_id)
+        if identifier in by_id:
+            raise ProviderError("embedding response repeats an input ID")
+        if not isinstance(vector, list):
+            raise ProviderError("embedding vector must be an array")
+        by_id[identifier] = vector
     missing = [str(index) for index in range(expected) if str(index) not in by_id]
     if missing:
         raise ProviderError(f"embedding response is missing inputs: {missing[:5]}")
     return [by_id[str(index)] for index in range(expected)]
+
+
+def _finite_number(value: object) -> bool:
+    if isinstance(value, bool) or not isinstance(value, (int, float)):
+        return False
+    try:
+        return math.isfinite(value)
+    except OverflowError:
+        return False
+
+
+def _response_object(response: httpx.Response, label: str) -> dict[str, Any]:
+    """Validate the HTTP boundary without exposing response bodies or secrets."""
+    try:
+        body = response.json()
+    except ValueError as error:
+        raise ProviderError(f"{label}: backend returned invalid JSON") from error
+    if not isinstance(body, dict):
+        raise ProviderError(f"{label}: backend returned a non-object response")
+    return body
+
+
+def _retry_after(response: httpx.Response) -> float | None:
+    """Parse standard delta-seconds or HTTP-date hints; invalid hints use backoff."""
+    value = response.headers.get("Retry-After")
+    if value is None:
+        return None
+    try:
+        delay = float(value)
+    except ValueError:
+        try:
+            stamp = parsedate_to_datetime(value)
+            if stamp.tzinfo is None:
+                return None
+            delay = (stamp - datetime.now(UTC)).total_seconds()
+        except (TypeError, ValueError, OverflowError):
+            return None
+    return max(0.0, delay) if math.isfinite(delay) else None
 
 
 def _with_schema(system: str, schema: type[BaseModel]) -> str:

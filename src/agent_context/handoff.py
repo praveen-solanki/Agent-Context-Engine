@@ -177,6 +177,9 @@ class HandoffService:
                 if revision["idempotency_key"] == request.idempotency_key:
                     if revision["digest"] != self._digest(request):
                         raise EventConflict("handoff idempotency key was reused")
+                    await self.privacy.require_active(
+                        principal.tenant_id, principal.user_id
+                    )
                     return HandoffArtifact.model_validate(revision["artifact"])
             if existing["version"] != request.expected_version:
                 raise EventConflict("handoff version precondition failed")
@@ -242,6 +245,7 @@ class HandoffService:
             raise EventConflict(
                 "handoff created concurrently; retry the same request"
             ) from error
+        await self.privacy.require_active_after_write(principal, self.collection)
         return artifact
 
     async def latest(self, principal: Principal, identifier: str) -> HandoffArtifact:
@@ -263,6 +267,7 @@ class HandoffService:
         )
         if document is None:
             raise LookupError("handoff not found")
+        await self.privacy.require_active(principal.tenant_id, principal.user_id)
         return HandoffArtifact.model_validate(document["revisions"][0]["artifact"])
 
     async def resume(

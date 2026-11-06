@@ -170,7 +170,11 @@ class ProjectStore:
                 entries[identifier] = entries[identifier].model_copy(
                     update={"task_goal": hint.goal}
                 )
-        await self.privacy.require_active(actor.tenant_id, actor.user_id)
+        current_privacy = await self.privacy.require_active(
+            actor.tenant_id, actor.user_id
+        )
+        if current_privacy.revision != privacy.revision:
+            raise EventConflict("privacy changed while reading project hints; refresh")
         return ProjectDirectory(
             projects=tuple(
                 sorted(

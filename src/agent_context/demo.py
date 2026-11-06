@@ -199,6 +199,8 @@ class ResearchAssistant:
         except httpx.HTTPStatusError as error:
             if error.response.status_code != 404:
                 raise
+        if existing is not None and existing.project_id != self.settings.project_id:
+            raise PermissionError("conversation belongs to another project")
         recorded = (
             next(
                 (
@@ -211,7 +213,10 @@ class ResearchAssistant:
             if existing
             else None
         )
-        if recorded is not None and recorded.event.text != message:
+        expected_kind = EventKind.CORRECTION if correction else EventKind.USER_MESSAGE
+        if recorded is not None and (
+            recorded.event.text != message or recorded.event.kind != expected_kind
+        ):
             raise ValueError("turn ID cannot be reused for different input")
         if recorded is None:
             await self.user.record_events(

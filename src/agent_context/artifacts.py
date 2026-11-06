@@ -68,6 +68,9 @@ class ArtifactStore:
         if existing is not None:
             old = ArtifactDocument.model_validate(existing["document"])
             if old.sha256 == digest:
+                await self.privacy.require_active(
+                    principal.tenant_id, principal.user_id
+                )
                 return old
             if old.version != request.expected_version:
                 raise EventConflict("artifact version precondition failed")
@@ -96,6 +99,7 @@ class ArtifactStore:
             raise EventConflict(
                 "artifact created concurrently; retry the request"
             ) from error
+        await self.privacy.require_active_after_write(principal, self.collection)
         return document
 
     async def get(
@@ -108,6 +112,7 @@ class ArtifactStore:
         )
         if document is None:
             raise LookupError("artifact not found")
+        await self.privacy.require_active(principal.tenant_id, principal.user_id)
         return ArtifactDocument.model_validate(document["document"])
 
     async def verify(self, principal: Principal, reference: ArtifactRef) -> bool:

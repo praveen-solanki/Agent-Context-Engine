@@ -6,6 +6,9 @@ import asyncio
 import hashlib
 from collections.abc import Awaitable, Callable
 from uuid import uuid4
+from time import perf_counter
+
+from context_graph.observability import get_logger, log_context, log_event, stage
 
 from fastapi import Depends, FastAPI, HTTPException, Request
 from fastapi.responses import JSONResponse
@@ -23,6 +26,7 @@ from agent_context.assembly import (
     SearchRequest,
     SearchResult,
 )
+from agent_context.bridge import scoped_id
 from agent_context.contracts import (
     EventInput,
     EventStatus,
@@ -55,6 +59,9 @@ from agent_context.handoff import (
 from agent_context.task_state import TaskStateService, TaskUpdate, TaskState
 
 
+_logger = get_logger("api")
+
+
 class HTTPBoundary:
     """Cap streamed bodies before parsing; attach a server-generated request ID."""
 
@@ -65,15 +72,36 @@ class HTTPBoundary:
         if scope["type"] != "http":
             await self.app(scope, receive, send)
             return
-        request_id = uuid4().hex.encode()
+        request_id = uuid4().hex
+        status = 500
+        started = perf_counter()
 
         async def send_with_id(message: Message) -> None:
+            nonlocal status
             if message["type"] == "http.response.start":
+                status = message["status"]
                 message["headers"] = [
                     *message.get("headers", []),
-                    (b"x-request-id", request_id),
+                    (b"x-request-id", request_id.encode()),
                 ]
             await send(message)
+
+        with log_context(request_id=request_id):
+            try:
+                await self._dispatch(scope, receive, send_with_id)
+            finally:
+                # Route templates avoid exposing user-controlled IDs/query strings.
+                route = getattr(scope.get("route"), "path", "unmatched")
+                log_event(
+                    _logger,
+                    "http.request_completed",
+                    method=scope["method"],
+                    route=route,
+                    status_code=status,
+                    duration_seconds=perf_counter() - started,
+                )
+
+    async def _dispatch(self, scope: Scope, receive: Receive, send: Send) -> None:
 
         body = bytearray()
         while True:
@@ -83,7 +111,7 @@ class HTTPBoundary:
             body.extend(message.get("body", b""))
             if len(body) > self.maximum:
                 await JSONResponse({"error": "request_too_large"}, status_code=413)(
-                    scope, receive, send_with_id
+                    scope, receive, send
                 )
                 return
             if not message.get("more_body", False):
@@ -97,7 +125,7 @@ class HTTPBoundary:
                 return {"type": "http.request", "body": bytes(body), "more_body": False}
             return await receive()
 
-        await self.app(scope, bounded_receive, send_with_id)
+        await self.app(scope, bounded_receive, send)
 
 
 class ResumeInput(BaseModel):
@@ -198,7 +226,13 @@ def create_app(
     async def record(
         body: EventInput, actor: Principal = Depends(authenticate)
     ) -> EventStatus:
-        return (await events.record(actor, body)).status()
+        with stage(
+            _logger,
+            "events.record",
+            stream_id=scoped_id(actor.tenant_id, body.session_id),
+            event_id=scoped_id(actor.tenant_id, body.event_id),
+        ):
+            return (await events.record(actor, body)).status()
 
     @app.get("/v1/events/{event_id}/status")
     async def event_status(
@@ -240,8 +274,18 @@ def create_app(
     async def assemble(
         body: AssembleRequest, actor: Principal = Depends(authenticate)
     ) -> ContextBundle:
-        watermark = await wait_for_context(body, actor)
-        bundle = await assembler.assemble(actor, body)
+        with stage(
+            _logger,
+            "context.watermark_wait",
+            stream_id=scoped_id(actor.tenant_id, body.session_id),
+        ):
+            watermark = await wait_for_context(body, actor)
+        with stage(
+            _logger,
+            "context.assemble",
+            stream_id=scoped_id(actor.tenant_id, body.session_id),
+        ):
+            bundle = await assembler.assemble(actor, body)
         state = await events.privacy.require_active(actor.tenant_id, actor.user_id)
         if any(item.item_id in state.blocked_item_ids for item in bundle.items):
             bundle = await assembler.assemble(actor, body)
@@ -254,8 +298,18 @@ def create_app(
     async def search(
         body: SearchRequest, actor: Principal = Depends(authenticate)
     ) -> SearchResult:
-        watermark = await wait_for_context(body, actor)
-        result = await assembler.search(actor, body)
+        with stage(
+            _logger,
+            "context.watermark_wait",
+            stream_id=scoped_id(actor.tenant_id, body.session_id),
+        ):
+            watermark = await wait_for_context(body, actor)
+        with stage(
+            _logger,
+            "context.search",
+            stream_id=scoped_id(actor.tenant_id, body.session_id),
+        ):
+            result = await assembler.search(actor, body)
         state = await events.privacy.require_active(actor.tenant_id, actor.user_id)
         if any(item.item_id in state.blocked_item_ids for item in result.items):
             # A page cursor must not survive concurrent revocation.

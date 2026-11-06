@@ -11,6 +11,35 @@
 
 ---
 
+## Pipeline integrity and research integration — 2026-11-06
+
+Owner-authorized audit of the existing end-to-end pipeline, using the new research
+report and selected Ponytail/ECC practices. **CONFIRMED DONE within 289 distinct
+focused checks, including 100 new adversarial cases**, plus zero changed-code
+Pyright errors/warnings. Verified existing behaviors were preserved and skipped;
+no full suite, public benchmark or live provider calls were run.
+
+Concrete corrections span token/chunk/checkpoint boundaries, provider envelopes
+and vector identity, Retry-After handling, project/time/lifecycle retrieval,
+credential-bearing source links, quarantine races, directory hints, restored
+causation and retry identity, ConvoMem preparation and benchmark failure accounting.
+Nested logging redaction and correlated API/worker timing now support diagnosis.
+The four-format/six-method real-store fixture matrix and zero-call resume pass.
+
+Pinned instruction-only engineering skills are available through
+`./scripts/install-skills.sh engineering`; no runtime memory replacement, auto-hook,
+observer, Redis/Kafka or smaller-model routing was introduced. Existing design
+installation remains supported. See [audited boundaries and research decisions](docs/ace/pipeline-audit.md)
+and [exact verification record](docs/ace/results/pipeline-integrity-20261106.json).
+
+This supersedes stale "local pending publication" summaries below; earlier
+historical entries retain their own evidence. It does not establish zero remaining
+bugs, statistical quality superiority, shared-database multi-tenancy, distributed
+write fencing, provider-global quotas, backup erasure/restore or production readiness.
+Those gates remain explicit; neither a green test count nor installed skills close them.
+
+---
+
 ## Automatic owned projects and concurrent defect corrections — 2026-11-05
 
 **CONFIRMED DONE within the scoped verification bounds.** The owner explicitly

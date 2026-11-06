@@ -12,6 +12,7 @@ from collections.abc import Iterable, Sequence
 from context_graph.config import BatchingSettings, LLMSettings
 from context_graph.domain.conversation import Episode
 from context_graph.domain.extraction import EpisodeChunk, ExtractionBatch
+from context_graph.errors import ExtractionValidationError
 from context_graph.providers.base import LLMProvider
 
 
@@ -40,22 +41,36 @@ class TokenBatcher:
         # Split on characters: the budget is a token estimate, and the chunk
         # offsets must map back onto the original Episode text exactly.
         chars_per_chunk = max(1, len(episode.text) * self._budget // max(tokens, 1))
-        bounds = list(range(0, len(episode.text), chars_per_chunk))
+        bounds: list[tuple[int, int, int]] = []
+        start = 0
+        while start < len(episode.text):
+            end = min(start + chars_per_chunk, len(episode.text))
+            estimate = self._llm.estimate_tokens(episode.text[start:end])
+            # A whole-episode average cannot bound a dense Unicode/code region.
+            while estimate > self._budget and end - start > 1:
+                end = start + (end - start) // 2
+                estimate = self._llm.estimate_tokens(episode.text[start:end])
+            if estimate > self._budget:
+                raise ExtractionValidationError(
+                    "one character exceeds the extraction token budget"
+                )
+            bounds.append((start, end, estimate))
+            start = end
         return [
             EpisodeChunk(
                 episode=episode,
                 chunk_index=index,
                 chunk_count=len(bounds),
                 char_start=start,
-                char_end=min(start + chars_per_chunk, len(episode.text)),
-                token_estimate=self._llm.estimate_tokens(
-                    episode.text[start : start + chars_per_chunk]
-                ),
+                char_end=end,
+                token_estimate=estimate,
             )
-            for index, start in enumerate(bounds)
+            for index, (start, end, estimate) in enumerate(bounds)
         ]
 
-    def batches(self, run_id: str, session_id: str, episodes: Iterable[Episode]) -> list[ExtractionBatch]:
+    def batches(
+        self, run_id: str, session_id: str, episodes: Iterable[Episode]
+    ) -> list[ExtractionBatch]:
         """Build ordered batches, carrying a small overlap for continuity."""
         chunks = [chunk for episode in episodes for chunk in self.chunk(episode)]
         batches: list[ExtractionBatch] = []
@@ -63,7 +78,9 @@ class TokenBatcher:
         current_tokens = 0
 
         for chunk in chunks:
-            exceeds_budget = current and current_tokens + chunk.token_estimate > self._budget
+            exceeds_budget = (
+                current and current_tokens + chunk.token_estimate > self._budget
+            )
             exceeds_count = len(current) >= self._batching.max_episodes_per_batch
             if exceeds_budget or exceeds_count:
                 batches.append(self._build(run_id, session_id, current, batches))

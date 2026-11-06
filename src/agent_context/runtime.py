@@ -30,6 +30,7 @@ from agent_context.outcomes import EventOutcomeVerifier
 from agent_context.retrieval import Neo4jCandidateSource
 from agent_context.task_state import TaskStateService, TaskCandidateSource
 from context_graph.config import Settings
+from context_graph.observability import configure_logging
 from context_graph.tool import ContextGraphIngestion
 from context_graph.providers.chat_backend import EmbeddingProviderImpl
 
@@ -77,6 +78,7 @@ class RuntimeSettings(BaseSettings):
 def application() -> FastAPI:
     """Uvicorn factory; secrets remain in inherited environment/ignored .env."""
     runtime, settings = RuntimeSettings(), Settings()
+    configure_logging(settings.log_level, settings.log_file)
     mongo: AsyncMongoClient[dict[str, object]] = AsyncMongoClient(
         settings.mongo.uri, tz_aware=True, serverSelectionTimeoutMS=3000
     )
@@ -195,6 +197,7 @@ def api_main() -> None:
         host=runtime.host,
         port=runtime.port,
         log_level="info",
+        access_log=False,
     )
 
 

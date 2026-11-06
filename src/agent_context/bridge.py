@@ -12,6 +12,7 @@ from agent_context.event_store import MongoEventStore
 from context_graph.domain.conversation import MessageInput, SessionInput
 from context_graph.domain.enums import Role, SessionState
 from context_graph.pipeline.orchestrator import IngestionReport
+from context_graph.observability import get_logger, log_context, log_event, stage
 
 
 def scoped_id(tenant_id: str, identifier: str) -> str:
@@ -120,9 +121,24 @@ class EventWorker:
             return True
         success = False
         try:
-            async with asyncio.timeout(self.timeout_seconds):
-                report = await self.ingest(to_session(stream))
-                success = not report.batches_failed and not report.errors
+            with (
+                log_context(
+                    stream_id=scoped_id(stream.tenant_id, stream.session_id),
+                    available_sequence=stream.available_sequence,
+                ),
+                stage(get_logger("worker"), "worker.ingestion"),
+            ):
+                async with asyncio.timeout(self.timeout_seconds):
+                    report = await self.ingest(to_session(stream))
+                    success = not report.batches_failed and not report.errors
+                    log_event(
+                        get_logger("worker"),
+                        "worker.ingestion_result",
+                        success=success,
+                        batches_failed=report.batches_failed,
+                        error_count=len(report.errors),
+                        event_count=len(stream.events),
+                    )
         except asyncio.CancelledError:
             raise
         except Exception as error:

@@ -30,7 +30,7 @@ OPTIONAL MATCH (origin_session:Session {session_id:c.source_session_id,user_id:$
 WITH c, origin_session
 WHERE (c.status = 'active' OR
        ($historical AND c.status = 'superseded' AND c.superseded_at > $now))
-  AND (NOT $historical OR c.observed_at <= $now)
+  AND c.observed_at <= $now
   AND (c.superseded_at IS NULL OR c.superseded_at > $now)
   AND (c.valid_from IS NULL OR c.valid_from <= $now)
   AND (c.valid_until IS NULL OR c.valid_until > $now)
@@ -74,7 +74,7 @@ c.cardinality = 'single' AND EXISTS {
  WHERE other.context_id <> c.context_id
    AND (other.status='active' OR ($historical AND other.status='superseded'
                                 AND other.superseded_at > $now))
-   AND (NOT $historical OR other.observed_at <= $now)
+   AND other.observed_at <= $now
    AND (other.superseded_at IS NULL OR other.superseded_at > $now)
    AND (other.valid_from IS NULL OR other.valid_from <= $now)
    AND (other.valid_until IS NULL OR other.valid_until > $now)

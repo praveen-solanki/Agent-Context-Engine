@@ -1,6 +1,48 @@
 # Validation evidence — latest increment 2026-11-05
 
 
+## Research-informed pipeline integrity — 2026-11-06
+
+Baseline `0689c5a`. **289 distinct scoped checks passed**, including **100 new
+adversarial cases**, with zero failures/skips in the consolidated runs. Changed
+Python files pass strict Pyright (zero errors/warnings). No full suite or live
+provider/public dataset evaluation was run.
+
+Consolidated execution: 225 unit/in-memory/UI checks; 45 benchmark unit checks;
+12 state/API/runtime integration checks; 2 benchmark integration checks; 10
+retrieval/API/runtime checks. Five API/runtime checks overlap, so the distinct
+count is 289. Benchmark integration exercises real isolated MongoDB/Neo4j and
+mocked providers: four formats × six methods, scoring/reporting, and zero-call
+completed resume. Additional agent-scoped checks are not added to this total.
+
+Before-fix reproductions cover failed multi-chunk checkpoints, variable token
+density, full-prompt budgeting, malformed vectors/envelopes, retry hints, future
+and wrong-project retrieval, revoked duplicate copies, signed credential URLs,
+privacy interleavings, source/causation mismatch and changed correction retries,
+ConvoMem outer-only history, blank labels, dropped retrieval diagnostics, nested
+logging disclosure and forged log envelope fields.
+
+See [the exact test IDs and source hashes](results/pipeline-integrity-20261106.json)
+and [the audit/change/skip matrix](pipeline-audit.md). The installed seven
+Ponytail/ECC skills are instruction-only and pinned; hooks and observers are not
+enabled. Existing unknown embedding-usage handling was independently verified and
+left unchanged. The original Context-Graph checkout remains clean.
+
+Reproduce only affected verification (dedicated stores required as documented):
+
+```sh
+uv run --frozen pytest tests/unit/test_ingestion_adversarial.py tests/unit/test_provider_adversarial.py tests/unit/test_retrieval_adversarial.py tests/unit/test_workspace_adversarial.py tests/unit/test_observability_adversarial.py tests/unit/test_pipeline_stages.py tests/unit/test_extractor.py tests/e2e/test_ingestion.py tests/unit/test_providers.py tests/unit/test_assembly.py tests/unit/test_context_search.py tests/unit/test_web_search.py tests/unit/test_project_routing.py tests/unit/test_workspace_continuity.py tests/unit/test_safe_logging.py tests/ui/test_ace_console.py -q
+uv run --frozen pytest tests/unit/test_benchmark_datasets.py tests/unit/test_benchmark_runner.py tests/unit/test_benchmark_adversarial.py -q
+CG_INTEGRATION=1 uv run --frozen pytest tests/integration/test_state_adversarial.py tests/integration/test_ace_api.py tests/integration/test_ace_runtime.py -q
+CG_INTEGRATION=1 CG_NEO4J__URI=bolt://127.0.0.1:7690 uv run --frozen pytest tests/integration/test_ace_retrieval.py tests/integration/test_ace_api.py tests/integration/test_ace_runtime.py -q
+CG_INTEGRATION=1 ACE_BENCHMARK_TEST_NEO4J_URI=bolt://127.0.0.1:7697 uv run --frozen pytest tests/integration/test_benchmark_pipeline.py -q
+```
+
+Port 7697 above is a dedicated disposable empty benchmark graph with the fixture
+password, not the application graph; do not redirect that test to populated stores.
+These commands intentionally overlap five API checks. No zero-bug, timing/SLO,
+semantic accuracy or external backup-deletion guarantee is claimed.
+
 ## Automatic project routing and parallel UI/memory corrections — 2026-11-05
 
 Baseline `f9467ad`. Existing project grants, event streams, current task CAS,

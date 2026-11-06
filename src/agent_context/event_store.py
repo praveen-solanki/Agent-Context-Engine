@@ -85,6 +85,9 @@ class MongoEventStore:
             )
             updated = append_event(stream, principal, event, max_events=self.max_events)
             if updated == stream:
+                await self.privacy.require_active(
+                    principal.tenant_id, principal.user_id
+                )
                 return stream
             fields = {
                 "data": updated.model_dump(mode="json"),
@@ -103,12 +106,18 @@ class MongoEventStore:
                             or "Conversation",
                         }
                     )
+                    await self.privacy.require_active_after_write(
+                        principal, self.collection, user_field="data.user_id"
+                    )
                     return updated
                 result = await self.collection.update_one(
                     {**key, "revision": document["revision"]},
                     {"$set": fields, "$inc": {"revision": 1}},
                 )
                 if result.modified_count:
+                    await self.privacy.require_active_after_write(
+                        principal, self.collection, user_field="data.user_id"
+                    )
                     return updated
             except DuplicateKeyError as error:
                 # A competing first append is retryable. A globally reused
@@ -241,6 +250,7 @@ class MongoEventStore:
             raise LookupError("session not found")
         stream = Stream.model_validate(document["data"])
         principal.require(Permission.VIEW, stream.project_id)
+        await self.privacy.require_active(principal.tenant_id, principal.user_id)
         return stream
 
     async def claim(

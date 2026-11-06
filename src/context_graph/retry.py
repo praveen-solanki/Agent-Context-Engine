@@ -37,6 +37,13 @@ async def retry_async[T](
                 settings.base_backoff_seconds * 2 ** (attempt - 1),
                 settings.max_backoff_seconds,
             )
+            # Jitter stays inside the configured ceiling. A provider minimum
+            # above that ceiling leaves work replayable instead of retrying early.
+            delay = min(delay * (0.5 + random.random()), settings.max_backoff_seconds)
+            if error.retry_after_seconds is not None:
+                if error.retry_after_seconds > settings.max_backoff_seconds:
+                    break
+                delay = max(delay, error.retry_after_seconds)
             log_event(
                 _logger,
                 "retry.attempt_failed",
@@ -46,7 +53,7 @@ async def retry_async[T](
                 delay_seconds=round(delay, 3),
                 error=str(error),
             )
-            await asyncio.sleep(delay * (0.5 + random.random()))
+            await asyncio.sleep(delay)
     assert last_error is not None
     log_event(
         _logger,

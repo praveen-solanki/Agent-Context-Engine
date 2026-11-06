@@ -64,6 +64,10 @@ class Case(Contract):
 
     @model_validator(mode="after")
     def identities(self) -> Self:
+        if not self.question.strip() or any(
+            not answer.strip() for answer in self.answers
+        ):
+            raise BenchmarkError("question and reference answers must be nonblank")
         sessions = [session.id for session in self.sessions]
         turns = [turn.id for session in self.sessions for turn in session.turns]
         if len(set(sessions)) != len(sessions) or len(set(turns)) != len(turns):

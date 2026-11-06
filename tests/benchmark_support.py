@@ -65,7 +65,11 @@ def mock_providers(monkeypatch: pytest.MonkeyPatch) -> list[dict[str, Any]]:
                         durability_cue=True,
                         assertion_kind="asserted",
                         personal_scope=True,
-                        evidence_quote=next(line for line in text.splitlines() if "always prefer" in line),
+                        evidence_quote=next(
+                            line.removeprefix("user: ")
+                            for line in text.splitlines()
+                            if "always prefer" in line
+                        ),
                     )
                 )
         return ExtractionEnvelope(signals=tuple(signals))

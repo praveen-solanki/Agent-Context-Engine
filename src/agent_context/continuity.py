@@ -332,7 +332,12 @@ class WorkspaceAssistant:
             if stream
             else None
         )
-        if recorded and recorded.text != message:
+        expected_kind = EventKind.CORRECTION if correction else EventKind.USER_MESSAGE
+        if recorded and (
+            recorded.text != message
+            or recorded.kind != expected_kind
+            or recorded.correction_target != correction_target
+        ):
             raise ValueError("turn identifier cannot be reused for different input")
         event = recorded or EventInput(
             event_id=event_id,

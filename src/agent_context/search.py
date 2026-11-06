@@ -105,13 +105,26 @@ class SearchResult(Contract):
             "token",
             "key",
             "api_key",
+            "api-key",
+            "apikey",
             "access_token",
+            "client_secret",
+            "secret",
+            "authorization",
+            "awsaccesskeyid",
+            "x-amz-credential",
+            "x-amz-security-token",
+            "x-amz-signature",
+            "x-goog-credential",
+            "x-goog-signature",
+            "sig",
             "password",
             "signature",
         }
         if any(
             key.casefold() in private_parameters
-            for key, _ in parse_qsl(url.query or "")
+            for section in (url.query, url.fragment)
+            for key, _ in parse_qsl(section or "")
         ):
             raise ValueError("credential-bearing result URLs are not allowed")
         return url

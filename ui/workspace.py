@@ -96,20 +96,19 @@ def client(variable: str = "ACE_DEMO_USER_TOKEN") -> AgentContextClient:
 
 def restore(stream: Stream) -> tuple[tuple[ConversationTurn, ...], PendingTurn | None]:
     """Use durable turns; never label today's memory as a historical selection."""
-    users = {
-        record.event.event_id: record.event
-        for record in stream.events
-        if record.event.kind in (EventKind.USER_MESSAGE, EventKind.CORRECTION)
-    }
+    users: dict[str, EventInput] = {}
     answered: set[str] = set()
     result: list[ConversationTurn] = []
     last_user: EventInput | None = None
     for record in stream.events:
         event = record.event
-        if event.event_id in users:
+        if event.kind in (EventKind.USER_MESSAGE, EventKind.CORRECTION):
+            users[event.event_id] = event
             last_user = event
         elif event.kind == EventKind.ASSISTANT_MESSAGE:
-            source = users.get(event.causation_id or "") or last_user
+            # Explicit links must identify an earlier user turn. Falling back
+            # would misattribute malformed/foreign links and hide pending work.
+            source = users.get(event.causation_id) if event.causation_id else last_user
             if source is None:
                 continue
             answered.add(source.event_id)

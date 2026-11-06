@@ -185,8 +185,17 @@ class ExtractionService:
 
     async def _verify_token_budget(self, user: str) -> None:
         """Confirm a near-budget batch against the model's own tokenizer."""
-        budget = self._settings.input_token_budget
-        estimate = self._llm.estimate_tokens(user)
+        # count_tokens includes instructions, headers, overlap and rolling state.
+        # Compare that complete prompt to the full input allowance, not to the
+        # content budget which already reserved instructions and working state.
+        budget = (
+            self._settings.context_limit_tokens
+            - self._settings.max_output_tokens
+            - self._settings.safety_margin_tokens
+        )
+        estimate = self._llm.estimate_tokens(
+            EXTRACTION_SYSTEM
+        ) + self._llm.estimate_tokens(user)
         if estimate < budget * self._settings.token_verification_ratio:
             return
         counted = await self._llm.count_tokens(system=EXTRACTION_SYSTEM, user=user)

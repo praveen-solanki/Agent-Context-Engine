@@ -338,7 +338,7 @@ def convomem(row: dict[str, Any], dataset: Dataset, origin: str) -> Iterator[Cas
             for value in item.get("message_evidences", ())
         }
         for ci, conversation in enumerate(
-            row.get("conversations", item["conversations"])
+            row["conversations"] if "conversations" in row else item["conversations"]
         ):
             sid = str(conversation.get("id", f"conversation-{ci}"))
             turns: list[Turn] = []

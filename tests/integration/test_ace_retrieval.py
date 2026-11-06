@@ -235,3 +235,55 @@ async def test_semantic_candidates_and_effective_history_share_private_filters()
     finally:
         await driver.execute_query("MATCH(c:Context {ace_test:$tag}) DETACH DELETE c", tag=tag, database_="neo4j")
         await driver.close()
+
+
+async def test_future_observation_cannot_starve_or_conflict_with_current_retrieval() -> None:
+    """Apply the observation boundary before candidate LIMIT and conflict checks."""
+    tag = uuid4().hex
+    actor = Principal(tenant_id=tag, user_id="owner", actor_id="owner")
+    driver = AsyncGraphDatabase.driver("bolt://127.0.0.1:7690", auth=None)
+    at = utcnow()
+    current_id = f"ctx_{tag}_current"
+    shared = {
+        **context_node(concept=tag, value="100"),
+        "ace_test": tag,
+        "subject_user_id": scoped_id(tag, "owner"),
+        "scope_id": scoped_id(tag, "owner"),
+        "concept_key": f"personalization:{tag}_budget",
+        "observed_at": at - timedelta(days=1),
+        "context_id": current_id,
+        "value_key": "100",
+    }
+    future = {
+        **shared,
+        "context_id": f"ctx_{tag}_future",
+        "fingerprint": f"fp_{tag}_future",
+        "value": "200",
+        "value_key": "200",
+        "observed_at": at + timedelta(days=1),
+    }
+    try:
+        await driver.execute_query(
+            "UNWIND $rows AS props CREATE(c:Context) SET c=props",
+            rows=[shared, future], database_="neo4j",
+        )
+        source = Neo4jCandidateSource(
+            driver, database="neo4j", tenant_id=tag, clock=lambda: at,
+        )
+        query = AssembleRequest(
+            agent_id="agent", session_id="session", query="budget",
+            budget=TokenBudget(model_context_tokens=2000),
+        )
+        candidates = await source.fetch(actor, query, limit=1)
+        assert [candidate.item_id for candidate in candidates] == [current_id]
+        assert not candidates[0].unresolved_conflict
+        assembled = await ContextAssembler(
+            source, settings=AssemblySettings(max_candidates_per_source=1),
+        ).assemble(actor, query, now=at)
+        assert [entry.item_id for entry in assembled.items] == [current_id]
+    finally:
+        await driver.execute_query(
+            "MATCH(c:Context {ace_test:$tag}) DETACH DELETE c", tag=tag,
+            database_="neo4j",
+        )
+        await driver.close()

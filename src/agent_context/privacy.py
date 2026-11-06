@@ -2,10 +2,11 @@
 
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, Literal
 
 from pymongo import AsyncMongoClient, ReturnDocument
 from pymongo.errors import DuplicateKeyError
+from pymongo.asynchronous.collection import AsyncCollection
 from pydantic import Field
 
 from agent_context.contracts import Contract, Identifier, Permission, Principal, utcnow
@@ -46,6 +47,27 @@ class PrivacyControls:
         if state.erased:
             raise PermissionError("subject is quarantined for erasure")
         return state
+
+    async def require_active_after_write(
+        self,
+        principal: Principal,
+        collection: AsyncCollection[Any],
+        *,
+        user_field: Literal["user_id", "data.user_id"] = "user_id",
+    ) -> None:
+        """Remove this owner's late write if quarantine raced primary erasure.
+
+        The initial active check does not fence a write delayed until after purge.
+        Every caller supplies its own collection; identity always comes from the
+        trusted principal. This is recovery, not a cross-document transaction.
+        """
+        try:
+            await self.require_active(principal.tenant_id, principal.user_id)
+        except PermissionError:
+            await collection.delete_many(
+                {"tenant_id": principal.tenant_id, user_field: principal.user_id}
+            )
+            raise
 
     async def block(self, principal: Principal, item_id: str) -> PrivacyState:
         principal.require(Permission.CORRECT)
