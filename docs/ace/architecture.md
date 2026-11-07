@@ -36,6 +36,15 @@ spans and upgraded on use. No destructive graph migration is required. Rolling
 back the optional fingerprint field preserves serialization compatibility, but
 old code must not resume incrementally extended sessions because it can regroup.
 
+The conversational UI separates the request path from extraction/planning.
+Durable pending first-party inputs provide bounded working context while the
+existing worker derives graph memory and applies quote-validated project changes.
+Only complete successful work advances availability; answers do not wait on it.
+Canonical task snapshot authority is independent of graph availability when
+explicitly requested. Original/current actor grants, privacy fences, CAS and
+authenticated receipts remain required. See [background processing](background-processing.md)
+for ordering, bounds, retry/deployment behavior and verification limits.
+
 ## Identity and isolation
 
 Event input cannot carry tenant, user or trust fields. A trusted transport must

@@ -344,7 +344,7 @@ class TaskCandidateSource:
         state = await self.tasks.current(principal, request.project_id, request.task_id)
         if request.task_version is not None and request.task_version != state.version:
             raise EventConflict("task version changed; refresh context")
-        if not state.source_available:
+        if not state.source_available and not request.include_recorded_task:
             raise RuntimeError("task source event is not context-available")
         if (
             state.content.expires_at is not None

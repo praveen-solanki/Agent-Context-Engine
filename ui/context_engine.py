@@ -84,6 +84,7 @@ def clear_view() -> None:
         "ace_needs_refresh",
         "ace_notice",
         "ace_web_results",
+        "ace_background_tracking",
         "ace_route_question",
         "ace_route_candidates",
     ):
@@ -720,7 +721,7 @@ if pending:
             st.rerun()
     elif (process or retry) and pending.routed:
         try:
-            with st.spinner("Updating memory and preparing your answer…"):
+            with st.spinner("Preparing your answer…"):
                 outcome: WorkspaceTurn = asyncio.run(
                     service.send(
                         snapshot,
@@ -733,6 +734,7 @@ if pending:
                         else require_sources,
                     )
                 )
+            st.session_state.ace_background_tracking = outcome.background_updates
             identifier = ResearchAssistant.event_identifier(
                 snapshot.session_id, pending.turn_id
             )
@@ -772,3 +774,29 @@ if pending:
     if st.button("Open another conversation", key="leave-pending"):
         new_conversation(snapshot.project_id)
         st.rerun()
+
+
+@st.fragment(run_every=2)
+def monitor_background_updates() -> None:
+    stream = snapshot.stream
+    tracked = st.session_state.get("ace_background_tracking", False) or bool(
+        stream and any(row.event.background_updates for row in stream.events)
+    )
+    if not tracked or not stream or stream.available_sequence >= len(stream.events):
+        return
+    if stream.state.value == "dead_letter":
+        st.caption(
+            "Some background project updates need operator review. Your recorded conversation is retained."
+        )
+        return
+    try:
+        if asyncio.run(service.background_changed(snapshot)):
+            st.session_state.pop("ace_workspace", None)
+            st.rerun()
+    except Exception:  # noqa: BLE001 — polling never blocks the answer path or exposes credentials.
+        st.caption(
+            "Project context will refresh when the workspace service reconnects."
+        )
+
+
+monitor_background_updates()

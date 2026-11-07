@@ -670,6 +670,20 @@ Do not claim measured token reduction, task-success gain, p95 latency, multi-ten
 
 ### Progress ledger (the next agent should maintain this)
 
+2026-11-07 owner-authorized answer/background separation: **CONFIRMED DONE within
+144 distinct focused checks (19 new cases) and clean strict typing**. The actual
+conversational UI now answers from assembled
+context plus bounded pending first-party inputs without waiting for extraction
+or task planning. The existing durable Mongo outbox/worker owns extraction and
+source-validated project maintenance; no Redis, framework or alternate store.
+Immediate corrections retain revocation fences; pending evidence survives retry
+and refresh. Original/current grants, cross-project isolation, privacy revision
+changes, blocked workers, failures, late receipts and task-revision races have
+focused checks. Legacy synchronous integration remains available. This is path
+separation, not token streaming or measured model speed/quality improvement.
+See [implementation and limits](docs/ace/background-processing.md) and
+[verification evidence](docs/ace/results/background-processing-20261107.json).
+
 2026-11-07 screenshot follow-up: failed-request navigation's widget mutation is
 fixed through a shared deferred reset boundary; source/history/retry behavior is
 preserved. Known failure diagnostics and dependency restart policy are improved.

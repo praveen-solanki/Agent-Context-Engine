@@ -2,10 +2,10 @@
 
 from __future__ import annotations
 
-from datetime import timedelta
 import base64
-import json
 import hashlib
+import json
+from datetime import timedelta
 from typing import Any
 from uuid import uuid4
 
@@ -14,15 +14,21 @@ from pymongo.errors import DuplicateKeyError
 
 from agent_context.contracts import (
     EventInput,
+    EventKind,
     Permission,
     Principal,
     ProcessingState,
+    RecentContext,
+    RecentEvent,
+    RecentRequest,
     Stream,
     utcnow,
 )
 from agent_context.events import EventConflict, append_event
-from agent_context.privacy import PrivacyControls
 from agent_context.navigation import SessionEntry, SessionPage, SessionTitle
+from agent_context.privacy import PrivacyControls
+
+RECENT_SESSION_WINDOW = 16
 
 
 class MongoEventStore:
@@ -62,7 +68,9 @@ class MongoEventStore:
         )
 
     async def record(self, principal: Principal, event: EventInput) -> Stream:
-        await self.privacy.require_active(principal.tenant_id, principal.user_id)
+        privacy = await self.privacy.require_active(
+            principal.tenant_id, principal.user_id
+        )
         # First check policy even for new sessions. Never let forbidden input
         # allocate a durable session or reserve another principal's identifier.
         empty = Stream(
@@ -93,6 +101,13 @@ class MongoEventStore:
                 "data": updated.model_dump(mode="json"),
                 "event_ids": [item.event.event_id for item in updated.events],
                 "updated_at": utcnow(),
+                "assertion_grants": {
+                    **(document.get("assertion_grants", {}) if document else {}),
+                    event.event_id: {
+                        "permissions": sorted(principal.permissions),
+                        "privacy_revision": privacy.revision,
+                    },
+                },
             }
             try:
                 if document is None:
@@ -128,6 +143,116 @@ class MongoEventStore:
                 if existing is None and await self.collection.find_one(key) is not None:
                     raise EventConflict("event ID or sequence conflict") from error
         raise EventConflict("concurrent writes; retry with the same event ID")
+
+    async def recent(
+        self, principal: Principal, request: RecentRequest
+    ) -> RecentContext:
+        """Bounded project-local pending user assertions, never a second memory store."""
+        principal.require(Permission.VIEW, request.project_id)
+        privacy = await self.privacy.require_active(
+            principal.tenant_id, principal.user_id
+        )
+        cursor = await self.collection.aggregate(
+            [
+                {
+                    "$match": {
+                        "tenant_id": principal.tenant_id,
+                        "data.user_id": principal.user_id,
+                        "data.project_id": request.project_id,
+                        "$expr": {
+                            "$lt": [
+                                "$data.available_sequence",
+                                {"$size": "$data.events"},
+                            ]
+                        },
+                        "$or": [
+                            {"data.derive_context": True},
+                            {"session_id": request.session_id},
+                        ],
+                    }
+                },
+                {"$sort": {"updated_at": -1, "session_id": -1}},
+                {"$limit": RECENT_SESSION_WINDOW + 1},
+                {
+                    "$facet": {
+                        "window": [{"$count": "count"}],
+                        "items": [
+                            {"$limit": RECENT_SESSION_WINDOW},
+                            {"$unwind": "$data.events"},
+                            {
+                                "$match": {
+                                    "data.events.actor_kind": "user",
+                                    "data.events.event.kind": {
+                                        "$in": ["user_message", "correction"]
+                                    },
+                                    "data.events.event.event_id": {
+                                        "$ne": request.exclude_event_id
+                                    },
+                                    "$expr": {
+                                        "$gt": [
+                                            "$data.events.event.sequence",
+                                            "$data.available_sequence",
+                                        ]
+                                    },
+                                }
+                            },
+                            {
+                                "$sort": {
+                                    "data.events.received_at": -1,
+                                    "data.events.event.event_id": -1,
+                                }
+                            },
+                            {"$limit": request.limit + 1},
+                            {
+                                "$project": {
+                                    "_id": 0,
+                                    "record": "$data.events",
+                                    "assertion_grants": 1,
+                                }
+                            },
+                        ],
+                    }
+                },
+            ]
+        )
+        result = (await cursor.to_list())[0]
+        rows = result["items"]
+        items: list[RecentEvent] = []
+        used = 0
+        truncated = len(rows) > request.limit or bool(
+            result["window"] and result["window"][0]["count"] > RECENT_SESSION_WINDOW
+        )
+        for row in rows[: request.limit]:
+            record = row["record"]
+            event = record["event"]
+            grant = row.get("assertion_grants", {}).get(event["event_id"], {})
+            if grant.get("privacy_revision", 0) != privacy.revision:
+                # Raw pending text must not bypass a revocation of its derived
+                # memory. Without exact derived lineage, withhold the old input
+                # conservatively; retain it in the inspectable event history.
+                truncated = True
+                continue
+            if event["event_id"] == request.exclude_event_id:
+                continue
+            item = RecentEvent(
+                session_id=event["session_id"],
+                event_id=event["event_id"],
+                text=event["text"],
+                kind=EventKind(event["kind"]),
+                received_at=record["received_at"],
+            )
+            size = len(item.model_dump_json().encode())
+            if used + size > request.max_bytes:
+                truncated = True
+                break  # Never let an older assertion displace an oversized newer correction.
+            used += size
+            items.append(item)
+        current = await self.privacy.require_active(
+            principal.tenant_id, principal.user_id
+        )
+        if current.revision != privacy.revision:
+            raise RuntimeError("privacy changed during pending context retrieval")
+        return RecentContext(items=tuple(reversed(items)), truncated=truncated)
 
     async def sessions(
         self,

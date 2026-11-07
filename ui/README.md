@@ -16,6 +16,9 @@ demo app, database or agent framework.
 - **Centre:** normal conversation. Describe objectives, requirements, plans,
   progress or corrections; there is no Save progress step. Reopening a saved
   conversation restores recorded messages without calling the answer model.
+  Answers do not wait for extraction or project planning; the existing worker
+  updates memory and plans independently. Pending same-project user messages
+  support immediate follow-ups and new chats, with conversation evidence links.
 - **Right, optional:** current goal, requirements, progress, blockers, next planned
   step, dependencies and memory. The Context toggle collapses this panel.
   Sources and activity under an answer exposes its evidence and recorded work.
@@ -23,7 +26,8 @@ demo app, database or agent framework.
 Project/task changes use source-validated user quotes and the existing versioned
 TaskStateService. User reports are labelled separately from authenticated tool
 outcomes. Suggested steps are proposals until explicitly accepted in conversation
-(or with Add to plan). Ambiguous changes prompt a question. No percentage or
+(or with Add to plan). Ambiguous or invalid changes preserve the approved plan;
+the answer can ask for clarification. No percentage or
 external completion is invented. The next planned step is the first remaining
 accepted step; prerequisites can still be unresolved.
 
@@ -43,11 +47,19 @@ conversation text remains available. Removal does not delete source history.
 Conversation history comes from existing server event streams, with a project and
 session URL for restoring it after browser refresh. An interrupted recorded request
 can be retried with its original ID; existing document-read receipts are recovered. A request overtaken by another
-conversation's plan change must be restated, preventing an old retry from reverting
-the newer plan.
+conversation's plan change may need to be restated; background maintenance retains
+it as memory rather than overwriting the newer accepted plan.
 Historical answers are labelled as recorded; their original selected context
 bundles were not persisted. Current memory is displayed separately. New answers
-record the task revision they used, and concurrent task changes produce a warning.
+record the task revision actually assembled. The project panel refreshes quietly
+as the worker finishes, independently of the recorded answer snapshot. Chat stays
+available if background processing fails; operational notices remain visible.
+
+The current UI selects the background host mode automatically. Upgrade API,
+worker and UI together. Answer tokens are not streamed by this change, and model,
+tool and durable-write latency still applies. Pending input is bounded and honors
+privacy changes; no Redis or temporary database is used. See the
+[processing and failure guide](../docs/ace/background-processing.md).
 
 Source selection is under Sources in the sidebar. Project memory is the default;
 Sample brief and optional Brave Web search remain available. Documents here are
@@ -86,7 +98,7 @@ Focused validation, without live provider calls:
 
 ```sh
 uv run --frozen pytest -q tests/unit/test_workspace_continuity.py tests/ui/test_ace_console.py
-CG_INTEGRATION=1 uv run --frozen pytest -q tests/integration/test_ace_workspace.py
+CG_INTEGRATION=1 uv run --frozen pytest -q tests/integration/test_ace_workspace.py tests/integration/test_background_answers.py
 uv run --frozen pyright src/agent_context/continuity.py ui/context_engine.py ui/context_engine_view.py ui/workspace.py
 ```
 

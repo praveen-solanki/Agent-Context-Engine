@@ -13,19 +13,26 @@ from agent_context.assembly import (
     SearchRequest,
     SearchResult,
 )
-from agent_context.contracts import EventInput, EventStatus, ProcessingState, Stream
+from agent_context.contracts import (
+    EventInput,
+    EventStatus,
+    ProcessingState,
+    RecentContext,
+    RecentRequest,
+    Stream,
+)
+from agent_context.governance import RevocationInput
 from agent_context.handoff import HandoffArtifact, HandoffInput, ResumeResult
-from agent_context.task_state import TaskUpdate, TaskState
 from agent_context.navigation import (
     ProjectCreate,
+    ProjectDirectory,
     ProjectEdit,
     ProjectEntry,
-    ProjectDirectory,
     SessionEntry,
     SessionPage,
     SessionTitle,
 )
-from agent_context.governance import RevocationInput
+from agent_context.task_state import TaskState, TaskUpdate
 
 
 class EventProcessingStopped(RuntimeError):
@@ -150,6 +157,9 @@ class AgentContextClient:
                         "event requires dead-letter review/replay"
                     )
                 await asyncio.sleep(0.25)
+
+    async def recent_context(self, request: RecentRequest) -> RecentContext:
+        return await self._post("/v1/context/recent", request, RecentContext)
 
     async def assemble_context(self, request: AssembleRequest) -> ContextBundle:
         return await self._post("/v1/context/assemble", request, ContextBundle)

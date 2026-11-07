@@ -11,6 +11,31 @@
 
 ---
 
+## Answer/background path separation — 2026-11-07
+
+**CONFIRMED DONE within focused verification:** the conversational UI records the
+request and generates its answer without waiting for extraction or project
+planning. Existing Mongo outbox/ingestion, task CAS, source validation, receipts
+and retry machinery were inspected and reused. No Redis or additional service.
+
+Bounded authorized pending user inputs bridge immediate follow-ups/corrections
+and same-project new chats. Their citations survive history restore. Maintenance
+uses original/current actor grants, preserves newer user intent despite late
+tool receipts, and records verified progress independently. Required task snapshot
+provenance survives a concurrent worker revision. Background UI refresh and
+failure notices preserve chat availability; privacy changes fence pending inputs.
+
+See [behavior, deployment and remaining limits](docs/ace/background-processing.md)
+and [focused evidence](docs/ace/results/background-processing-20261107.json).
+**144 distinct focused checks pass**, including 19 new cases, with strict typing
+clean. A final compatibility subset was rerun after preserving legacy budgets.
+Answer token streaming, server background answer jobs, universal correctness,
+live latency/quality measurements and deferred production-readiness work are not
+claimed. API, worker and UI must be upgraded together. Legacy host defaults stay
+synchronous; no historical events are silently replanned.
+
+---
+
 ## Reported chat/recovery follow-up — 2026-11-07
 
 **CONFIRMED DEFECT, FIXED:** failed-request navigation mutated widget state after

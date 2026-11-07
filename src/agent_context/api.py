@@ -5,24 +5,22 @@ from __future__ import annotations
 import asyncio
 import hashlib
 from collections.abc import Awaitable, Callable
-from uuid import uuid4
 from time import perf_counter
-
-from context_graph.observability import get_logger, log_context, log_event, stage
+from uuid import uuid4
 
 from fastapi import Depends, FastAPI, HTTPException, Request
-from fastapi.responses import JSONResponse
-from fastapi.responses import StreamingResponse
 from fastapi.exceptions import RequestValidationError
+from fastapi.responses import JSONResponse, StreamingResponse
 from pydantic import BaseModel, ConfigDict, Field
 from starlette.types import ASGIApp, Message, Receive, Scope, Send
 
+from agent_context.artifacts import ArtifactDocument, ArtifactInput, ArtifactStore
 from agent_context.assembly import (
     AssembleRequest,
     ContextAssembler,
     ContextBundle,
-    MandatoryContextTooLarge,
     ContextQuery,
+    MandatoryContextTooLarge,
     SearchRequest,
     SearchResult,
 )
@@ -33,31 +31,32 @@ from agent_context.contracts import (
     Permission,
     Principal,
     ProcessingState,
+    RecentContext,
+    RecentRequest,
     Stream,
 )
 from agent_context.event_store import MongoEventStore
+from agent_context.events import CapacityExceeded, EventConflict
+from agent_context.governance import GovernanceService, RevocationInput
+from agent_context.handoff import (
+    TASK_STATE_PREFIX,
+    HandoffArtifact,
+    HandoffInput,
+    HandoffService,
+    ResumeResult,
+)
 from agent_context.navigation import (
     ProjectCreate,
-    ProjectEdit,
     ProjectDirectory,
+    ProjectEdit,
     ProjectEntry,
     SessionEntry,
     SessionPage,
     SessionTitle,
 )
-from agent_context.artifacts import ArtifactInput, ArtifactDocument, ArtifactStore
 from agent_context.project_store import ProjectStore
-from agent_context.governance import GovernanceService, RevocationInput
-from agent_context.events import CapacityExceeded, EventConflict
-from agent_context.handoff import (
-    HandoffArtifact,
-    HandoffInput,
-    HandoffService,
-    ResumeResult,
-    TASK_STATE_PREFIX,
-)
-from agent_context.task_state import TaskStateService, TaskUpdate, TaskState
-
+from agent_context.task_state import TaskState, TaskStateService, TaskUpdate
+from context_graph.observability import get_logger, log_context, log_event, stage
 
 _logger = get_logger("api")
 
@@ -269,6 +268,12 @@ def create_app(
                         return stream.available_sequence
                     await asyncio.sleep(0.05)
         return None
+
+    @app.post("/v1/context/recent")
+    async def recent(
+        body: RecentRequest, actor: Principal = Depends(authenticate)
+    ) -> RecentContext:
+        return await events.recent(actor, body)
 
     @app.post("/v1/context/assemble")
     async def assemble(

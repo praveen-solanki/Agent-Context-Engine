@@ -11,8 +11,8 @@ from agent_context.contracts import EventKind, Stream
 from agent_context.event_store import MongoEventStore
 from context_graph.domain.conversation import MessageInput, SessionInput
 from context_graph.domain.enums import Role, SessionState
-from context_graph.pipeline.orchestrator import IngestionReport
 from context_graph.observability import get_logger, log_context, log_event, stage
+from context_graph.pipeline.orchestrator import IngestionReport
 
 
 def scoped_id(tenant_id: str, identifier: str) -> str:
@@ -97,12 +97,14 @@ class EventWorker:
         timeout_seconds: float = 90,
         lease_seconds: int = 120,
         max_attempts: int = 3,
+        maintain: Callable[[Stream], Awaitable[None]] | None = None,
     ) -> None:
         if not 0 < timeout_seconds < lease_seconds or max_attempts < 1:
             raise ValueError(
                 "positive processing timeout must be shorter than the lease"
             )
         self.store, self.ingest, self.tenant_id = store, ingest, tenant_id
+        self.maintain = maintain
         self.timeout_seconds, self.lease_seconds, self.max_attempts = (
             timeout_seconds,
             lease_seconds,
@@ -131,6 +133,8 @@ class EventWorker:
                 async with asyncio.timeout(self.timeout_seconds):
                     report = await self.ingest(to_session(stream))
                     success = not report.batches_failed and not report.errors
+                    if success and self.maintain is not None:
+                        await self.maintain(stream)
                     log_event(
                         get_logger("worker"),
                         "worker.ingestion_result",

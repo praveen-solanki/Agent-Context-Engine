@@ -2,8 +2,8 @@
 
 from __future__ import annotations
 
-import json
 import hashlib
+import json
 import os
 from contextlib import AsyncExitStack
 from dataclasses import dataclass, replace
@@ -155,6 +155,7 @@ def restore(stream: Stream) -> tuple[tuple[ConversationTurn, ...], PendingTurn |
                         citations=event.citations,
                         suggested_next_steps=event.suggested_next_steps,
                         task_context=event.task_context,
+                        context_event_refs=event.context_event_refs,
                     ),
                     tuple(sources),
                     True,
@@ -273,6 +274,7 @@ async def send(
             require_sources=pending.require_sources
             if pending.documents is not None
             else require_sources,
+            background_updates=True,
             track_task=next(
                 (
                     entry.kind != "personal"
@@ -508,5 +510,19 @@ async def edit_project(project_id: str, request: ProjectEdit) -> ProjectEntry:
     user = client()
     try:
         return await user.edit_project(project_id, request)
+    finally:
+        await user.aclose()
+
+
+async def background_changed(snapshot: WorkspaceSnapshot) -> bool:
+    """Poll durable status only; never run extraction from a browser rerun."""
+    user = client()
+    user.http.timeout = httpx.Timeout(5)
+    try:
+        current = await user.session(snapshot.session_id)
+        return snapshot.stream is None or (
+            current.available_sequence,
+            current.state,
+        ) != (snapshot.stream.available_sequence, snapshot.stream.state)
     finally:
         await user.aclose()

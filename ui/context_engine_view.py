@@ -92,6 +92,24 @@ def render_turn(turn: ConversationTurn, index: int) -> InspectorAction | None:
                         "View memory evidence", key=f"citation-{index}-{identifier}"
                     ):
                         return InspectorAction("evidence", identifier=identifier)
+                elif citation.startswith("event:"):
+                    reference = next(
+                        (
+                            ref
+                            for ref in turn.result.context_event_refs
+                            if ref.source_id == citation
+                        ),
+                        None,
+                    )
+                    if reference and st.button(
+                        "View conversation evidence",
+                        key=f"event-citation-{index}-{citation}",
+                    ):
+                        return InspectorAction(
+                            "event",
+                            identifier=reference.event_id,
+                            session_id=reference.session_id,
+                        )
                 elif citation in sources:
                     source = sources[citation]
                     st.link_button(
@@ -144,7 +162,7 @@ def render_context(
         st.caption(f"Project revision {task.version} · saved automatically")
         if not task.source_available:
             st.info(
-                "The latest task update is still processing. Refresh before continuing."
+                "Project context is updating in the background. You can keep chatting."
             )
         if task.warnings:
             st.warning("Some project evidence needs to be checked again.")

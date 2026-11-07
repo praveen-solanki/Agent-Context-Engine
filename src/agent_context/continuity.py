@@ -6,8 +6,9 @@ separate from authenticated execution receipts. Suggestions remain assistant dat
 
 from __future__ import annotations
 
-from collections.abc import Mapping
 import json
+from collections.abc import Mapping
+from dataclasses import dataclass
 from typing import Annotated
 
 import httpx
@@ -243,6 +244,79 @@ class WorkspaceTurn(Contract):
     task: TaskState | None = None
     clarification: str | None = None
     warning: str | None = None
+    background_updates: bool = False
+
+
+@dataclass(frozen=True)
+class PlannedTask:
+    content: WorkState | None
+    clarification: str | None
+    feedback: TaskUpdateFeedback | None
+    model_calls: int
+
+
+async def plan_task(
+    llm: LLMProvider,
+    settings: DemoSettings,
+    current: WorkState | None,
+    event: EventInput,
+) -> PlannedTask:
+    message = event.text
+    clarification: str | None = None
+    task_feedback: TaskUpdateFeedback | None = None
+    planner_calls = 0
+    payload = json.dumps(
+        {
+            "message": message,
+            "current_task": current.model_dump(mode="json") if current else None,
+        }
+    )
+    changed = current
+    proposal = payload
+    # Reuse the host's bounded validation-repair allowance. A model's
+    # paraphrase must be repaired, never promoted to an exact quote.
+    for attempt in range(settings.answer_repair_attempts + 1):
+        if (
+            len(INTENT_SYSTEM.encode())
+            + len(proposal.encode())
+            + settings.response_tokens
+            > settings.model_context_tokens
+        ):
+            label = "task planning" if attempt == 0 else "task planning repair"
+            raise ValueError(label + " exceeds the context budget")
+        intent = await llm.structured(
+            system=INTENT_SYSTEM,
+            user=proposal,
+            schema=TaskIntent,
+            max_output_tokens=settings.response_tokens,
+        )
+        planner_calls += 1
+        if intent.clarification:
+            clarification = "A proposed project change needs clarification."
+            task_feedback = "needs_clarification"
+        else:
+            clarification = None
+            task_feedback = None
+        try:
+            changed = apply_intent(current, intent, event)
+            break
+        except ValueError as error:
+            if attempt == settings.answer_repair_attempts:
+                clarification = "The task update was not applied because its source quotes or current-entry references could not be validated. Answer factual questions from current context; ask for clarification before changing the plan."
+                task_feedback = "rejected"
+                break
+            proposal = (
+                payload
+                + "\n"
+                + json.dumps(
+                    {
+                        "validation_feedback": str(error),
+                        "previous_proposal": intent.model_dump(mode="json"),
+                        "repair_instruction": "Use only verbatim spans of the current message and exact existing targets. Do not copy the old goal into goal_quote unless the current message changes it. If no mutation is requested return empty changes; if genuinely ambiguous ask a question in clarification.",
+                    }
+                )
+            )
+    return PlannedTask(changed, clarification, task_feedback, planner_calls)
 
 
 class WorkspaceAssistant:
@@ -256,9 +330,11 @@ class WorkspaceAssistant:
         documents: Mapping[str, str],
         require_sources: bool = False,
         track_task: bool = True,
+        background_updates: bool = False,
     ) -> None:
         self.user, self.host, self.llm, self.project_id = user, host, llm, project_id
         self.track_task = track_task
+        self.background_updates = background_updates
         self.assistant = ResearchAssistant(
             user_client=user,
             host_client=host,
@@ -267,6 +343,7 @@ class WorkspaceAssistant:
             settings=DemoSettings(
                 project_id=project_id,
                 workspace_mode=True,
+                background_memory=background_updates,
                 require_sources=require_sources,
             ),
         )
@@ -350,12 +427,14 @@ class WorkspaceAssistant:
             project_id=self.project_id,
             correlation_id=turn_id,
             correction_target=correction_target,
+            background_updates=self.background_updates,
         )
         if recorded is None:
             await self.user.record_events(event)
         if event.correction_target:
             await self.user.revoke(event.correction_target)
-        await self.user.wait_available(event_id)
+        if not self.background_updates:
+            await self.user.wait_available(event_id)
         task = await self.current()
         answer = (
             next(
@@ -373,7 +452,8 @@ class WorkspaceAssistant:
         task_feedback: TaskUpdateFeedback | None = None
         planner_calls = 0
         if (
-            recorded is not None
+            not self.background_updates
+            and recorded is not None
             and answer is None
             and task is not None
             and task.content.source_event_id != event_id
@@ -384,65 +464,19 @@ class WorkspaceAssistant:
             )
         if (
             self.track_task
+            and not self.background_updates
             and answer is None
             and (task is None or task.content.source_event_id != event_id)
         ):
-            payload = json.dumps(
-                {
-                    "message": message,
-                    "current_task": task.content.model_dump(mode="json")
-                    if task
-                    else None,
-                }
+            planned = await plan_task(
+                self.llm, self.assistant.settings, task.content if task else None, event
             )
-            settings = self.assistant.settings
-            changed = task.content if task else None
-            proposal = payload
-            # Reuse the host's bounded validation-repair allowance. A model's
-            # paraphrase must be repaired, never promoted to an exact quote.
-            for attempt in range(settings.answer_repair_attempts + 1):
-                if (
-                    len(INTENT_SYSTEM.encode())
-                    + len(proposal.encode())
-                    + settings.response_tokens
-                    > settings.model_context_tokens
-                ):
-                    label = "task planning" if attempt == 0 else "task planning repair"
-                    raise ValueError(label + " exceeds the context budget")
-                intent = await self.llm.structured(
-                    system=INTENT_SYSTEM,
-                    user=proposal,
-                    schema=TaskIntent,
-                    max_output_tokens=settings.response_tokens,
-                )
-                planner_calls += 1
-                if intent.clarification:
-                    clarification = "A proposed project change needs clarification."
-                    task_feedback = "needs_clarification"
-                else:
-                    clarification = None
-                    task_feedback = None
-                try:
-                    changed = apply_intent(
-                        task.content if task else None, intent, event
-                    )
-                    break
-                except ValueError as error:
-                    if attempt == settings.answer_repair_attempts:
-                        clarification = "The task update was not applied because its source quotes or current-entry references could not be validated. Answer factual questions from current context; ask for clarification before changing the plan."
-                        task_feedback = "rejected"
-                        break
-                    proposal = (
-                        payload
-                        + "\n"
-                        + json.dumps(
-                            {
-                                "validation_feedback": str(error),
-                                "previous_proposal": intent.model_dump(mode="json"),
-                                "repair_instruction": "Use only verbatim spans of the current message and exact existing targets. Do not copy the old goal into goal_quote unless the current message changes it. If no mutation is requested return empty changes; if genuinely ambiguous ask a question in clarification.",
-                            }
-                        )
-                    )
+            changed, clarification, task_feedback, planner_calls = (
+                planned.content,
+                planned.clarification,
+                planned.feedback,
+                planned.model_calls,
+            )
             if changed is not None and (task is None or changed != task.content):
                 task = await self._save(changed, task, event, "-intent")
         if answer is not None:
@@ -463,6 +497,7 @@ class WorkspaceAssistant:
                 next_sequence=len(stream.events) + 1 if stream else sequence + 1,
                 cached=True,
                 citations=answer.citations,
+                context_event_refs=answer.context_event_refs,
                 suggested_next_steps=answer.suggested_next_steps,
                 task_context=answer.task_context,
             )
@@ -474,17 +509,22 @@ class WorkspaceAssistant:
                 sequence=event.sequence,
                 correction=correction,
                 task_id=task.content.task_id if task else None,
-                task_version=task.version if task else None,
+                # Background maintenance may advance the task between the
+                # initial read and assembly. Let assembly bind its current
+                # validated snapshot instead of rejecting a healthy update.
+                task_version=task.version
+                if task and not self.background_updates
+                else None,
                 task_update_feedback=task_feedback,
             )
             result = result.model_copy(
                 update={"model_calls": result.model_calls + planner_calls}
             )
-        latest = await self.current()
+        latest = task if self.background_updates else await self.current()
         warning: str | None = None
         if task is not None and latest is not None and latest.version != task.version:
             warning = "Project context changed while answering. Review the current context before acting."
-        if latest is not None:
+        if latest is not None and not self.background_updates:
             # Only real authenticated receipts enter completed; no free-text
             # model claim or user report is promoted to verified execution.
             receipts = successful_actions(await self.user.session(session_id), event_id)
@@ -498,5 +538,9 @@ class WorkspaceAssistant:
                 content = latest.content.model_copy(update={"completed": merged})
                 latest = await self._save(content, latest, event, "-progress")
         return WorkspaceTurn(
-            result=result, task=latest, clarification=clarification, warning=warning
+            result=result,
+            task=latest,
+            clarification=clarification,
+            warning=warning,
+            background_updates=self.background_updates,
         )

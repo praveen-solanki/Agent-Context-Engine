@@ -73,6 +73,7 @@ class ContextQuery(Contract):
     project_id: Identifier | None = None
     task_id: Identifier | None = None
     task_version: int | None = Field(default=None, ge=1)
+    include_recorded_task: bool = False
     query: str = Field(default="", max_length=16000)
     minimum_sequence: int = Field(default=0, ge=0)
 

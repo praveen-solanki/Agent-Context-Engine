@@ -495,6 +495,73 @@ def test_answer_evidence_remains_accessible_with_context_panel_collapsed(
     assert any(text.value == "The exact original statement" for text in app.text)
 
 
+def test_pending_conversation_evidence_remains_accessible(
+    monkeypatch: pytest.MonkeyPatch, offline: dict[tuple[str, str], WorkspaceSnapshot]
+) -> None:
+    from agent_context.contracts import EventReference
+
+    reference = EventReference(session_id="previous", event_id="change")
+    answer = result().model_copy(
+        update={
+            "citations": (reference.source_id,),
+            "context_event_refs": (reference,),
+        }
+    )
+    offline[("p1", "s1")] = replace(
+        offline[("p1", "s1")],
+        history=(ConversationTurn("Recall", answer, recorded=True),),
+    )
+
+    async def source(session_id: str, event_id: str, project_id: str):
+        assert (session_id, event_id, project_id) == ("previous", "change", "p1")
+        return {"text": "The recorded pending assertion"}
+
+    monkeypatch.setattr(service, "source_event", source)
+    app = page()
+    button(app, "View conversation evidence").click().run()
+    assert not app.exception
+    assert any(text.value == "The recorded pending assertion" for text in app.text)
+
+
+@pytest.mark.parametrize("failed", [False, True])
+def test_background_refresh_never_blocks_chat(
+    failed: bool,
+    monkeypatch: pytest.MonkeyPatch,
+    offline: dict[tuple[str, str], WorkspaceSnapshot],
+) -> None:
+    current = offline[("p1", "s1")]
+    stream = append_event(
+        Stream(tenant_id="t1", user_id="u1", session_id="s1", project_id="p1"),
+        principal(projects=["p1"]),
+        event(project_id="p1", background_updates=True),
+        max_events=32,
+    )
+    offline[("p1", "s1")] = replace(current, stream=stream)
+    calls = 0
+
+    async def changed(snapshot: WorkspaceSnapshot) -> bool:
+        nonlocal calls
+        calls += 1
+        if failed:
+            raise RuntimeError("service unavailable")
+        offline[("p1", "s1")] = replace(
+            current,
+            stream=stream.model_copy(update={"available_sequence": 1}),
+            task=current.task.model_copy(update={"version": 2})
+            if current.task
+            else None,
+        )
+        return True
+
+    monkeypatch.setattr(service, "background_changed", changed)
+    app = page()
+    assert calls == 1 and not app.exception and not app.chat_input[0].disabled
+    if failed:
+        assert any("reconnects" in caption.value for caption in app.caption)
+    else:
+        assert any("revision 2" in caption.value.lower() for caption in app.caption)
+
+
 def test_untrusted_navigation_and_memory_labels_do_not_enable_markdown_images(
     offline: dict[tuple[str, str], WorkspaceSnapshot],
 ) -> None:

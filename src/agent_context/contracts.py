@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import hashlib
 from datetime import UTC, datetime
 from enum import StrEnum
 from typing import Annotated, Literal
@@ -75,6 +76,39 @@ class RevocationInput(Contract):
     expected_fingerprint: str = Field(min_length=1, max_length=256)
 
 
+class EventReference(Contract):
+    session_id: Identifier
+    event_id: Identifier
+
+    @property
+    def source_id(self) -> str:
+        return (
+            "event:"
+            + hashlib.sha256(
+                f"{len(self.session_id)}:{self.session_id}{self.event_id}".encode()
+            ).hexdigest()
+        )
+
+
+class RecentEvent(EventReference):
+    text: str
+    kind: EventKind
+    received_at: AwareDatetime
+
+
+class RecentRequest(Contract):
+    project_id: Identifier
+    session_id: Identifier
+    max_bytes: int = Field(default=2000, ge=256, le=16000)
+    limit: int = Field(default=20, ge=1, le=64)
+    exclude_event_id: Identifier | None = None
+
+
+class RecentContext(Contract):
+    items: tuple[RecentEvent, ...] = ()
+    truncated: bool = False
+
+
 class EventInput(Contract):
     schema_version: Literal[1] = 1
     event_id: Identifier
@@ -95,9 +129,18 @@ class EventInput(Contract):
     suggested_next_steps: tuple[SuggestedStep, ...] = Field(default=(), max_length=4)
     task_context: TaskReference | None = None
     correction_target: RevocationInput | None = None
+    background_updates: StrictBool = False
+    context_event_refs: tuple[EventReference, ...] = Field(default=(), max_length=64)
 
     @model_validator(mode="after")
     def bounded_payload(self) -> Self:
+        if self.background_updates and self.kind not in (
+            EventKind.USER_MESSAGE,
+            EventKind.CORRECTION,
+        ):
+            raise ValueError("background updates require a user message")
+        if self.context_event_refs and self.kind != EventKind.ASSISTANT_MESSAGE:
+            raise ValueError("event evidence references belong to assistant answers")
         if self.correction_target is not None and self.kind != EventKind.CORRECTION:
             raise ValueError("a memory replacement requires an explicit correction")
         if self.suggested_next_steps and self.kind != EventKind.ASSISTANT_MESSAGE:

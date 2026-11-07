@@ -3,17 +3,17 @@
 from __future__ import annotations
 
 import asyncio
-import logging
 import json
-from typing import Annotated
+import logging
 from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
+from typing import Annotated
 
 import uvicorn
 from fastapi import FastAPI
 from neo4j import AsyncGraphDatabase
-from pydantic import Field, model_validator, field_validator
-from pydantic_settings import BaseSettings, SettingsConfigDict, NoDecode
+from pydantic import Field, field_validator, model_validator
+from pydantic_settings import BaseSettings, NoDecode, SettingsConfigDict
 from pymongo import AsyncMongoClient
 from typing_extensions import Self
 
@@ -21,18 +21,19 @@ from agent_context.api import create_app
 from agent_context.artifacts import ArtifactStore
 from agent_context.assembly import AssemblySettings, ContextAssembler
 from agent_context.bridge import EventWorker, scoped_id
-from agent_context.contracts import Identifier, Principal, Permission
+from agent_context.contracts import Identifier, Permission, Principal
 from agent_context.event_store import MongoEventStore
-from agent_context.project_store import ProjectStore
-from agent_context.handoff import HandoffService
 from agent_context.governance import GovernanceService
+from agent_context.handoff import HandoffService
+from agent_context.maintenance import ProjectMaintenance
 from agent_context.outcomes import EventOutcomeVerifier
+from agent_context.project_store import ProjectStore
 from agent_context.retrieval import Neo4jCandidateSource
-from agent_context.task_state import TaskStateService, TaskCandidateSource
+from agent_context.task_state import TaskCandidateSource, TaskStateService
 from context_graph.config import Settings
 from context_graph.observability import configure_logging
+from context_graph.providers.chat_backend import ChatLLMProvider, EmbeddingProviderImpl
 from context_graph.tool import ContextGraphIngestion
-from context_graph.providers.chat_backend import EmbeddingProviderImpl
 
 
 class RuntimeSettings(BaseSettings):
@@ -230,18 +231,47 @@ async def run_worker() -> None:
                     IngestionRequest(session=session)
                 )
 
-            worker = EventWorker(events, ingest_session, tenant_id=runtime.tenant_id)
-            while True:
-                try:
-                    did_work = await worker.run_once()
-                except Exception as error:
-                    logging.getLogger(__name__).error(
-                        "worker_dependency_failure",
-                        extra={"error_type": type(error).__name__},
-                    )
-                    did_work = False
-                if not did_work:
-                    await asyncio.sleep(runtime.poll_seconds)
+            artifacts = ArtifactStore(mongo, settings.mongo.database)
+            handoffs = HandoffService(
+                mongo,
+                settings.mongo.database,
+                verify_action=EventOutcomeVerifier(events),
+                verify_artifact=artifacts.verify,
+            )
+            await handoffs.ensure_indexes()
+            projects = ProjectStore(mongo, settings.mongo.database)
+            await projects.ensure_indexes()
+            tasks = TaskStateService(handoffs, events)
+            planner = ChatLLMProvider(
+                backend=settings.chat, llm=settings.llm, retry=settings.retry
+            )
+            try:
+                maintenance = ProjectMaintenance(
+                    tasks, projects, runtime.auth_bindings, planner
+                )
+                worker = EventWorker(
+                    events,
+                    ingest_session,
+                    tenant_id=runtime.tenant_id,
+                    maintain=maintenance,
+                )
+                await _worker_loop(worker, runtime.poll_seconds)
+            finally:
+                await planner.aclose()
+
+
+async def _worker_loop(worker: EventWorker, poll_seconds: float) -> None:
+    while True:
+        try:
+            did_work = await worker.run_once()
+        except Exception as error:
+            logging.getLogger(__name__).error(
+                "worker_dependency_failure",
+                extra={"error_type": type(error).__name__},
+            )
+            did_work = False
+        if not did_work:
+            await asyncio.sleep(poll_seconds)
 
 
 def worker_main() -> None:

@@ -90,6 +90,17 @@ session's availability watermark with a bounded timeout and returns 503 if it
 cannot be satisfied. Event sequences start at 1 and must be contiguous; event
 times must not go backwards. Reuse the original event ID when retrying.
 
+The conversational UI uses `WorkspaceAssistant(background_updates=True)` to
+answer without `wait_available` or foreground task planning. The existing worker
+performs extraction and source-validated project maintenance independently.
+`POST /v1/context/recent` and `AgentContextClient.recent_context(RecentRequest)`
+provide bounded project-local pending user inputs; cited event references are
+stored with answers. Explicit corrections still apply their revocation fence
+before generating. Legacy host defaults and explicit watermark waits retain their
+existing behavior. Update API, worker and UI together; no new settings/service.
+See [background processing](background-processing.md) for constraints and focused
+test commands/evidence.
+
 The Python `AgentContextClient` supports event recording, context assembly,
 progressive context search, evidence inspection, handoff preparation and handoff resume. It has timeouts and bounded retries for
 transient failures. Close it using `await client.aclose()`.
