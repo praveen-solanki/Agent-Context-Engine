@@ -28,6 +28,10 @@ from agent_context.navigation import (
 from agent_context.governance import RevocationInput
 
 
+class EventProcessingStopped(RuntimeError):
+    """Recorded work reached dead letter; chat retry cannot restart the worker."""
+
+
 class AgentContextClient:
     """Callers own the client lifetime; secret headers are never included in logs."""
 
@@ -142,7 +146,9 @@ class AgentContextClient:
                 if status.state == ProcessingState.AVAILABLE:
                     return status
                 if status.state == ProcessingState.DEAD:
-                    raise RuntimeError("event requires dead-letter review/replay")
+                    raise EventProcessingStopped(
+                        "event requires dead-letter review/replay"
+                    )
                 await asyncio.sleep(0.25)
 
     async def assemble_context(self, request: AssembleRequest) -> ContextBundle:

@@ -1,6 +1,28 @@
 # Validation evidence — latest increment 2026-11-05
 
 
+## Screenshot chat/recovery follow-up — 2026-11-07
+
+Baseline `685d04c`. Real Streamlit AppTest reproduced four recovery crashes before
+fixing the widget reset boundary. Separate before-fix tests reproduced missing
+specific diagnostics for known failure classes and HTTP statuses. Idle navigation,
+frozen-source retries and routing scope checks are preserved. Chromium also clicks
+the recovery control after a simulated failure and verifies a clean enabled chat.
+
+Scoped commands:
+
+```sh
+uv run --frozen pytest tests/ui/test_recovery_navigation.py tests/ui/test_ace_console.py tests/ui/test_failure_diagnostics.py tests/unit/test_client_failure_status.py tests/unit/test_client_compatibility.py tests/unit/test_routing_reported_issues.py tests/unit/test_project_routing.py -q
+CG_INTEGRATION=1 uv run --frozen pytest tests/integration/test_ace_workspace.py tests/integration/test_ace_api.py -q
+```
+
+Changed code/tests pass strict Pyright. See [exact results, source hashes and
+live run limits](results/reported-recovery-20261107.json) and
+[report disposition](reported-recovery.md). The isolated real-model scenarios
+exercise the real API, worker, extraction, retrieval and host with synthetic data.
+They do not measure general model accuracy or prove the original screenshot's
+failure cause. No full test suite/public benchmark was run.
+
 ## Research-informed pipeline integrity — 2026-11-06
 
 Baseline `0689c5a`. **289 distinct scoped checks passed**, including **100 new

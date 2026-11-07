@@ -11,6 +11,26 @@
 
 ---
 
+## Reported chat/recovery follow-up — 2026-11-07
+
+**CONFIRMED DEFECT, FIXED:** failed-request navigation mutated widget state after
+rendering. Deferred resets now protect recovery/callback/URL navigation and
+routing cancellation while retaining history and frozen retry sources. Known
+failure classes, including terminal worker status, have content-free recovery
+messages; dead-letter replay is not silently authorized. Database restart policies
+now match the app services; stopped local dependencies were restored and API
+readiness verified. Atlas/Cedar routing guard cases pass without weakening scope.
+
+**89 distinct focused checks pass**, plus strict changed-code typing and the
+Chromium recovery check. The three reported scenario types completed in bounded isolated NVIDIA/API/worker
+checks. The first workflow's third case was capped, then verified separately;
+the original screenshot's chat failure in another environment remains undiagnosed
+without its runtime evidence. See [item-by-item disposition](docs/ace/reported-recovery.md)
+and [verification](docs/ace/results/reported-recovery-20261107.json). No full suite,
+public benchmark or zero-bug/model-accuracy guarantee is claimed.
+
+---
+
 ## Pipeline integrity and research integration — 2026-11-06
 
 Owner-authorized audit of the existing end-to-end pipeline, using the new research

@@ -1,0 +1,190 @@
+{
+  "baseline": "685d04c",
+  "date": "2026-11-07",
+  "scope": "Screenshot-reported chat/recovery/routing behavior",
+  "distinct_focused_passes": 89,
+  "checks": {
+    "tests.ui.test_recovery_navigation::test_failed_send_can_open_another_conversation_after_source_widgets_render[Project memory]": "passed",
+    "tests.ui.test_recovery_navigation::test_failed_send_can_open_another_conversation_after_source_widgets_render[Sample brief]": "passed",
+    "tests.ui.test_recovery_navigation::test_failed_send_can_open_another_conversation_after_source_widgets_render[Web search]": "passed",
+    "tests.ui.test_recovery_navigation::test_retry_keeps_frozen_sources_and_recovery_clears_only_view_state": "passed",
+    "tests.ui.test_recovery_navigation::test_query_navigation_resets_source_widgets_before_new_project_render": "passed",
+    "tests.ui.test_recovery_navigation::test_cancelling_ambiguous_request_resets_routing_widgets_without_losing_sources": "passed",
+    "tests.ui.test_recovery_navigation::test_recovery_preserves_recorded_old_conversation_and_opens_clean_view": "passed",
+    "tests.ui.test_ace_console::test_workspace_initial_render_has_chat_navigation_and_automatic_context": "passed",
+    "tests.ui.test_ace_console::test_chat_persists_each_turn_and_rerun_does_not_submit_again": "passed",
+    "tests.ui.test_ace_console::test_new_conversation_clears_chat_but_keeps_project_context": "passed",
+    "tests.ui.test_ace_console::test_project_switch_uses_authorized_project_and_its_history": "passed",
+    "tests.ui.test_ace_console::test_failed_turn_retains_same_retry_identifier_without_revealing_error": "passed",
+    "tests.ui.test_ace_console::test_recorded_content_stays_plain_text_and_context_can_collapse": "passed",
+    "tests.ui.test_ace_console::test_memory_evidence_correction_and_removal_use_existing_services": "passed",
+    "tests.ui.test_ace_console::test_renaming_persists_using_api_not_local_only": "passed",
+    "tests.ui.test_ace_console::test_optional_web_search_without_key": "passed",
+    "tests.ui.test_ace_console::test_optional_search_uses_validated_sources_without_live_requests": "passed",
+    "tests.ui.test_ace_console::test_same_web_source_can_appear_in_multiple_turns": "passed",
+    "tests.ui.test_ace_console::test_pending_request_disables_other_actions_that_submit_turns": "passed",
+    "tests.ui.test_ace_console::test_answer_evidence_remains_accessible_with_context_panel_collapsed": "passed",
+    "tests.ui.test_ace_console::test_untrusted_navigation_and_memory_labels_do_not_enable_markdown_images": "passed",
+    "tests.ui.test_ace_console::test_active_goal_with_no_agreed_steps_is_not_labelled_complete": "passed",
+    "tests.ui.test_ace_console::test_project_switch_rejects_a_stale_snapshot_from_the_previous_project": "passed",
+    "tests.ui.test_ace_console::test_navigation_changed_during_load_does_not_commit_the_obsolete_response": "passed",
+    "tests.ui.test_ace_console::test_automatic_routing_prepares_once_before_sending_and_keeps_choice_on_retry": "passed",
+    "tests.ui.test_ace_console::test_automatic_route_switches_scope_before_the_message_is_recorded": "passed",
+    "tests.ui.test_ace_console::test_ambiguous_project_waits_for_an_explicit_choice_without_sending": "passed",
+    "tests.ui.test_ace_console::test_cancel_ambiguous_request_discards_only_the_unsent_message": "passed",
+    "tests.ui.test_ace_console::test_rephrased_routing_request_keeps_the_revised_text_and_gets_a_new_identity": "passed",
+    "tests.ui.test_ace_console::test_project_picker_is_a_manual_override_until_automatic_is_selected": "passed",
+    "tests.ui.test_ace_console::test_routing_provider_failure_keeps_unsent_text_and_allows_manual_choice": "passed",
+    "tests.ui.test_ace_console::test_project_alias_edit_keeps_the_same_identity": "passed",
+    "tests.ui.test_ace_console::test_explicit_sources_survive_automatic_scope_change_for_the_pending_request": "passed",
+    "tests.ui.test_ace_console::test_owned_project_titles_remain_literal_text_in_heading_and_scope_caption": "passed",
+    "tests.ui.test_ace_console::test_uncertain_new_project_can_be_explicitly_confirmed_without_using_an_existing_one": "passed",
+    "tests.ui.test_failure_diagnostics::test_known_failure_has_safe_actionable_explanation[service-workspace service]": "passed",
+    "tests.ui.test_failure_diagnostics::test_known_failure_has_safe_actionable_explanation[model-model service]": "passed",
+    "tests.ui.test_failure_diagnostics::test_known_failure_has_safe_actionable_explanation[schema-model response]": "passed",
+    "tests.ui.test_failure_diagnostics::test_known_failure_has_safe_actionable_explanation[timeout-timed out]": "passed",
+    "tests.ui.test_failure_diagnostics::test_known_failure_has_safe_actionable_explanation[stopped-background memory processing stopped]": "passed",
+    "tests.ui.test_failure_diagnostics::test_known_failure_has_safe_actionable_explanation[503-workspace service]": "passed",
+    "tests.ui.test_failure_diagnostics::test_known_failure_has_safe_actionable_explanation[500-workspace service]": "passed",
+    "tests.ui.test_failure_diagnostics::test_known_failure_has_safe_actionable_explanation[429-rate limit]": "passed",
+    "tests.unit.test_client_failure_status::test_dead_letter_status_has_a_distinct_runtime_error": "passed",
+    "tests.unit.test_client_compatibility::test_basic_requests_omit_unused_fields_but_preserve_required_preconditions": "passed",
+    "tests.unit.test_client_compatibility::test_snapshot_defaults_and_false_tool_outcomes_keep_their_meaning": "passed",
+    "tests.unit.test_routing_reported_issues::test_reported_named_project_and_goal_references_resolve[Continue Atlas. What is the next step?-Atlas-project0]": "passed",
+    "tests.unit.test_routing_reported_issues::test_reported_named_project_and_goal_references_resolve[Continue Cedar. What is left to do?-Cedar-project1]": "passed",
+    "tests.unit.test_routing_reported_issues::test_reported_named_project_and_goal_references_resolve[What did we decide for Atlas migration?-Atlas migration-project2]": "passed",
+    "tests.unit.test_routing_reported_issues::test_reported_named_project_and_goal_references_resolve[Show the status of Cedar launch.-Cedar launch-project3]": "passed",
+    "tests.unit.test_routing_reported_issues::test_reported_named_project_and_goal_references_resolve[Continue our workshop booking website.-workshop booking website-project4]": "passed",
+    "tests.unit.test_routing_reported_issues::test_explicit_other_project_overrides_bound_current_conversation": "passed",
+    "tests.unit.test_routing_reported_issues::test_name_occurrence_does_not_override_failed_safety_guards[proposal0]": "passed",
+    "tests.unit.test_routing_reported_issues::test_name_occurrence_does_not_override_failed_safety_guards[proposal1]": "passed",
+    "tests.unit.test_routing_reported_issues::test_name_occurrence_does_not_override_failed_safety_guards[proposal2]": "passed",
+    "tests.unit.test_routing_reported_issues::test_name_occurrence_does_not_override_failed_safety_guards[proposal3]": "passed",
+    "tests.unit.test_routing_reported_issues::test_provider_failure_is_not_misreported_as_a_successful_name_match": "passed",
+    "tests.unit.test_routing_reported_issues::test_two_named_projects_require_split_instead_of_matching_first_name": "passed",
+    "tests.unit.test_project_routing::test_ambiguity_is_not_a_project_guess[proposal0]": "passed",
+    "tests.unit.test_project_routing::test_ambiguity_is_not_a_project_guess[proposal1]": "passed",
+    "tests.unit.test_project_routing::test_ambiguity_is_not_a_project_guess[proposal2]": "passed",
+    "tests.unit.test_project_routing::test_ambiguity_is_not_a_project_guess[proposal3]": "passed",
+    "tests.unit.test_project_routing::test_personal_chat_and_existing_followup_use_different_scope_rules": "passed",
+    "tests.unit.test_project_routing::test_provider_failure_or_oversized_directory_never_falls_back_to_a_project": "passed",
+    "tests.unit.test_project_routing::test_prepare_changes_scope_before_any_send_and_freezes_it_on_retry": "passed",
+    "tests.unit.test_project_routing::test_manual_choice_and_recorded_request_never_run_the_resolver": "passed",
+    "tests.unit.test_project_routing::test_missing_host_access_fails_before_route_is_committed": "passed",
+    "tests.unit.test_project_routing::test_multi_project_updates_require_rephrasing_not_a_wholesale_assignment": "passed",
+    "tests.unit.test_project_routing::test_an_owner_with_no_projects_can_start_in_personal_space": "passed",
+    "tests.integration.test_ace_workspace::test_navigation_pagination_rename_and_ownership": "passed",
+    "tests.integration.test_ace_workspace::test_navigation_respects_readonly_grants_and_erasure_fence": "passed",
+    "tests.integration.test_ace_workspace::test_chat_updates_current_task_reopens_and_retries_without_reexecution": "passed",
+    "tests.integration.test_ace_workspace::test_actual_receipts_are_verified_without_turning_suggestions_into_plan": "passed",
+    "tests.integration.test_ace_workspace::test_ambiguous_plan_change_is_saved_as_clarification_not_work": "passed",
+    "tests.integration.test_ace_workspace::test_interrupted_correction_recovers_exact_target_before_answering": "passed",
+    "tests.integration.test_ace_workspace::test_task_reports_must_reference_the_authenticated_users_exact_statement": "passed",
+    "tests.integration.test_ace_workspace::test_retry_after_a_tool_result_recovers_receipt_without_rerunning_it": "passed",
+    "tests.integration.test_ace_workspace::test_concurrent_plan_change_is_surfaced_instead_of_claiming_a_current_answer": "passed",
+    "tests.integration.test_ace_workspace::test_old_unfinished_request_cannot_overwrite_a_newer_conversation_plan": "passed",
+    "tests.integration.test_ace_workspace::test_invalid_constraint_quote_is_repaired_without_discarding_the_update[The supplier can deliver on Tuesdays only.-Delivery is restricted to Tuesday]": "passed",
+    "tests.integration.test_ace_workspace::test_invalid_constraint_quote_is_repaired_without_discarding_the_update[La livraison est possible uniquement le jeudi.-Livraison le jeudi]": "passed",
+    "tests.integration.test_ace_workspace::test_planner_commentary_cannot_bypass_grounded_recall": "passed",
+    "tests.integration.test_ace_workspace::test_unrepairable_plan_proposal_preserves_state_and_still_grounds_the_answer": "passed",
+    "tests.integration.test_ace_workspace::test_stale_requirement_reference_is_repaired_before_replacing_a_constraint": "passed",
+    "tests.integration.test_ace_workspace::test_oversized_repair_proposal_never_reaches_the_provider_or_mutates_state": "passed",
+    "tests.integration.test_ace_workspace::test_approved_goal_echo_does_not_discard_a_natural_constraint_update": "passed",
+    "tests.integration.test_ace_api::test_api_sdk_identity_and_durable_lifecycle": "passed",
+    "tests.integration.test_ace_api::test_dependency_failure_is_typed_and_private_errors_are_not_returned": "passed",
+    "tests.integration.test_ace_api::test_sdk_current_task_and_reconciled_handoff_through_real_api": "passed"
+  },
+  "before_fix": {
+    "recovery_widget_failures": 4,
+    "actionable_failure_diagnostic_failures": 6,
+    "http_failure_diagnostic_failures": 3
+  },
+  "reported_items": {
+    "failed_chat_and_retry": "Not reproduced as a persistent host-code failure in isolated live checks; local stopped stores produced ServerSelectionTimeoutError and API restart loop, then readiness recovered after stores started. Original screenshot failure elsewhere cannot be identified from the image alone.",
+    "recovery_navigation": "Confirmed widget mutation defect, fixed via deferred reset before widget creation.",
+    "idle_new_conversation": "Confirmed working and preserved.",
+    "routing_clarification": "Expected fail-closed behavior for uncertainty/provider failure; scripted name/alias/goal/switch cases pass, no scope/confidence bypass added."
+  },
+  "live_workflow_runs": [
+    {
+      "kind": "bounded isolated real-model API/worker/workspace interaction",
+      "model": "nvidia/nemotron-3.5-bolt-e4b",
+      "request_cap": 24,
+      "provider_attempts": 24,
+      "synthetic_data_only": true,
+      "application_data_touched": false,
+      "rows": [
+        {
+          "case": "memory_update",
+          "passed": true,
+          "contains_budget": true,
+          "citations": 1
+        },
+        {
+          "case": "fresh_session_recall",
+          "passed": true,
+          "contains_budget": true,
+          "citations": 1
+        },
+        {
+          "case": "simple_memory_prompt",
+          "passed": false,
+          "error_type": "RuntimeError"
+        }
+      ]
+    },
+    {
+      "kind": "bounded isolated real-model API/worker/workspace interaction",
+      "model": "nvidia/nemotron-3.5-bolt-e4b",
+      "request_cap": 24,
+      "provider_attempts": 13,
+      "synthetic_data_only": true,
+      "application_data_touched": false,
+      "rows": [
+        {
+          "case": "simple_memory_prompt",
+          "passed": true,
+          "contains_budget": true,
+          "citations": 1
+        }
+      ]
+    }
+  ],
+  "live_probe_limitations": [
+    "First workflow hit its 24-attempt probe cap on the third scenario; that was retained as a capped result, not a production regression.",
+    "Separate bounded simple-memory follow-up passed with 13 attempts.",
+    "A preliminary three-request model-only probe did not use the complete final-answer host branch and is not used as proof of chat correctness.",
+    "Total provider attempts across preliminary and workflow probes: 40. Billing was not measured; no benchmark accuracy or universal quality claim."
+  ],
+  "browser": {
+    "before": {
+      "url": "http://127.0.0.1:18513/?project=p1&session=s1",
+      "failedRequestVisible": true,
+      "errorVisible": true
+    },
+    "after": {
+      "url": "http://127.0.0.1:18513/?project=p1&session=console-b7fe960f9e9f470a",
+      "failedRequestVisible": false,
+      "exceptionVisible": false,
+      "composerEnabled": true
+    },
+    "model_calls": 0,
+    "database_writes": 0
+  },
+  "runtime_recovery": {
+    "application_and_test_stores_started_without_volume_deletion": true,
+    "database_restart_policy": "unless-stopped",
+    "api_ready_after_recovery": true,
+    "synthetic_test_data_added_to_existing_projects": false
+  },
+  "strict_changed_code_types": {
+    "errors": 0,
+    "warnings": 0
+  },
+  "full_suite_run": false,
+  "source_sha256": {
+    "ui/context_engine.py": "229007bd6c5f0bfae62ed37b66a5409046819c3487d8082bfa651c0294750109",
+    "src/agent_context/client.py": "3156ddad0b0a1aa5073a061ee5cefa24b19ee79309ad5abfffdeb83b4c2bba5c",
+    "compose.yaml": "a6fb94d797bc9d57188940d436a8984378776211181e7b3123cb4eaf8a0c8b98"
+  }
+}

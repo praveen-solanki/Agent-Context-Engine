@@ -32,6 +32,7 @@ x-application: &application
 services:
   neo4j:
     image: neo4j:5.26-community
+    restart: unless-stopped
     environment:
       NEO4J_AUTH: neo4j/${CG_NEO4J__PASSWORD:?Set a development database password in .env}
       NEO4J_server_memory_heap_initial__size: 256m
@@ -46,6 +47,7 @@ services:
       retries: 24
   mongo:
     image: mongo:7.0
+    restart: unless-stopped
     volumes:
       - mongo_data:/data/db
     healthcheck:

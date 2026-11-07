@@ -10,6 +10,7 @@ import httpx
 import streamlit as st
 from dotenv import load_dotenv
 
+from agent_context.client import EventProcessingStopped
 from agent_context.continuity import WorkspaceTurn
 from agent_context.contracts import EventKind, Permission
 from agent_context.demo import ResearchAssistant
@@ -22,6 +23,11 @@ from agent_context.search import (
     SearchResponse,
     SearchResult,
     SearchSettings,
+)
+from context_graph.errors import (
+    ExtractionValidationError,
+    ProviderError,
+    TransientError,
 )
 from ui import workspace as service
 from ui.context_engine_view import (
@@ -42,17 +48,30 @@ st.set_page_config(
 )
 apply_style()
 
-if st.session_state.pop("ace_reset_scope_widgets", False):
-    for scope_key in (
-        "ace_conversation_title",
-        "ace_search_query",
-        "ace_use_web",
-        "ace_route_project",
-        "ace_route_rephrase",
-        "ace_new_project_name",
-    ):
-        st.session_state.pop(scope_key, None)
-    st.session_state.ace_source_mode = "Project memory"
+ROUTING_WIDGET_KEYS = (
+    "ace_route_project",
+    "ace_route_rephrase",
+    "ace_new_project_name",
+)
+SCOPE_WIDGET_KEYS = (
+    "ace_conversation_title",
+    "ace_search_query",
+    "ace_use_web",
+    *ROUTING_WIDGET_KEYS,
+)
+
+
+def reset_pending_widgets() -> None:
+    """Apply deferred resets only before any affected widget is constructed."""
+    scope = st.session_state.pop("ace_reset_scope_widgets", False)
+    routing = st.session_state.pop("ace_reset_route_widgets", False)
+    for key in SCOPE_WIDGET_KEYS if scope else ROUTING_WIDGET_KEYS if routing else ():
+        st.session_state.pop(key, None)
+    if scope:
+        st.session_state.ace_source_mode = "Project memory"
+
+
+reset_pending_widgets()
 
 
 def clear_view() -> None:
@@ -60,22 +79,18 @@ def clear_view() -> None:
         "ace_workspace",
         "ace_pending",
         "ace_process_pending",
-        "ace_conversation_title",
         "ace_evidence",
         "ace_live_turns",
         "ace_needs_refresh",
         "ace_notice",
         "ace_web_results",
-        "ace_search_query",
-        "ace_use_web",
         "ace_route_question",
         "ace_route_candidates",
-        "ace_route_project",
-        "ace_route_rephrase",
-        "ace_new_project_name",
     ):
         st.session_state.pop(key, None)
-    st.session_state.ace_source_mode = "Project memory"
+    # Navigation can run from a callback or below already-created source
+    # controls. Reset widget-owned keys at the next safe render boundary.
+    st.session_state.ace_reset_scope_widgets = True
 
 
 def navigate(project_id: str, session_id: str | None = None) -> None:
@@ -112,9 +127,23 @@ def save_snapshot(value: WorkspaceSnapshot) -> None:
 
 
 def friendly_error(error: Exception) -> str:
+    if isinstance(error, EventProcessingStopped):
+        return "Your message was recorded, but background memory processing stopped after repeated failures. Chat retry cannot restart it. Open another conversation or ask the operator to review and replay the failed work."
+    if isinstance(error, (httpx.TimeoutException, TimeoutError)):
+        return "The request timed out. Recorded work may still be processing. Check that the API and worker are healthy, then retry the same saved request."
+    if isinstance(error, httpx.TransportError):
+        return "Cannot reach the workspace service. Check that the API, worker and databases are running, then retry the saved request."
+    if isinstance(error, ExtractionValidationError):
+        return "The model response could not be validated. Your recorded message is retained. Retry the saved request; repeated failures need a model or configuration check."
+    if isinstance(error, (ProviderError, TransientError)):
+        return "The model service could not complete this request. Check model availability, credentials and rate limits, then retry the saved request."
     if isinstance(error, EventConflict):
         return "The project plan changed after this request was recorded. Open another conversation and restate the request using the current plan."
     if isinstance(error, httpx.HTTPStatusError):
+        if error.response.status_code == 429:
+            return "The workspace service reached a rate limit. Wait before retrying the same saved request."
+        if error.response.status_code >= 500:
+            return "The workspace service could not complete this request. Check API, worker and database health; recorded work is retained. Retry after the service recovers."
         if error.response.status_code == 404:
             return "The workspace API needs updating, or this record is no longer available. Restart the updated app with ./run.sh --skip-demo."
         if error.response.status_code in (401, 403):
@@ -321,6 +350,10 @@ except Exception as error:  # noqa: BLE001 — UI boundary must not expose provi
         st.rerun()
     st.chat_input("Connect your workspace to start…", disabled=True)
     st.stop()
+
+# Query-parameter navigation can invalidate a cache during load_snapshot(),
+# after the initial reset boundary but still before any workspace widgets.
+reset_pending_widgets()
 
 with st.sidebar:
     brand()
@@ -732,11 +765,9 @@ if pending:
             "ace_process_pending",
             "ace_route_question",
             "ace_route_candidates",
-            "ace_route_project",
-            "ace_route_rephrase",
-            "ace_new_project_name",
         ):
             st.session_state.pop(key, None)
+        st.session_state.ace_reset_route_widgets = True
         st.rerun()
     if st.button("Open another conversation", key="leave-pending"):
         new_conversation(snapshot.project_id)

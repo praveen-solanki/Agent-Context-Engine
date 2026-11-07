@@ -670,6 +670,14 @@ Do not claim measured token reduction, task-success gain, p95 latency, multi-ten
 
 ### Progress ledger (the next agent should maintain this)
 
+2026-11-07 screenshot follow-up: failed-request navigation's widget mutation is
+fixed through a shared deferred reset boundary; source/history/retry behavior is
+preserved. Known failure diagnostics and dependency restart policy are improved.
+Routing guard behavior was verified and preserved. Three isolated real-model
+scenario types passed across bounded runs; original external failures remain
+unattributed. See [verification and limitations](docs/ace/reported-recovery.md).
+
+
 2026-11-06 research-informed pipeline integrity audit: **CONFIRMED DONE within
 289 distinct scoped checks, including 100 new adversarial cases**; changed-code
 strict types are clean. Reused existing architecture and corrected demonstrated
